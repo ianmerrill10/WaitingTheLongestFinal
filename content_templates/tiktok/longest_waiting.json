@@ -1,0 +1,45 @@
+{
+  "name": "longest_waiting",
+  "category": "tiktok",
+  "type": "LONGEST_WAITING",
+  "description": "TikTok template for dogs who have been waiting the longest for adoption",
+  "version": 1,
+  "is_active": true,
+  "is_default": true,
+  "caption": "{{dog_name}} has been waiting {{wait_time_human}} for someone to choose {{dog_pronoun_object}}.\n\n{{wait_time_formatted}} - That's how long {{dog_name}} has watched other dogs find families while {{dog_pronoun}} waits.\n\nEvery day, {{dog_pronoun}} hopes today is the day. Every night, {{dog_pronoun}} sleeps alone wondering why no one picked {{dog_pronoun_object}}.\n\n{{#if dog_description}}{{truncate dog_description 250}}{{else}}{{dog_name}} is a wonderful {{dog_breed}} with so much love to give.{{/if}}\n\nBreed: {{dog_breed_full}}\nAge: {{dog_age}}\nSize: {{formatSize dog_size}}\nGender: {{capitalize dog_gender}}\n\n{{shelter_name}}\n{{shelter_location}}\n{{#if shelter_website}}{{shelter_website}}{{/if}}\n\nBe the one who finally says yes.\n\n{{hashtags_formatted}}",
+  "hashtags": [
+    "LongestWaiting",
+    "AdoptDontShop",
+    "ShelterDogs",
+    "ForeverHome",
+    "RescueDog",
+    "AdoptAShelterDog",
+    "DogsOfTikTok",
+    "WaitingForLove"
+  ],
+  "overlay_style": "wait_time_counter",
+  "character_limit": 2200,
+  "use_for_urgency": ["normal", "medium", "high"],
+  "use_for_platforms": ["tiktok", "instagram_reels"],
+  "variables": {
+    "dog_name": "Required - Dog's name",
+    "wait_time_human": "Required - Human-readable wait time",
+    "wait_time_formatted": "Required - YY:MM:DD:HH:MM:SS format",
+    "dog_breed": "Required - Primary breed",
+    "dog_breed_full": "Optional - Full breed description",
+    "dog_age": "Required - Human-readable age",
+    "dog_size": "Required - Size category",
+    "dog_gender": "Required - male/female",
+    "dog_description": "Optional - Dog's description",
+    "shelter_name": "Required - Shelter name",
+    "shelter_location": "Required - City, State",
+    "shelter_website": "Optional - Shelter website"
+  },
+  "config": {
+    "music_suggestion": "hopeful_acoustic",
+    "text_overlay": true,
+    "wait_time_display": true,
+    "wait_time_position": "bottom_left",
+    "wait_time_color": "#00FF00"
+  }
+}

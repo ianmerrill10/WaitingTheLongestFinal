@@ -1,0 +1,490 @@
+<!--
+  Admin Dashboard Stats Cards Partial
+  WaitingTheLongest.com Admin Dashboard
+  Author: Agent 20
+
+  Reusable statistics cards for dashboard overview
+-->
+
+<!-- Stats Cards Container -->
+<div class="stats-cards" id="stats-cards">
+    <!-- Total Dogs Card -->
+    <div class="stat-card" data-stat="dogs">
+        <div class="stat-card-header">
+            <div class="stat-icon dogs">
+                <i class="ri-heart-pulse-line"></i>
+            </div>
+            <div class="stat-trend" id="dogs-trend">
+                <i class="ri-arrow-up-line"></i>
+                <span>+12%</span>
+            </div>
+        </div>
+        <div class="stat-card-body">
+            <h3 class="stat-value" id="stat-total-dogs">0</h3>
+            <p class="stat-label">Total Dogs</p>
+        </div>
+        <div class="stat-card-footer">
+            <span class="stat-detail" id="stat-urgent-dogs">0 urgent</span>
+            <a href="#" onclick="AdminNav.navigate('dogs'); return false;" class="stat-link">View all <i class="ri-arrow-right-s-line"></i></a>
+        </div>
+    </div>
+
+    <!-- Urgent Cases Card -->
+    <div class="stat-card urgent" data-stat="urgent">
+        <div class="stat-card-header">
+            <div class="stat-icon urgent">
+                <i class="ri-alarm-warning-line"></i>
+            </div>
+            <div class="stat-trend danger" id="urgent-trend">
+                <i class="ri-arrow-up-line"></i>
+                <span>+5</span>
+            </div>
+        </div>
+        <div class="stat-card-body">
+            <h3 class="stat-value" id="stat-urgent-count">0</h3>
+            <p class="stat-label">Urgent Cases</p>
+        </div>
+        <div class="stat-card-footer">
+            <span class="stat-detail critical" id="stat-critical-count">0 critical</span>
+            <a href="#" onclick="AdminNav.navigate('dogs'); DogsManager.filters.urgency = 'critical'; DogsManager.loadDogs(); return false;" class="stat-link">Review now <i class="ri-arrow-right-s-line"></i></a>
+        </div>
+    </div>
+
+    <!-- Shelters Card -->
+    <div class="stat-card" data-stat="shelters">
+        <div class="stat-card-header">
+            <div class="stat-icon shelters">
+                <i class="ri-building-4-line"></i>
+            </div>
+            <div class="stat-trend" id="shelters-trend">
+                <i class="ri-arrow-up-line"></i>
+                <span>+3</span>
+            </div>
+        </div>
+        <div class="stat-card-body">
+            <h3 class="stat-value" id="stat-total-shelters">0</h3>
+            <p class="stat-label">Shelters</p>
+        </div>
+        <div class="stat-card-footer">
+            <span class="stat-detail" id="stat-verified-shelters">0 verified</span>
+            <a href="#" onclick="AdminNav.navigate('shelters'); return false;" class="stat-link">Manage <i class="ri-arrow-right-s-line"></i></a>
+        </div>
+    </div>
+
+    <!-- Users Card -->
+    <div class="stat-card" data-stat="users">
+        <div class="stat-card-header">
+            <div class="stat-icon users">
+                <i class="ri-user-3-line"></i>
+            </div>
+            <div class="stat-trend" id="users-trend">
+                <i class="ri-arrow-up-line"></i>
+                <span>+8%</span>
+            </div>
+        </div>
+        <div class="stat-card-body">
+            <h3 class="stat-value" id="stat-total-users">0</h3>
+            <p class="stat-label">Registered Users</p>
+        </div>
+        <div class="stat-card-footer">
+            <span class="stat-detail" id="stat-active-users">0 active today</span>
+            <a href="#" onclick="AdminNav.navigate('users'); return false;" class="stat-link">Manage <i class="ri-arrow-right-s-line"></i></a>
+        </div>
+    </div>
+
+    <!-- Foster Homes Card -->
+    <div class="stat-card" data-stat="fosters">
+        <div class="stat-card-header">
+            <div class="stat-icon fosters">
+                <i class="ri-home-heart-line"></i>
+            </div>
+            <div class="stat-trend" id="fosters-trend">
+                <i class="ri-arrow-up-line"></i>
+                <span>+15%</span>
+            </div>
+        </div>
+        <div class="stat-card-body">
+            <h3 class="stat-value" id="stat-foster-homes">0</h3>
+            <p class="stat-label">Foster Homes</p>
+        </div>
+        <div class="stat-card-footer">
+            <span class="stat-detail" id="stat-active-placements">0 active placements</span>
+            <a href="#" onclick="AdminNav.navigate('fosters'); return false;" class="stat-link">View all <i class="ri-arrow-right-s-line"></i></a>
+        </div>
+    </div>
+
+    <!-- Adoptions Card -->
+    <div class="stat-card success" data-stat="adoptions">
+        <div class="stat-card-header">
+            <div class="stat-icon success">
+                <i class="ri-heart-3-line"></i>
+            </div>
+            <div class="stat-trend success" id="adoptions-trend">
+                <i class="ri-arrow-up-line"></i>
+                <span>+23%</span>
+            </div>
+        </div>
+        <div class="stat-card-body">
+            <h3 class="stat-value" id="stat-adoptions-month">0</h3>
+            <p class="stat-label">Adoptions This Month</p>
+        </div>
+        <div class="stat-card-footer">
+            <span class="stat-detail success" id="stat-lives-saved">0 lives saved</span>
+            <a href="#" onclick="AdminNav.navigate('analytics'); return false;" class="stat-link">View stats <i class="ri-arrow-right-s-line"></i></a>
+        </div>
+    </div>
+</div>
+
+<!-- Extended Stats Row (Optional) -->
+<div class="stats-row extended" id="extended-stats" style="display: none;">
+    <!-- Content Moderation -->
+    <div class="stat-card-small" data-stat="content">
+        <div class="stat-icon-small content">
+            <i class="ri-file-list-3-line"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value-small" id="stat-pending-content">0</span>
+            <span class="stat-label-small">Pending Review</span>
+        </div>
+    </div>
+
+    <!-- Wait Time -->
+    <div class="stat-card-small" data-stat="waittime">
+        <div class="stat-icon-small time">
+            <i class="ri-time-line"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value-small" id="stat-avg-wait-time">0d</span>
+            <span class="stat-label-small">Avg Wait Time</span>
+        </div>
+    </div>
+
+    <!-- Website Visits -->
+    <div class="stat-card-small" data-stat="visits">
+        <div class="stat-icon-small visits">
+            <i class="ri-eye-line"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value-small" id="stat-daily-visits">0</span>
+            <span class="stat-label-small">Daily Visits</span>
+        </div>
+    </div>
+
+    <!-- API Requests -->
+    <div class="stat-card-small" data-stat="api">
+        <div class="stat-icon-small api">
+            <i class="ri-code-line"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value-small" id="stat-api-requests">0</span>
+            <span class="stat-label-small">API Requests/hr</span>
+        </div>
+    </div>
+</div>
+
+<script>
+// Stats cards animation and interaction
+(function() {
+    // Animate stats on load
+    function animateStats() {
+        const statValues = document.querySelectorAll('.stat-value, .stat-value-small');
+        statValues.forEach(el => {
+            const finalValue = parseInt(el.textContent.replace(/,/g, '')) || 0;
+            animateNumber(el, 0, finalValue, 1000);
+        });
+    }
+
+    function animateNumber(element, start, end, duration) {
+        const range = end - start;
+        const startTime = performance.now();
+
+        function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+            const current = Math.floor(start + (range * easeProgress));
+
+            element.textContent = current.toLocaleString();
+
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            }
+        }
+
+        requestAnimationFrame(update);
+    }
+
+    // Toggle extended stats
+    window.toggleExtendedStats = function() {
+        const extended = document.getElementById('extended-stats');
+        if (extended) {
+            extended.style.display = extended.style.display === 'none' ? 'flex' : 'none';
+        }
+    };
+
+    // Stat card click handlers
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('.stat-link')) return;
+
+            const stat = this.dataset.stat;
+            if (stat) {
+                switch (stat) {
+                    case 'dogs':
+                        AdminNav.navigate('dogs');
+                        break;
+                    case 'urgent':
+                        AdminNav.navigate('dogs');
+                        setTimeout(() => {
+                            DogsManager.filters.urgency = 'critical';
+                            DogsManager.loadDogs();
+                        }, 100);
+                        break;
+                    case 'shelters':
+                        AdminNav.navigate('shelters');
+                        break;
+                    case 'users':
+                        AdminNav.navigate('users');
+                        break;
+                    case 'fosters':
+                        AdminNav.navigate('fosters');
+                        break;
+                    case 'adoptions':
+                        AdminNav.navigate('analytics');
+                        break;
+                }
+            }
+        });
+    });
+
+    // Update stats periodically
+    function updateStatsTrends() {
+        // This would fetch real trend data from the API
+        // For now, using placeholder functionality
+    }
+
+    // Initialize animations when visible
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateStats();
+                observer.disconnect();
+            }
+        });
+    });
+
+    const statsCards = document.getElementById('stats-cards');
+    if (statsCards) {
+        observer.observe(statsCards);
+    }
+})();
+</script>
+
+<style>
+/* Stats Cards Styles (inline for partial) */
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--color-card-bg, #fff);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card.urgent {
+    border-left: 4px solid var(--color-danger, #dc2626);
+}
+
+.stat-card.success {
+    border-left: 4px solid var(--color-success, #16a34a);
+}
+
+.stat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-icon.dogs { background: #ede9fe; color: #7c3aed; }
+.stat-icon.urgent { background: #fee2e2; color: #dc2626; }
+.stat-icon.shelters { background: #dbeafe; color: #2563eb; }
+.stat-icon.users { background: #d1fae5; color: #059669; }
+.stat-icon.fosters { background: #fef3c7; color: #d97706; }
+.stat-icon.success { background: #d1fae5; color: #16a34a; }
+
+.stat-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #16a34a;
+    background: #d1fae5;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+}
+
+.stat-trend.danger {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+.stat-trend.success {
+    color: #16a34a;
+    background: #d1fae5;
+}
+
+.stat-card-body {
+    margin-bottom: 1rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-text, #1f2937);
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--color-text-light, #6b7280);
+    margin-top: 0.25rem;
+}
+
+.stat-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+.stat-detail {
+    font-size: 0.75rem;
+    color: var(--color-text-light, #6b7280);
+}
+
+.stat-detail.critical {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.stat-detail.success {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.stat-link {
+    font-size: 0.75rem;
+    color: var(--color-primary, #4f46e5);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.stat-link:hover {
+    text-decoration: underline;
+}
+
+/* Extended stats row */
+.stats-row.extended {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.stat-card-small {
+    background: var(--color-card-bg, #fff);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    flex: 1;
+    min-width: 150px;
+}
+
+.stat-icon-small {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.stat-icon-small.content { background: #fef3c7; color: #d97706; }
+.stat-icon-small.time { background: #dbeafe; color: #2563eb; }
+.stat-icon-small.visits { background: #ede9fe; color: #7c3aed; }
+.stat-icon-small.api { background: #d1fae5; color: #059669; }
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value-small {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text, #1f2937);
+}
+
+.stat-label-small {
+    font-size: 0.7rem;
+    color: var(--color-text-light, #6b7280);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .stats-row.extended {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-row.extended {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

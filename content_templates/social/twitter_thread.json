@@ -1,0 +1,50 @@
+{
+  "name": "twitter_thread",
+  "category": "social",
+  "type": "TWITTER_THREAD",
+  "description": "Twitter/X thread template for adoptable dogs (multiple tweets)",
+  "version": 1,
+  "is_active": true,
+  "is_default": true,
+  "content": {
+    "tweet_1": "{{#if urgency_is_critical}}URGENT: {{dog_name}} has {{countdown_human}}{{else}}Meet {{dog_name}}{{/if}} - a {{dog_breed}} waiting {{wait_time_human}} for a home in {{shelter_state}}\n\n{{truncate dog_description 100}}\n\nThread",
+    "tweet_2": "About {{dog_name}}:\n\nBreed: {{dog_breed_full}}\nAge: {{dog_age}}\nSize: {{formatSize dog_size}}\nGender: {{capitalize dog_gender}}\n\nWaiting since: {{formatDate intake_date \"%B %Y\"}}",
+    "tweet_3": "{{#if dog_tags}}What makes {{dog_name}} special:\n\n{{#each dog_tags}}- {{.}}\n{{/each}}{{else}}{{dog_name}} is ready to be your best friend. {{dog_pronoun_possessive}} perfect family is out there.{{/if}}",
+    "tweet_4": "Where to find {{dog_name}}:\n\n{{shelter_name}}\n{{shelter_location}}\n{{#if shelter_phone}}{{shelter_phone}}{{/if}}\n{{#if shelter_website}}{{shelter_website}}{{/if}}",
+    "tweet_5": "Please RT to help {{dog_name}} find a home.\n\nEvery share counts. Someone out there is looking for exactly {{dog_pronoun_object}}.\n\n#AdoptDontShop #{{shelter_state}}Dogs #ShelterDogs"
+  },
+  "caption": "{{#if urgency_is_critical}}URGENT: {{dog_name}} has {{countdown_human}}{{else}}Meet {{dog_name}}{{/if}} - a {{dog_breed}} waiting {{wait_time_human}} for a home\n\n#AdoptDontShop #{{shelter_state}}Dogs",
+  "hashtags": [
+    "AdoptDontShop",
+    "ShelterDogs",
+    "RescueDog"
+  ],
+  "character_limit": 280,
+  "use_for_urgency": ["normal", "medium", "high", "critical"],
+  "use_for_platforms": ["twitter", "x"],
+  "variables": {
+    "dog_name": "Required",
+    "dog_breed": "Required",
+    "dog_breed_full": "Required",
+    "dog_age": "Required",
+    "dog_size": "Required",
+    "dog_gender": "Required",
+    "dog_description": "Optional",
+    "dog_tags": "Optional",
+    "intake_date": "Required",
+    "shelter_name": "Required",
+    "shelter_location": "Required",
+    "shelter_state": "Required",
+    "shelter_phone": "Optional",
+    "shelter_website": "Optional",
+    "wait_time_human": "Required",
+    "urgency_is_critical": "Boolean",
+    "countdown_human": "Optional"
+  },
+  "config": {
+    "thread_length": 5,
+    "image_on_first_tweet": true,
+    "poll_option": false,
+    "quote_tweet_friendly": true
+  }
+}

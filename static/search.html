@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🐾</text></svg>">
+    <title>Search Results - WaitingTheLongest.com</title>
+    <meta name="description" content="Search for adoptable dogs by breed, age, size, and location on WaitingTheLongest.com">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Search Dogs - WaitingTheLongest">
+    <meta property="og:description" content="Search for adoptable dogs by breed, age, size, and location.">
+    <meta property="og:url" content="https://waitingthelongest.com/search.html">
+    <meta property="og:image" content="https://waitingthelongest.com/og-image.jpg">
+    <meta property="og:site_name" content="WaitingTheLongest">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Search Dogs - WaitingTheLongest">
+    <meta name="twitter:description" content="Search for adoptable dogs by breed, age, size, and location.">
+    <meta name="twitter:image" content="https://waitingthelongest.com/og-image.jpg">
+
+    <link rel="canonical" href="https://waitingthelongest.com/search.html">
+    <meta name="theme-color" content="#00ff41">
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS References -->
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/led-counter.css">
+
+    <style>
+        :root {
+            --color-primary: #FF6B6B;
+            --color-secondary: #4ECDC4;
+            --color-dark: #1a1a1a;
+            --color-light: #f5f5f5;
+            --color-border: #e0e0e0;
+            --color-text: #333;
+            --color-text-light: #666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--color-text);
+            background-color: #fff;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--color-dark);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-icon {
+            font-size: 1.8rem;
+        }
+
+        .logo-highlight {
+            color: var(--color-primary);
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        nav a:hover {
+            color: var(--color-primary);
+        }
+
+        nav a.active {
+            color: var(--color-primary);
+        }
+
+        nav a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--color-primary);
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 0.35rem;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(10px, 10px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        /* Mobile Menu */
+        .mobile-menu {
+            display: none;
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background-color: var(--color-dark);
+            flex-direction: column;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        .mobile-menu.active {
+            display: flex;
+        }
+
+        .mobile-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Section Backgrounds */
+        .section-default {
+            background-color: #fff;
+        }
+
+        .section-alt {
+            background-color: var(--color-light);
+        }
+
+        /* Search Section */
+        .search-section {
+            padding: 3rem 1.5rem;
+        }
+
+        .search-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .search-box-wrapper {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--color-border);
+            background-color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .filter-chip:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        .filter-chip.active {
+            background-color: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+
+        /* Results Section */
+        .results-section {
+            padding: 3rem 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .results-header {
+            margin-bottom: 2rem;
+        }
+
+        .results-count {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 1rem;
+        }
+
+        .results-count-query {
+            color: var(--color-primary);
+            font-weight: 700;
+        }
+
+        /* Dog Results Grid */
+        .dog-results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .dog-card {
+            background-color: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dog-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+
+        .dog-card-image {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            overflow: hidden;
+        }
+
+        .dog-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .dog-card-content {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dog-card-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--color-text);
+        }
+
+        .dog-card-breed {
+            font-size: 0.9rem;
+            color: var(--color-text-light);
+            margin-bottom: 0.75rem;
+        }
+
+        .dog-card-location {
+            font-size: 0.85rem;
+            color: var(--color-text-light);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .dog-card-counter {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .counter-label {
+            font-size: 0.8rem;
+            color: var(--color-text-light);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        /* Shelter Results */
+        .shelter-results {
+            margin-bottom: 3rem;
+        }
+
+        .shelter-results-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        .shelter-list {
+            list-style: none;
+        }
+
+        .shelter-item {
+            padding: 1.25rem;
+            background-color: white;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shelter-item:hover {
+            background-color: var(--color-light);
+            border-color: var(--color-primary);
+        }
+
+        .shelter-info {
+            flex: 1;
+        }
+
+        .shelter-name {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 0.35rem;
+        }
+
+        .shelter-location {
+            font-size: 0.9rem;
+            color: var(--color-text-light);
+            margin-bottom: 0.35rem;
+        }
+
+        .shelter-dog-count {
+            font-size: 0.85rem;
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .shelter-link {
+            padding: 0.65rem 1.25rem;
+            background-color: var(--color-primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+
+        .shelter-link:hover {
+            background-color: #ff5252;
+        }
+
+        /* State Results */
+        .state-results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .state-card {
+            background-color: white;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .state-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .state-card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .state-card-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .state-card-count {
+            font-size: 0.9rem;
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .state-card a {
+            display: block;
+            margin-top: 1rem;
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .state-card a:hover {
+            color: #ff5252;
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 4rem 1.5rem;
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .empty-state-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 0.75rem;
+        }
+
+        .empty-state-text {
+            font-size: 1rem;
+            color: var(--color-text-light);
+            margin-bottom: 2rem;
+        }
+
+        .empty-state-button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--color-primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .empty-state-button:hover {
+            background-color: #ff5252;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 3rem 0;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+            padding: 0.5rem 0.85rem;
+            border: 1px solid var(--color-border);
+            background-color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        .pagination-btn.active {
+            background-color: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        .skeleton-card {
+            background-color: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .skeleton-image {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        .skeleton-content {
+            padding: 1.5rem;
+        }
+
+        .skeleton-title {
+            height: 1.25rem;
+            margin-bottom: 0.75rem;
+            border-radius: 4px;
+            animation: loading 1.5s infinite;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+        }
+
+        .skeleton-text {
+            height: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            animation: loading 1.5s infinite;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--color-dark);
+            color: white;
+            padding: 3rem 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-section h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--color-primary);
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-section a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-section a:hover {
+            color: var(--color-primary);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 2rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                display: none;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .dog-results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .state-results-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .shelter-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .shelter-link {
+                margin-top: 1rem;
+                width: 100%;
+                text-align: center;
+            }
+
+            .search-box {
+                font-size: 1rem;
+            }
+
+            .filter-chips {
+                gap: 0.5rem;
+            }
+
+            .filter-chip {
+                font-size: 0.85rem;
+                padding: 0.4rem 0.85rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .state-results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .results-count {
+                font-size: 1.1rem;
+            }
+
+            .logo {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:9999;padding:8px;background:#00ff41;color:#1a1a1a;font-weight:bold;text-decoration:none;&:focus{position:fixed;left:0;top:0;width:auto;height:auto;}">Skip to main content</a>
+    <noscript><div style="background:#ff4444;color:white;padding:16px;text-align:center;font-family:sans-serif;">This site requires JavaScript to function. Please enable JavaScript in your browser settings.</div></noscript>
+
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <a href="/" class="logo">
+                <span class="logo-icon">🐾</span>
+                <span>Waiting<span class="logo-highlight">The</span>Longest</span>
+            </a>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/dogs">Browse Dogs</a>
+                <a href="/states">States</a>
+                <a href="/search" class="active">Search</a>
+                <a href="/overlooked-angels">Overlooked Angels</a>
+                <a href="/quiz">Take the Quiz</a>
+                <a href="/login">Login</a>
+            </nav>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        <div class="mobile-menu" id="mobile-menu">
+            <a href="/">Home</a>
+            <a href="/dogs">Browse Dogs</a>
+            <a href="/states">States</a>
+            <a href="/search" class="active">Search</a>
+            <a href="/overlooked-angels">Overlooked Angels</a>
+            <a href="/quiz">Take the Quiz</a>
+            <a href="/login">Login</a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content">
+
+    <!-- Search Section -->
+    <section class="section-alt search-section">
+        <div class="search-container">
+            <form id="search-form" class="search-box-wrapper">
+                <input
+                    type="text"
+                    id="search-input"
+                    class="search-box"
+                    placeholder="Search for dogs, shelters, or states..."
+                    autocomplete="off"
+                >
+            </form>
+            <div class="filter-chips">
+                <button class="filter-chip active" data-filter="all">All</button>
+                <button class="filter-chip" data-filter="dogs">Dogs</button>
+                <button class="filter-chip" data-filter="shelters">Shelters</button>
+                <button class="filter-chip" data-filter="states">States</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="section-default results-section">
+        <div class="results-header">
+            <div class="results-count">
+                <span id="results-status">Loading results...</span>
+            </div>
+        </div>
+
+        <!-- Loading Skeleton -->
+        <div id="loading-skeleton" style="display: none;">
+            <div class="dog-results-grid">
+                <div class="skeleton-card">
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-content">
+                        <div class="skeleton-title" style="width: 70%;"></div>
+                        <div class="skeleton-text" style="width: 100%;"></div>
+                        <div class="skeleton-text" style="width: 80%;"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-content">
+                        <div class="skeleton-title" style="width: 70%;"></div>
+                        <div class="skeleton-text" style="width: 100%;"></div>
+                        <div class="skeleton-text" style="width: 80%;"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-content">
+                        <div class="skeleton-title" style="width: 70%;"></div>
+                        <div class="skeleton-text" style="width: 100%;"></div>
+                        <div class="skeleton-text" style="width: 80%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Container -->
+        <div id="results-container"></div>
+
+        <!-- Empty State -->
+        <div id="empty-state" style="display: none;">
+            <div class="empty-state">
+                <div class="empty-state-icon">🔍</div>
+                <h2 class="empty-state-title">No results found</h2>
+                <p class="empty-state-text" id="empty-state-text"></p>
+                <a href="/" class="empty-state-button">Back to Home</a>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="pagination"></div>
+    </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h3>About</h3>
+                    <ul>
+                        <li><a href="/about">About Us</a></li>
+                        <li><a href="/mission">Our Mission</a></li>
+                        <li><a href="/team">Team</a></li>
+                        <li><a href="/blog">Blog</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Resources</h3>
+                    <ul>
+                        <li><a href="/dogs">Browse Dogs</a></li>
+                        <li><a href="/states">Find by State</a></li>
+                        <li><a href="/quiz">Take the Quiz</a></li>
+                        <li><a href="/shelters">Shelters</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Legal</h3>
+                    <ul>
+                        <li><a href="/privacy">Privacy Policy</a></li>
+                        <li><a href="/terms">Terms of Service</a></li>
+                        <li><a href="/contact">Contact Us</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Connect</h3>
+                    <ul>
+                        <li><a href="#">Facebook</a></li>
+                        <li><a href="#">Instagram</a></li>
+                        <li><a href="#">Twitter</a></li>
+                        <li><a href="#">Newsletter</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 WaitingTheLongest.com. All rights reserved. Helping dogs find their forever homes.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript References -->
+    <script src="/js/led-counter.js"></script>
+    <script src="/js/websocket-client.js"></script>
+
+    <script>
+        // Configuration
+        const API_BASE = '/api';
+        const RESULTS_PER_PAGE = 12;
+
+        // State
+        let currentQuery = '';
+        let currentFilter = 'all';
+        let currentPage = 1;
+        let totalResults = 0;
+        let totalPages = 1;
+
+        // DOM Elements
+        const searchForm = document.getElementById('search-form');
+        const searchInput = document.getElementById('search-input');
+        const filterChips = document.querySelectorAll('.filter-chip');
+        const resultsContainer = document.getElementById('results-container');
+        const resultsStatus = document.getElementById('results-status');
+        const loadingSkeleton = document.getElementById('loading-skeleton');
+        const emptyState = document.getElementById('empty-state');
+        const emptyStateText = document.getElementById('empty-state-text');
+        const paginationContainer = document.getElementById('pagination');
+        const hamburger = document.getElementById('hamburger');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        // Initialize
+        function init() {
+            // Get query from URL
+            const params = new URLSearchParams(window.location.search);
+            currentQuery = params.get('q') || '';
+            const pageParam = params.get('page');
+            currentPage = pageParam ? parseInt(pageParam) : 1;
+
+            // Set search input value
+            searchInput.value = currentQuery;
+
+            // Handle mobile menu
+            hamburger.addEventListener('click', () => {
+                hamburger.classList.toggle('active');
+                mobileMenu.classList.toggle('active');
+            });
+
+            // Close mobile menu when clicking a link
+            mobileMenu.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    hamburger.classList.remove('active');
+                    mobileMenu.classList.remove('active');
+                });
+            });
+
+            // Handle search form submission
+            searchForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const query = searchInput.value.trim();
+                if (query) {
+                    currentPage = 1;
+                    currentQuery = query;
+                    window.history.pushState(null, '', `/search?q=${encodeURIComponent(query)}`);
+                    performSearch();
+                }
+            });
+
+            // Handle filter chips
+            filterChips.forEach(chip => {
+                chip.addEventListener('click', () => {
+                    filterChips.forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    currentFilter = chip.dataset.filter;
+                    currentPage = 1;
+                    performSearch();
+                });
+            });
+
+            // Perform initial search if query exists
+            if (currentQuery) {
+                performSearch();
+            } else {
+                showEmptyState('Try searching for a dog breed, shelter name, or state!');
+            }
+        }
+
+        // Perform search
+        async function performSearch() {
+            if (!currentQuery) {
+                showEmptyState('Enter a search term to get started.');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/search?q=${encodeURIComponent(currentQuery)}&type=${currentFilter}&page=${currentPage}&limit=${RESULTS_PER_PAGE}`
+                );
+
+                if (!response.ok) {
+                    throw new Error('Search failed');
+                }
+
+                const data = await response.json();
+                renderResults(data);
+            } catch (error) {
+                console.error('Search error:', error);
+                showEmptyState('An error occurred while searching. Please try again.');
+            }
+        }
+
+        // Render results
+        function renderResults(data) {
+            resultsContainer.innerHTML = '';
+            hideLoading();
+
+            const { results, total, page, totalPages: pages } = data;
+
+            if (results.length === 0) {
+                showEmptyState(`No results found for "${currentQuery}". Try a different search term.`);
+                return;
+            }
+
+            totalResults = total;
+            totalPages = pages;
+
+            // Update results count
+            resultsStatus.innerHTML = `<span>${total} result${total !== 1 ? 's' : ''} for <span class="results-count-query">"${currentQuery}"</span></span>`;
+
+            // Separate results by type
+            const dogResults = results.filter(r => r.type === 'dog');
+            const shelterResults = results.filter(r => r.type === 'shelter');
+            const stateResults = results.filter(r => r.type === 'state');
+
+            // Render dog results
+            if (dogResults.length > 0) {
+                const dogSection = document.createElement('div');
+                dogSection.className = 'dog-results-section';
+                if (currentFilter === 'all' || currentFilter === 'dogs') {
+                    const grid = document.createElement('div');
+                    grid.className = 'dog-results-grid';
+
+                    dogResults.forEach(dog => {
+                        grid.appendChild(createDogCard(dog));
+                    });
+
+                    dogSection.appendChild(grid);
+                    resultsContainer.appendChild(dogSection);
+
+                    // Initialize LED counters
+                    initializeLEDCounters();
+                }
+            }
+
+            // Render shelter results
+            if (shelterResults.length > 0 && (currentFilter === 'all' || currentFilter === 'shelters')) {
+                const shelterSection = document.createElement('div');
+                shelterSection.className = 'shelter-results';
+
+                const title = document.createElement('h2');
+                title.className = 'shelter-results-title';
+                title.textContent = 'Shelters';
+                shelterSection.appendChild(title);
+
+                const list = document.createElement('ul');
+                list.className = 'shelter-list';
+
+                shelterResults.forEach(shelter => {
+                    list.appendChild(createShelterItem(shelter));
+                });
+
+                shelterSection.appendChild(list);
+                resultsContainer.appendChild(shelterSection);
+            }
+
+            // Render state results
+            if (stateResults.length > 0 && (currentFilter === 'all' || currentFilter === 'states')) {
+                const stateSection = document.createElement('div');
+                stateSection.innerHTML = '<h2 class="shelter-results-title">States</h2>';
+
+                const grid = document.createElement('div');
+                grid.className = 'state-results-grid';
+
+                stateResults.forEach(state => {
+                    grid.appendChild(createStateCard(state));
+                });
+
+                stateSection.appendChild(grid);
+                resultsContainer.appendChild(stateSection);
+            }
+
+            // Render pagination
+            renderPagination();
+        }
+
+        // Create dog card
+        function createDogCard(dog) {
+            const card = document.createElement('div');
+            card.className = 'dog-card';
+            card.onclick = () => window.location.href = `/dogs/${dog.id}`;
+
+            const imageDiv = document.createElement('div');
+            imageDiv.className = 'dog-card-image';
+            if (dog.image) {
+                const img = document.createElement('img');
+                img.src = dog.image;
+                img.alt = dog.name;
+                img.loading = 'lazy';
+                imageDiv.appendChild(img);
+            } else {
+                imageDiv.textContent = '🐕';
+            }
+
+            const content = document.createElement('div');
+            content.className = 'dog-card-content';
+
+            const name = document.createElement('div');
+            name.className = 'dog-card-name';
+            name.textContent = dog.name;
+
+            const breed = document.createElement('div');
+            breed.className = 'dog-card-breed';
+            breed.textContent = dog.breed || 'Mixed Breed';
+
+            const location = document.createElement('div');
+            location.className = 'dog-card-location';
+            location.textContent = `📍 ${dog.city}, ${dog.state}`;
+
+            const counterDiv = document.createElement('div');
+            counterDiv.className = 'dog-card-counter';
+
+            const counterLabel = document.createElement('div');
+            counterLabel.className = 'counter-label';
+            counterLabel.textContent = 'Days Waiting';
+
+            const counter = document.createElement('div');
+            counter.className = 'led-counter';
+            counter.dataset.days = dog.daysWaiting || 0;
+
+            counterDiv.appendChild(counterLabel);
+            counterDiv.appendChild(counter);
+
+            content.appendChild(name);
+            content.appendChild(breed);
+            content.appendChild(location);
+            content.appendChild(counterDiv);
+
+            card.appendChild(imageDiv);
+            card.appendChild(content);
+
+            return card;
+        }
+
+        // Create shelter item
+        function createShelterItem(shelter) {
+            const item = document.createElement('li');
+            item.className = 'shelter-item';
+
+            const info = document.createElement('div');
+            info.className = 'shelter-info';
+
+            const name = document.createElement('div');
+            name.className = 'shelter-name';
+            name.textContent = shelter.name;
+
+            const location = document.createElement('div');
+            location.className = 'shelter-location';
+            location.textContent = `${shelter.city}, ${shelter.state}`;
+
+            const dogCount = document.createElement('div');
+            dogCount.className = 'shelter-dog-count';
+            dogCount.textContent = `${shelter.dogCount} ${shelter.dogCount === 1 ? 'dog' : 'dogs'} waiting`;
+
+            info.appendChild(name);
+            info.appendChild(location);
+            info.appendChild(dogCount);
+
+            const link = document.createElement('a');
+            link.className = 'shelter-link';
+            link.href = `/shelters/${shelter.id}`;
+            link.textContent = 'View Shelter';
+
+            item.appendChild(info);
+            item.appendChild(link);
+
+            return item;
+        }
+
+        // Create state card
+        function createStateCard(state) {
+            const card = document.createElement('div');
+            card.className = 'state-card';
+
+            const icon = document.createElement('div');
+            icon.className = 'state-card-icon';
+            icon.textContent = state.icon || '🗺️';
+
+            const name = document.createElement('div');
+            name.className = 'state-card-name';
+            name.textContent = state.name;
+
+            const count = document.createElement('div');
+            count.className = 'state-card-count';
+            count.textContent = `${state.dogCount} ${state.dogCount === 1 ? 'dog' : 'dogs'} waiting`;
+
+            const link = document.createElement('a');
+            link.href = `/states/${state.code}`;
+            link.textContent = 'Browse Dogs';
+
+            card.appendChild(icon);
+            card.appendChild(name);
+            card.appendChild(count);
+            card.appendChild(link);
+
+            return card;
+        }
+
+        // Show loading skeleton
+        function showLoading() {
+            loadingSkeleton.style.display = 'block';
+            resultsContainer.innerHTML = '';
+            emptyState.style.display = 'none';
+            paginationContainer.innerHTML = '';
+        }
+
+        // Hide loading skeleton
+        function hideLoading() {
+            loadingSkeleton.style.display = 'none';
+        }
+
+        // Show empty state
+        function showEmptyState(message) {
+            resultsContainer.innerHTML = '';
+            loadingSkeleton.style.display = 'none';
+            emptyState.style.display = 'block';
+            emptyStateText.textContent = message;
+            paginationContainer.innerHTML = '';
+            resultsStatus.textContent = 'No results';
+        }
+
+        // Render pagination
+        function renderPagination() {
+            paginationContainer.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'pagination-btn';
+            prevBtn.textContent = '← Previous';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => goToPage(currentPage - 1);
+            paginationContainer.appendChild(prevBtn);
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    if (i > 1 && (i === currentPage - 2 || i > currentPage + 1)) {
+                        const dots = document.createElement('span');
+                        dots.className = 'pagination-dots';
+                        dots.textContent = '...';
+                        paginationContainer.appendChild(dots);
+                    }
+
+                    const pageBtn = document.createElement('button');
+                    pageBtn.className = 'pagination-btn';
+                    if (i === currentPage) pageBtn.classList.add('active');
+                    pageBtn.textContent = i;
+                    pageBtn.onclick = () => goToPage(i);
+                    paginationContainer.appendChild(pageBtn);
+                }
+            }
+
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'pagination-btn';
+            nextBtn.textContent = 'Next →';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => goToPage(currentPage + 1);
+            paginationContainer.appendChild(nextBtn);
+        }
+
+        // Go to page
+        function goToPage(page) {
+            currentPage = page;
+            window.history.pushState(null, '', `/search?q=${encodeURIComponent(currentQuery)}&page=${page}`);
+            performSearch();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Initialize LED counters
+        function initializeLEDCounters() {
+            const counters = document.querySelectorAll('.led-counter');
+            counters.forEach(counter => {
+                if (window.LEDCounter) {
+                    const days = parseInt(counter.dataset.days) || 0;
+                    window.LEDCounter.init(counter, days);
+                }
+            });
+        }
+
+        // Start the app
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

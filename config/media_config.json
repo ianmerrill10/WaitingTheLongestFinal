@@ -1,0 +1,258 @@
+{
+    "media": {
+        "description": "Media processing configuration for WaitingTheLongest",
+        "version": "1.0.0"
+    },
+
+    "video": {
+        "ffmpeg_path": "ffmpeg",
+        "ffprobe_path": "ffprobe",
+        "assets_dir": "static/video",
+        "temp_dir": "/tmp/wtl_media",
+        "output_dir": "media/videos",
+        "music_dir": "static/audio/music",
+
+        "defaults": {
+            "output_width": 1920,
+            "output_height": 1080,
+            "fps": 30,
+            "video_codec": "libx264",
+            "audio_codec": "aac",
+            "video_bitrate": "5M",
+            "audio_bitrate": "192k",
+            "preset": "medium",
+            "crf": 23,
+            "pixel_format": "yuv420p"
+        },
+
+        "templates": {
+            "slideshow": {
+                "duration_per_photo": 3.0,
+                "transition_duration": 0.5,
+                "transition_style": "fade",
+                "motion_type": "none"
+            },
+            "ken_burns": {
+                "duration_per_photo": 4.0,
+                "transition_duration": 0.8,
+                "transition_style": "crossfade",
+                "motion_type": "ken_burns",
+                "motion_intensity": 0.3
+            },
+            "countdown": {
+                "duration_per_photo": 2.5,
+                "transition_duration": 0.3,
+                "transition_style": "fade",
+                "motion_type": "slight_zoom"
+            },
+            "story": {
+                "duration_per_photo": 5.0,
+                "transition_duration": 1.0,
+                "transition_style": "crossfade",
+                "motion_type": "ken_burns",
+                "aspect_ratio": "9:16"
+            }
+        },
+
+        "platforms": {
+            "youtube": {
+                "width": 1920,
+                "height": 1080,
+                "fps": 30,
+                "max_duration": 600,
+                "aspect_ratio": "16:9"
+            },
+            "instagram": {
+                "width": 1080,
+                "height": 1080,
+                "fps": 30,
+                "max_duration": 60,
+                "aspect_ratio": "1:1"
+            },
+            "instagram_story": {
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "max_duration": 60,
+                "aspect_ratio": "9:16"
+            },
+            "tiktok": {
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "max_duration": 180,
+                "aspect_ratio": "9:16"
+            },
+            "facebook": {
+                "width": 1080,
+                "height": 1080,
+                "fps": 30,
+                "max_duration": 240,
+                "aspect_ratio": "1:1"
+            },
+            "twitter": {
+                "width": 1280,
+                "height": 720,
+                "fps": 30,
+                "max_duration": 140,
+                "aspect_ratio": "16:9"
+            }
+        },
+
+        "music": {
+            "uplifting": "uplifting_theme.mp3",
+            "emotional": "emotional_piano.mp3",
+            "hopeful": "hopeful_journey.mp3",
+            "urgent": "urgent_pulse.mp3",
+            "calm": "calm_ambient.mp3",
+            "playful": "playful_bounce.mp3"
+        }
+    },
+
+    "image": {
+        "temp_dir": "/tmp/wtl_images",
+        "output_dir": "media/images",
+        "max_width": 4096,
+        "max_height": 4096,
+        "default_quality": 85,
+        "thumbnail_size": 300,
+
+        "enhance": {
+            "auto_brightness": true,
+            "brightness_target": 0.5,
+            "auto_contrast": true,
+            "contrast_factor": 1.1,
+            "auto_saturation": true,
+            "saturation_factor": 1.15,
+            "sharpen": true,
+            "sharpen_amount": 0.3,
+            "denoise": false,
+            "denoise_strength": 3
+        },
+
+        "share_card": {
+            "facebook": {
+                "width": 1200,
+                "height": 630,
+                "format": "jpg",
+                "quality": 90
+            },
+            "twitter": {
+                "width": 1200,
+                "height": 675,
+                "format": "jpg",
+                "quality": 90
+            },
+            "instagram": {
+                "width": 1080,
+                "height": 1080,
+                "format": "jpg",
+                "quality": 95
+            }
+        }
+    },
+
+    "overlay": {
+        "assets_dir": "static/images/overlays",
+
+        "led_counter": {
+            "enabled": true,
+            "position": "top_right",
+            "margin_x": 20,
+            "margin_y": 20,
+            "digit_width": 40,
+            "digit_height": 60,
+            "digit_spacing": 4,
+            "colon_width": 20,
+            "segment_thickness": 6,
+            "skew_angle": -5,
+            "background_color": {"r": 0, "g": 0, "b": 0, "a": 180},
+            "background_padding": 15,
+            "background_corner_radius": 8,
+            "on_color": {"r": 255, "g": 50, "b": 50, "a": 255},
+            "off_color": {"r": 30, "g": 30, "b": 30, "a": 255},
+            "glow_enabled": true,
+            "glow_radius": 3,
+            "label": "WAITING",
+            "show_labels": true,
+            "label_font_size": 12
+        },
+
+        "urgency_badge": {
+            "enabled": true,
+            "position": "top_left",
+            "margin_x": 20,
+            "margin_y": 20,
+            "width": 120,
+            "height": 40,
+            "corner_radius": 5,
+            "show_on_urgency": ["warning", "critical"],
+            "critical_color": {"r": 220, "g": 53, "b": 69, "a": 255},
+            "warning_color": {"r": 255, "g": 193, "b": 7, "a": 255},
+            "text_color": {"r": 255, "g": 255, "b": 255, "a": 255},
+            "font_size": 14,
+            "critical_text": "URGENT",
+            "warning_text": "NEEDS HOME"
+        },
+
+        "text": {
+            "default_font": "Arial",
+            "default_size": 24,
+            "default_color": {"r": 255, "g": 255, "b": 255, "a": 255},
+            "shadow_enabled": true,
+            "shadow_offset": 2,
+            "shadow_color": {"r": 0, "g": 0, "b": 0, "a": 128}
+        },
+
+        "logo": {
+            "enabled": false,
+            "path": "static/images/logo.png",
+            "position": "bottom_right",
+            "max_width": 150,
+            "max_height": 50,
+            "opacity": 0.8
+        }
+    },
+
+    "storage": {
+        "backend": "local",
+        "local": {
+            "base_path": "media",
+            "url_prefix": "/media"
+        },
+        "s3": {
+            "bucket": "",
+            "region": "us-east-1",
+            "access_key": "",
+            "secret_key": "",
+            "endpoint": "",
+            "url_prefix": ""
+        },
+        "max_file_size": 104857600,
+        "retention_days": 365,
+        "auto_generate_thumbnails": true,
+        "allowed_image_types": ["jpg", "jpeg", "png", "gif", "webp"],
+        "allowed_video_types": ["mp4", "webm", "mov", "avi"]
+    },
+
+    "queue": {
+        "max_size": 1000,
+        "poll_interval_ms": 1000,
+        "job_timeout_minutes": 30,
+        "max_retries": 3,
+        "cleanup_days": 7
+    },
+
+    "worker": {
+        "num_threads": 4,
+        "poll_interval_ms": 1000,
+        "job_timeout_minutes": 30,
+        "max_retries": 3,
+        "process_video": true,
+        "process_image": true,
+        "process_transcode": true,
+        "auto_cleanup": true,
+        "cleanup_interval_hours": 24,
+        "cleanup_days_old": 7
+    }
+}

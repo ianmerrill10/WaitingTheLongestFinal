@@ -1,0 +1,82 @@
+# Build artifacts and intermediate files
+build/
+*.o
+*.a
+*.so
+*.d
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.swp
+*.swo
+*~
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Logs and temporary files
+logs/
+build_logs/
+*.log
+uploads/temp/*
+tmp/
+
+# Node modules (if applicable)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment and configuration files
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# Test and coverage files
+coverage/
+.coverage
+*.gcov
+*.gcda
+*.gcno
+
+# Documentation build artifacts
+docs/_build/
+docs/.doctrees/
+
+# Documentation (not needed in Docker)
+*.md
+!README.md
+IMPROVEMENT_CHECKLIST.md
+
+# Scripts (not needed in runtime image)
+scripts/
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Claude Code
+.claude/
+
+# Miscellaneous
+.cache/
+dist/
+*.tar.gz
+*.zip
+.clang-format
+.clang-tidy
+.editorconfig
+.gitignore

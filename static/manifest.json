@@ -1,0 +1,22 @@
+{
+  "name": "WaitingTheLongest - Save Shelter Dogs",
+  "short_name": "WaitingTheLongest",
+  "description": "Real-time dog rescue platform showing shelter dogs waiting for adoption",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#00ff41",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

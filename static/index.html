@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🐾</text></svg>">
+    <meta name="description" content="WaitingTheLongest.com - Real-time dog rescue platform showing shelter dogs waiting for adoption. Meet the longest waiting dogs and help save a life.">
+    <meta name="keywords" content="dog rescue, adoption, shelter dogs, rescue dogs, foster dogs">
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="WaitingTheLongest - Real-Time Dog Rescue Platform">
+    <meta property="og:description" content="Every second matters for a shelter dog. Meet the longest waiting dogs and help save a life today.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://waitingthelongest.com/">
+    <meta property="og:image" content="https://waitingthelongest.com/og-image.jpg">
+    <meta property="og:site_name" content="WaitingTheLongest">
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="WaitingTheLongest - Real-Time Dog Rescue Platform">
+    <meta name="twitter:description" content="Every second matters for a shelter dog. Meet the longest waiting dogs and help save a life today.">
+    <meta name="twitter:image" content="https://waitingthelongest.com/og-image.jpg">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://waitingthelongest.com/">
+
+    <meta name="theme-color" content="#00ff41">
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "WaitingTheLongest",
+      "url": "https://waitingthelongest.com",
+      "description": "Real-time dog rescue platform showing shelter dogs waiting for adoption. Every second matters.",
+      "sameAs": [],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://waitingthelongest.com/search.html?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/led-counter.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <title>WaitingTheLongest - Every Second Matters for a Shelter Dog</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #0f0f0f;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        /* Header Styles */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+            padding: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .logo-highlight {
+            color: #ff6b6b;
+        }
+
+        .paw-icon {
+            font-size: 1.3rem;
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        nav a {
+            color: #b0b0b0;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            cursor: pointer;
+        }
+
+        nav a:hover {
+            color: #ff6b6b;
+        }
+
+        nav a.active {
+            color: #ff6b6b;
+            border-bottom: 2px solid #ff6b6b;
+            padding-bottom: 2px;
+        }
+
+        .login-btn {
+            background-color: #ff6b6b;
+            color: #fff;
+            padding: 0.5rem 1.2rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .login-btn:hover {
+            background-color: #ff5252;
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 5px;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background-color: #fff;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(10px, 10px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+            padding: 5rem 2rem;
+            text-align: center;
+            color: #fff;
+        }
+
+        .hero-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+            letter-spacing: -1px;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: #b0b0b0;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .search-box-dark {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 3rem;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .search-box-dark input {
+            flex: 1;
+            padding: 0.75rem 1.2rem;
+            border: 1px solid #444;
+            background-color: #2a2a2a;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-box-dark input::placeholder {
+            color: #777;
+        }
+
+        .search-box-dark input:focus {
+            outline: none;
+            border-color: #ff6b6b;
+            background-color: #333;
+        }
+
+        .search-box-dark button {
+            padding: 0.75rem 1.5rem;
+            background-color: #ff6b6b;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            font-family: inherit;
+        }
+
+        .search-box-dark button:hover {
+            background-color: #ff5252;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .stat-card {
+            background-color: rgba(255, 107, 107, 0.1);
+            border: 1px solid #444;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #ff6b6b;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .label {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Section Styles */
+        .section-dark {
+            background-color: #1a1a1a;
+            padding: 4rem 2rem;
+            border-top: 1px solid #333;
+        }
+
+        .section-alt {
+            background-color: #242424;
+            padding: 4rem 2rem;
+        }
+
+        .section {
+            background-color: #1a1a1a;
+            padding: 4rem 2rem;
+            border-top: 1px solid #333;
+        }
+
+        .section-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            text-align: center;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: #b0b0b0;
+            font-size: 1rem;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .badge {
+            display: inline-block;
+            background-color: #ff6b6b;
+            color: #fff;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* Dog Cards Grid */
+        .dogs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .dog-card {
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid #333;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .dog-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(255, 107, 107, 0.15);
+            border-color: #ff6b6b;
+        }
+
+        .dog-card-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            overflow: hidden;
+            object-fit: cover;
+        }
+
+        .dog-card-content {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dog-card h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .dog-card .breed {
+            color: #b0b0b0;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .dog-card .location {
+            color: #999;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dog-card .waiting-time {
+            background-color: rgba(255, 107, 107, 0.15);
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: auto;
+            text-align: center;
+        }
+
+        .dog-card .waiting-label {
+            font-size: 0.75rem;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        .dog-card .waiting-counter {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ff6b6b;
+            font-family: 'Digital-7', monospace;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #b0b0b0;
+        }
+
+        .empty-state .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+        }
+
+        /* States Grid */
+        .states-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .state-card {
+            background-color: #2a2a2a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .state-card:hover {
+            border-color: #ff6b6b;
+            background-color: #333;
+            transform: translateY(-2px);
+        }
+
+        .state-card .code {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #ff6b6b;
+            margin-bottom: 0.5rem;
+        }
+
+        .state-card .name {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+            margin-bottom: 0.75rem;
+        }
+
+        .state-card .count {
+            font-size: 0.85rem;
+            color: #999;
+        }
+
+        /* Quiz CTA Section */
+        .quiz-cta {
+            background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+            border-left: 4px solid #ff6b6b;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 3rem;
+        }
+
+        .quiz-cta h3 {
+            font-size: 1.5rem;
+            color: #fff;
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-cta p {
+            color: #b0b0b0;
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            background-color: #ff6b6b;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            background-color: #ff5252;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .btn-secondary:hover {
+            background-color: #ff6b6b;
+            color: #fff;
+        }
+
+        .btn-center {
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Overlooked Section */
+        .overlooked-section {
+            background: linear-gradient(135deg, #2a1a1a 0%, #1a2a2d 50%, #1a1a2a 100%);
+            padding: 4rem 2rem;
+            border-top: 1px solid #333;
+        }
+
+        .overlooked-section .section-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .overlooked-section h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .overlooked-section .badge {
+            display: block;
+            margin: 0 auto 1rem;
+        }
+
+        /* Footer */
+        footer {
+            background-color: #0f0f0f;
+            border-top: 1px solid #333;
+            padding: 4rem 2rem 1rem;
+            color: #b0b0b0;
+        }
+
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-section h4 {
+            color: #fff;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-section a {
+            color: #b0b0b0;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .footer-section a:hover {
+            color: #ff6b6b;
+        }
+
+        .footer-brand {
+            margin-bottom: 2rem;
+        }
+
+        .footer-brand .logo {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+
+        .footer-brand p {
+            color: #999;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid #333;
+            padding-top: 2rem;
+            text-align: center;
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #2a2a2a 25%, #333 50%, #2a2a2a 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        .dog-card.skeleton {
+            height: 380px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 1rem;
+            }
+
+            nav {
+                display: none;
+                gap: 0;
+            }
+
+            nav.mobile-open {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background-color: #1a1a1a;
+                padding: 1rem;
+                gap: 0.5rem;
+                border-bottom: 1px solid #333;
+            }
+
+            nav a {
+                padding: 0.75rem;
+                display: block;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .search-box-dark {
+                flex-direction: column;
+            }
+
+            .search-box-dark input,
+            .search-box-dark button {
+                width: 100%;
+            }
+
+            .section h2 {
+                font-size: 1.8rem;
+            }
+
+            .dogs-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+                gap: 1.5rem;
+            }
+
+            .states-grid {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-container {
+                padding: 0.75rem;
+            }
+
+            .logo {
+                font-size: 1.2rem;
+            }
+
+            .hero {
+                padding: 2rem 1rem;
+            }
+
+            .hero h1 {
+                font-size: 1.5rem;
+            }
+
+            .hero p {
+                font-size: 0.9rem;
+            }
+
+            .dogs-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .states-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .section h2 {
+                font-size: 1.5rem;
+            }
+
+            .quiz-cta {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:9999;padding:8px;background:#00ff41;color:#1a1a1a;font-weight:bold;text-decoration:none;&:focus{position:fixed;left:0;top:0;width:auto;height:auto;}">Skip to main content</a>
+    <noscript><div style="background:#ff4444;color:white;padding:16px;text-align:center;font-family:sans-serif;">This site requires JavaScript to function. Please enable JavaScript in your browser settings.</div></noscript>
+
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <a href="/" class="logo">
+                <span class="paw-icon">🐾</span>
+                Waiting<span class="logo-highlight">The</span>Longest
+            </a>
+            <nav id="nav-menu">
+                <a href="/dogs.html">Browse Dogs</a>
+                <a href="/states.html">States</a>
+                <a href="/search.html">Search</a>
+                <a href="/overlooked.html">Overlooked Angels</a>
+                <a href="/quiz.html">Take the Quiz</a>
+                <a href="/login.html" class="login-btn">Login</a>
+            </nav>
+            <button class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content">
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <h1>Every Second Matters for a Shelter Dog</h1>
+            <p>Real-time insight into dogs waiting for adoption. Meet the longest waiting dogs and help save a life today.</p>
+            <div class="search-box search-box-dark">
+                <input type="text" id="hero-search" placeholder="Search by breed, name, or location...">
+                <button type="button" onclick="performSearch()">Search</button>
+            </div>
+            <div class="stats-row" id="stats-row">
+                <div class="stat-card">
+                    <div class="number" id="stat-total-dogs">-</div>
+                    <div class="label">Total Dogs Waiting</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="stat-longest-wait">-</div>
+                    <div class="label">Longest Wait (Days)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="stat-adopted">-</div>
+                    <div class="label">Dogs Adopted (30 Days)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Longest Waiting Dogs Section -->
+    <section class="section-dark">
+        <div class="section-container">
+            <h2>Dogs Waiting The Longest</h2>
+            <p class="section-subtitle">These dogs have been waiting longer than most. They deserve a home.</p>
+            <div class="dogs-grid" id="longest-dogs-grid">
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+            </div>
+            <div class="btn-center">
+                <a href="/dogs.html" class="btn">See All Dogs</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Overlooked Angels Section -->
+    <section class="overlooked-section">
+        <div class="section-container">
+            <div style="text-align: center;">
+                <span class="badge">Hidden Gems</span>
+                <h2>Overlooked Angels</h2>
+            </div>
+            <p class="section-subtitle">Senior dogs, black dogs, and bully breeds often wait longer. These gentle souls deserve a loving home.</p>
+            <div class="dogs-grid" id="overlooked-dogs-grid">
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+                <div class="dog-card skeleton"></div>
+            </div>
+            <div class="btn-center">
+                <a href="/overlooked.html" class="btn">Meet All Overlooked Angels</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Browse by State Section -->
+    <section class="section-alt">
+        <div class="section-container">
+            <h2>Find Dogs in Your State</h2>
+            <p class="section-subtitle">Connect with rescue organizations and dogs waiting in your area.</p>
+            <div class="states-grid" id="states-grid">
+                <div class="state-card skeleton" style="height: 120px;"></div>
+                <div class="state-card skeleton" style="height: 120px;"></div>
+                <div class="state-card skeleton" style="height: 120px;"></div>
+                <div class="state-card skeleton" style="height: 120px;"></div>
+                <div class="state-card skeleton" style="height: 120px;"></div>
+                <div class="state-card skeleton" style="height: 120px;"></div>
+                <div class="state-card skeleton" style="height: 120px;"></div>
+                <div class="state-card skeleton" style="height: 120px;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quiz CTA Section -->
+    <section class="section-dark">
+        <div class="section-container">
+            <div class="quiz-cta">
+                <h3>Not Sure Which Dog Is Right For You?</h3>
+                <p>Take our Lifestyle Matching Quiz to find your perfect match. We'll help you discover a dog that fits your life and needs.</p>
+                <a href="/quiz.html" class="btn">Take the Quiz</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sponsor-a-Fee CTA Section -->
+    <section class="section">
+        <div class="section-container">
+            <div class="quiz-cta">
+                <h3>Can't Adopt? Sponsor a Dog's Adoption Fee</h3>
+                <p>Help remove financial barriers to adoption. Sponsor a shelter dog's adoption fee and give them a second chance at life.</p>
+                <a href="/sponsor.html" class="btn">Learn More</a>
+            </div>
+        </div>
+    </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section footer-brand">
+                    <div class="logo">
+                        <span class="paw-icon">🐾</span>
+                        Waiting<span class="logo-highlight">The</span>Longest
+                    </div>
+                    <p>Real-time insight into dogs waiting for adoption. We believe every dog deserves a loving home, and we're here to make connections happen faster.</p>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Dogs</h4>
+                    <ul>
+                        <li><a href="/dogs.html">Browse All Dogs</a></li>
+                        <li><a href="/dogs.html?sort=wait_time">Longest Waiting</a></li>
+                        <li><a href="/overlooked.html">Overlooked Angels</a></li>
+                        <li><a href="/states.html">Find by State</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="/quiz.html">Lifestyle Matching Quiz</a></li>
+                        <li><a href="/housing.html">Housing Guide</a></li>
+                        <li><a href="/transport.html">Transport Help</a></li>
+                        <li><a href="/resources.html">Rescue Resources</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>About</h4>
+                    <ul>
+                        <li><a href="/mission.html">Our Mission</a></li>
+                        <li><a href="/contact.html">Contact Us</a></li>
+                        <li><a href="/privacy.html">Privacy Policy</a></li>
+                        <li><a href="/terms.html">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2024 WaitingTheLongest.com. All rights reserved. Helping dogs find homes, one second at a time.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/websocket-client.js"></script>
+    <script src="js/led-counter.js"></script>
+    <script>
+        // Hamburger Menu Toggle
+        const hamburger = document.getElementById('hamburger');
+        const navMenu = document.getElementById('nav-menu');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navMenu.classList.toggle('mobile-open');
+        });
+
+        // Close menu when a link is clicked
+        document.querySelectorAll('#nav-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navMenu.classList.remove('mobile-open');
+            });
+        });
+
+        // Search functionality
+        function performSearch() {
+            const searchQuery = document.getElementById('hero-search').value.trim();
+            if (searchQuery) {
+                window.location.href = `/search.html?q=${encodeURIComponent(searchQuery)}`;
+            }
+        }
+
+        // Allow Enter key to search
+        document.getElementById('hero-search').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Fetch and render data
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/dogs/stats');
+                if (!response.ok) throw new Error('Failed to fetch stats');
+                const data = await response.json();
+
+                document.getElementById('stat-total-dogs').textContent = data.total_dogs_waiting || '0';
+                document.getElementById('stat-longest-wait').textContent = data.longest_wait_days || '0';
+                document.getElementById('stat-adopted').textContent = data.dogs_adopted_30_days || '0';
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                document.getElementById('stat-total-dogs').textContent = '0';
+                document.getElementById('stat-longest-wait').textContent = '0';
+                document.getElementById('stat-adopted').textContent = '0';
+            }
+        }
+
+        async function fetchLongestWaitingDogs() {
+            try {
+                const response = await fetch('/api/dogs?sort=wait_time&order=desc&limit=6');
+                if (!response.ok) throw new Error('Failed to fetch dogs');
+                const dogs = await response.json();
+
+                const grid = document.getElementById('longest-dogs-grid');
+                grid.innerHTML = '';
+
+                if (!dogs || dogs.length === 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1 / -1;">
+                            <div class="empty-state">
+                                <div class="empty-icon">🐾</div>
+                                <p>Loading dogs waiting for adoption...</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                dogs.forEach(dog => {
+                    const dogCard = createDogCard(dog);
+                    grid.appendChild(dogCard);
+                });
+
+                // Initialize LED counters after cards are rendered
+                LEDCounter.initAll();
+            } catch (error) {
+                console.error('Error fetching dogs:', error);
+                const grid = document.getElementById('longest-dogs-grid');
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1;">
+                        <div class="empty-state">
+                            <div class="empty-icon">⚠️</div>
+                            <p>Unable to load dogs at this time. Please try again later.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function fetchOverlookedDogs() {
+            try {
+                const response = await fetch('/api/dogs?overlooked=true&limit=4');
+                if (!response.ok) throw new Error('Failed to fetch overlooked dogs');
+                const dogs = await response.json();
+
+                const grid = document.getElementById('overlooked-dogs-grid');
+                grid.innerHTML = '';
+
+                if (!dogs || dogs.length === 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1 / -1;">
+                            <div class="empty-state">
+                                <div class="empty-icon">🐾</div>
+                                <p>Loading overlooked angels...</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                dogs.forEach(dog => {
+                    const dogCard = createDogCard(dog);
+                    grid.appendChild(dogCard);
+                });
+
+                // Initialize LED counters
+                LEDCounter.initAll();
+            } catch (error) {
+                console.error('Error fetching overlooked dogs:', error);
+                const grid = document.getElementById('overlooked-dogs-grid');
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1;">
+                        <div class="empty-state">
+                            <div class="empty-icon">⚠️</div>
+                            <p>Unable to load overlooked angels at this time.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function fetchStates() {
+            try {
+                const response = await fetch('/api/states');
+                if (!response.ok) throw new Error('Failed to fetch states');
+                const states = await response.json();
+
+                const grid = document.getElementById('states-grid');
+                grid.innerHTML = '';
+
+                if (!states || states.length === 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1 / -1;">
+                            <div class="empty-state">
+                                <div class="empty-icon">📍</div>
+                                <p>Loading states...</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                states.forEach(state => {
+                    const stateCard = document.createElement('a');
+                    stateCard.href = `/state.html?code=${state.code}`;
+                    stateCard.className = 'state-card';
+                    stateCard.innerHTML = `
+                        <div class="code">${state.code}</div>
+                        <div class="name">${state.name}</div>
+                        <div class="count">${state.dog_count} dogs</div>
+                    `;
+                    grid.appendChild(stateCard);
+                });
+            } catch (error) {
+                console.error('Error fetching states:', error);
+                const grid = document.getElementById('states-grid');
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1;">
+                        <div class="empty-state">
+                            <div class="empty-icon">⚠️</div>
+                            <p>Unable to load states at this time.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function createDogCard(dog) {
+            const card = document.createElement('a');
+            card.href = `/dog.html?id=${dog.id}`;
+            card.className = 'dog-card';
+
+            const waitDays = Math.floor((Date.now() - new Date(dog.intake_date).getTime()) / (1000 * 60 * 60 * 24));
+
+            card.innerHTML = `
+                <div class="dog-card-image">
+                    ${dog.image_url ? `<img src="${dog.image_url}" alt="${dog.name}" style="width: 100%; height: 100%; object-fit: cover;">` : '🐕'}
+                </div>
+                <div class="dog-card-content">
+                    <h3>${dog.name}</h3>
+                    <div class="breed">${dog.breed || 'Mixed Breed'}</div>
+                    <div class="location">
+                        <span>📍</span>
+                        <span>${dog.location || 'Unknown'}</span>
+                    </div>
+                    <div class="waiting-time">
+                        <div class="waiting-label">Waiting</div>
+                        <div class="waiting-counter" data-value="${waitDays}">0 days</div>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Initialize page on load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchStats();
+            fetchLongestWaitingDogs();
+            fetchOverlookedDogs();
+            fetchStates();
+        });
+    </script>
+</body>
+</html>

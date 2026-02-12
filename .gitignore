@@ -1,0 +1,84 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.d
+*.obj
+*.exe
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+build_logs/
+
+# Uploads and user data
+uploads/temp/*
+uploads/**
+!uploads/.gitkeep
+
+# Node modules (if applicable)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Test and coverage
+coverage/
+.coverage
+*.gcov
+*.gcda
+*.gcno
+
+# Docker volumes (local)
+postgres_data/
+redis_data/
+
+# Certbot certificates (managed separately)
+certbot/
+
+# Temporary files
+tmp/
+.cache/
+dist/
+*.tar.gz
+*.zip
+
+# OS files
+.DS_Store
+Desktop.ini
+ehthumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+venv/
+.venv/
+
+# Claude Code
+.claude/
+
+# Windows null device artifact
+nul

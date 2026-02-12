@@ -1,0 +1,519 @@
+/**
+ * @file led-counter.css
+ * @brief LED counter styling for dog wait time visualization
+ *
+ * PURPOSE:
+ * Provides digital clock / LED-style appearance for wait time counters.
+ * Supports wait time mode (green) and countdown mode (red/flashing for critical).
+ *
+ * USAGE:
+ * <div class="led-counter" data-dog-id="dog-uuid"></div>
+ *
+ * DEPENDENCIES:
+ * - led-counter.js (for functionality)
+ *
+ * MODIFICATION GUIDE:
+ * - Adjust --led-primary for wait time color
+ * - Adjust --led-critical for countdown critical color
+ * - Modify segment dimensions in .led-segment for size changes
+ *
+ * @author Agent 5 - WaitingTheLongest Build System
+ * @date 2024-01-28
+ */
+
+/* ============================================================================
+   CSS CUSTOM PROPERTIES (Variables)
+   ============================================================================ */
+
+:root {
+    /* LED Colors */
+    --led-primary: #00ff41;          /* Classic green LED */
+    --led-primary-dim: #003d0f;      /* Dim green for inactive */
+    --led-secondary: #00cc33;        /* Slightly darker green */
+    --led-glow: rgba(0, 255, 65, 0.6);
+
+    /* Countdown/Critical Colors */
+    --led-countdown: #ff4444;        /* Red for countdown */
+    --led-countdown-dim: #3d0f0f;    /* Dim red */
+    --led-critical: #ff0000;         /* Bright red for critical */
+    --led-critical-glow: rgba(255, 0, 0, 0.8);
+
+    /* Background */
+    --led-bg: #0a0a0a;               /* Near black background */
+    --led-bg-bezel: #1a1a1a;         /* Bezel around counter */
+
+    /* Sizing */
+    --led-digit-width: 40px;
+    --led-digit-height: 60px;
+    --led-segment-width: 6px;
+    --led-gap: 4px;
+
+    /* Animation */
+    --led-transition: 0.15s ease-out;
+}
+
+/* ============================================================================
+   MAIN CONTAINER
+   ============================================================================ */
+
+.led-counter {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--led-bg);
+    border: 3px solid var(--led-bg-bezel);
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.5),
+        0 4px 8px rgba(0, 0, 0, 0.3);
+    font-family: 'Digital-7', 'DSEG7 Classic', 'Courier New', monospace;
+}
+
+.led-counter-container {
+    display: flex;
+    align-items: center;
+    gap: var(--led-gap);
+}
+
+/* ============================================================================
+   DIGIT GROUPS
+   ============================================================================ */
+
+.led-digit-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.led-digits {
+    display: flex;
+    gap: 2px;
+}
+
+.led-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Arial', sans-serif;
+}
+
+/* ============================================================================
+   INDIVIDUAL DIGITS - Simple Font Mode
+   ============================================================================ */
+
+.led-digit {
+    position: relative;
+    width: var(--led-digit-width);
+    height: var(--led-digit-height);
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 48px;
+    font-weight: bold;
+    color: var(--led-primary);
+    text-shadow: 0 0 10px var(--led-glow);
+    transition: color var(--led-transition), text-shadow var(--led-transition);
+}
+
+/* Countdown mode */
+.led-counter.countdown .led-digit {
+    color: var(--led-countdown);
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.6);
+}
+
+/* Critical mode (flashing) */
+.led-counter.critical .led-digit {
+    color: var(--led-critical);
+    text-shadow: 0 0 15px var(--led-critical-glow);
+    animation: led-flash 0.5s ease-in-out infinite;
+}
+
+/* Change animation */
+.led-digit.changing {
+    animation: led-change 0.2s ease-out;
+}
+
+/* ============================================================================
+   7-SEGMENT DISPLAY MODE
+   ============================================================================ */
+
+/* Hide text content when using segments */
+.led-digit:has(.led-segment) {
+    font-size: 0;
+}
+
+/* Base segment styling */
+.led-segment {
+    position: absolute;
+    background-color: var(--led-primary-dim);
+    transition: background-color var(--led-transition), box-shadow var(--led-transition);
+}
+
+/* Active segment */
+.led-segment.active {
+    background-color: var(--led-primary);
+    box-shadow: 0 0 8px var(--led-glow);
+}
+
+/* Countdown segment colors */
+.led-counter.countdown .led-segment {
+    background-color: var(--led-countdown-dim);
+}
+
+.led-counter.countdown .led-segment.active {
+    background-color: var(--led-countdown);
+    box-shadow: 0 0 8px rgba(255, 68, 68, 0.6);
+}
+
+/* Critical segment colors */
+.led-counter.critical .led-segment.active {
+    background-color: var(--led-critical);
+    box-shadow: 0 0 12px var(--led-critical-glow);
+    animation: segment-flash 0.5s ease-in-out infinite;
+}
+
+/* Horizontal segments (a, d, g) */
+.led-segment-a,
+.led-segment-d,
+.led-segment-g {
+    width: calc(var(--led-digit-width) - 12px);
+    height: var(--led-segment-width);
+    left: 6px;
+}
+
+.led-segment-a {
+    top: 2px;
+    clip-path: polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%);
+}
+
+.led-segment-d {
+    bottom: 2px;
+    clip-path: polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%);
+}
+
+.led-segment-g {
+    top: 50%;
+    transform: translateY(-50%);
+    clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+}
+
+/* Vertical segments (b, c, e, f) */
+.led-segment-b,
+.led-segment-c,
+.led-segment-e,
+.led-segment-f {
+    width: var(--led-segment-width);
+    height: calc((var(--led-digit-height) - 14px) / 2 - 2px);
+}
+
+/* Right side segments */
+.led-segment-b,
+.led-segment-c {
+    right: 2px;
+}
+
+/* Left side segments */
+.led-segment-e,
+.led-segment-f {
+    left: 2px;
+}
+
+/* Upper segments */
+.led-segment-b,
+.led-segment-f {
+    top: 10px;
+    clip-path: polygon(50% 0%, 100% 10%, 100% 90%, 50% 100%, 0% 90%, 0% 10%);
+}
+
+/* Lower segments */
+.led-segment-c,
+.led-segment-e {
+    bottom: 10px;
+    clip-path: polygon(50% 0%, 100% 10%, 100% 90%, 50% 100%, 0% 90%, 0% 10%);
+}
+
+/* ============================================================================
+   SEPARATOR (COLON)
+   ============================================================================ */
+
+.led-separator {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 0 4px;
+    height: var(--led-digit-height);
+}
+
+.led-separator-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--led-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--led-glow);
+    animation: separator-pulse 1s ease-in-out infinite;
+}
+
+/* Countdown separator */
+.led-counter.countdown .led-separator-dot {
+    background-color: var(--led-countdown);
+    box-shadow: 0 0 8px rgba(255, 68, 68, 0.6);
+}
+
+/* Critical separator */
+.led-counter.critical .led-separator-dot {
+    background-color: var(--led-critical);
+    box-shadow: 0 0 10px var(--led-critical-glow);
+    animation: separator-flash 0.5s ease-in-out infinite;
+}
+
+/* ============================================================================
+   LOADING STATE
+   ============================================================================ */
+
+.led-counter.loading {
+    opacity: 0.7;
+}
+
+.led-counter.loading .led-digit {
+    animation: led-loading 1.5s ease-in-out infinite;
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes led-flash {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
+@keyframes segment-flash {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 12px var(--led-critical-glow);
+    }
+    50% {
+        opacity: 0.5;
+        box-shadow: 0 0 4px var(--led-critical-glow);
+    }
+}
+
+@keyframes separator-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes separator-flash {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.2;
+    }
+}
+
+@keyframes led-change {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes led-loading {
+    0%, 100% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE SIZING
+   ============================================================================ */
+
+/* Small screens */
+@media (max-width: 480px) {
+    :root {
+        --led-digit-width: 28px;
+        --led-digit-height: 42px;
+        --led-segment-width: 4px;
+    }
+
+    .led-counter {
+        padding: 8px 10px;
+    }
+
+    .led-digit {
+        font-size: 32px;
+    }
+
+    .led-label {
+        font-size: 8px;
+    }
+
+    .led-separator-dot {
+        width: 6px;
+        height: 6px;
+    }
+
+    .led-separator {
+        gap: 8px;
+    }
+}
+
+/* Large screens */
+@media (min-width: 1200px) {
+    :root {
+        --led-digit-width: 50px;
+        --led-digit-height: 75px;
+        --led-segment-width: 7px;
+    }
+
+    .led-counter {
+        padding: 16px 20px;
+    }
+
+    .led-digit {
+        font-size: 60px;
+    }
+
+    .led-label {
+        font-size: 12px;
+    }
+
+    .led-separator-dot {
+        width: 10px;
+        height: 10px;
+    }
+
+    .led-separator {
+        gap: 16px;
+    }
+}
+
+/* Extra large / hero display */
+.led-counter.led-counter-hero {
+    --led-digit-width: 80px;
+    --led-digit-height: 120px;
+    --led-segment-width: 10px;
+    padding: 24px 32px;
+}
+
+.led-counter.led-counter-hero .led-digit {
+    font-size: 96px;
+}
+
+.led-counter.led-counter-hero .led-label {
+    font-size: 14px;
+}
+
+.led-counter.led-counter-hero .led-separator-dot {
+    width: 14px;
+    height: 14px;
+}
+
+.led-counter.led-counter-hero .led-separator {
+    gap: 24px;
+}
+
+/* Compact display */
+.led-counter.led-counter-compact {
+    --led-digit-width: 24px;
+    --led-digit-height: 36px;
+    --led-segment-width: 3px;
+    padding: 6px 8px;
+}
+
+.led-counter.led-counter-compact .led-digit {
+    font-size: 28px;
+}
+
+.led-counter.led-counter-compact .led-label {
+    display: none;
+}
+
+.led-counter.led-counter-compact .led-separator-dot {
+    width: 4px;
+    height: 4px;
+}
+
+.led-counter.led-counter-compact .led-separator {
+    gap: 6px;
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    .led-counter * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+    .led-counter {
+        border: 2px solid CanvasText;
+    }
+
+    .led-digit,
+    .led-segment.active,
+    .led-separator-dot {
+        color: CanvasText;
+        background-color: CanvasText;
+    }
+}
+
+/* Screen reader support - hide visual elements, keep content accessible */
+.led-counter[aria-label] {
+    /* When aria-label is set, screen readers use that instead */
+}
+
+/* ============================================================================
+   THEME VARIATIONS
+   ============================================================================ */
+
+/* Blue theme */
+.led-counter.led-theme-blue {
+    --led-primary: #00bfff;
+    --led-primary-dim: #003344;
+    --led-glow: rgba(0, 191, 255, 0.6);
+}
+
+/* Amber theme (classic calculator) */
+.led-counter.led-theme-amber {
+    --led-primary: #ffb000;
+    --led-primary-dim: #332200;
+    --led-glow: rgba(255, 176, 0, 0.6);
+}
+
+/* White theme */
+.led-counter.led-theme-white {
+    --led-primary: #ffffff;
+    --led-primary-dim: #333333;
+    --led-glow: rgba(255, 255, 255, 0.4);
+}

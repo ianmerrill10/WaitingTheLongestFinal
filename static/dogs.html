@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🐾</text></svg>">
+    <title>Browse Dogs Waiting for Homes - WaitingTheLongest.com</title>
+    <meta name="description" content="Browse all dogs waiting for adoption. Find your perfect companion from shelters across America.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Browse Dogs Waiting for Homes - WaitingTheLongest">
+    <meta property="og:description" content="Browse all dogs waiting for adoption. Find your perfect companion from shelters across America.">
+    <meta property="og:url" content="https://waitingthelongest.com/dogs.html">
+    <meta property="og:image" content="https://waitingthelongest.com/og-image.jpg">
+    <meta property="og:site_name" content="WaitingTheLongest">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Browse Dogs Waiting for Homes - WaitingTheLongest">
+    <meta name="twitter:description" content="Browse all dogs waiting for adoption. Find your perfect companion from shelters across America.">
+    <meta name="twitter:image" content="https://waitingthelongest.com/og-image.jpg">
+
+    <link rel="canonical" href="https://waitingthelongest.com/dogs.html">
+    <meta name="theme-color" content="#00ff41">
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/led-counter.css">
+
+    <style>
+        /* Page-specific styles */
+        .page-container {
+            display: flex;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .dog-count-badge {
+            display: inline-block;
+            background: #FF6B6B;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            position: sticky;
+            top: 100px;
+        }
+
+        .filter-panel h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #1a1a1a;
+        }
+
+        .filter-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.75rem;
+        }
+
+        .filter-group select,
+        .filter-group input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        .filter-group select:focus,
+        .filter-group input[type="text"]:focus {
+            outline: none;
+            border-color: #FF6B6B;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+        }
+
+        .checkbox-group,
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .checkbox-item,
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .checkbox-item input[type="checkbox"],
+        .radio-item input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #FF6B6B;
+        }
+
+        .checkbox-item label,
+        .radio-item label {
+            margin: 0;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .filter-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 2rem;
+        }
+
+        .btn-apply {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-apply:hover {
+            background: #ff5252;
+        }
+
+        .btn-clear {
+            background: transparent;
+            color: #666;
+            border: none;
+            padding: 0.5rem 0;
+            font-size: 0.95rem;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: color 0.2s;
+        }
+
+        .btn-clear:hover {
+            color: #FF6B6B;
+        }
+
+        /* Dog Cards Grid */
+        .dogs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .dog-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dog-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border-color: #FF6B6B;
+        }
+
+        .dog-image-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+
+        .dog-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .dog-badges {
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-urgent {
+            background: #FF6B6B;
+            color: white;
+        }
+
+        .badge-sponsored {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .badge-overlooked {
+            background: #FFA500;
+            color: white;
+        }
+
+        .favorite-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .favorite-btn:hover {
+            transform: scale(1.1);
+            background: white;
+        }
+
+        .favorite-btn.favorited {
+            color: #FF6B6B;
+        }
+
+        .dog-card-body {
+            padding: 1.25rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dog-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 0.35rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .dog-name:hover {
+            color: #FF6B6B;
+        }
+
+        .dog-breed {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.75rem;
+        }
+
+        .dog-details {
+            font-size: 0.85rem;
+            color: #999;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .dog-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .led-counter-compact {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .dog-card-footer {
+            padding-top: 1rem;
+            border-top: 1px solid #f0f0f0;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .shelter-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+
+        .shelter-location {
+            color: #999;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 3rem 0;
+        }
+
+        .pagination button,
+        .pagination a {
+            min-width: 40px;
+            height: 40px;
+            padding: 0 0.75rem;
+            border: 1px solid #e0e0e0;
+            background: white;
+            color: #333;
+            text-decoration: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pagination button:hover,
+        .pagination a:hover {
+            border-color: #FF6B6B;
+            color: #FF6B6B;
+        }
+
+        .pagination .page-active {
+            background: #FF6B6B;
+            color: white;
+            border-color: #FF6B6B;
+        }
+
+        .pagination .page-active:hover {
+            background: #ff5252;
+        }
+
+        .pagination .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Loading State */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .skeleton-image {
+            width: 100%;
+            padding-bottom: 100%;
+            background: #f0f0f0;
+        }
+
+        .skeleton-body {
+            padding: 1.25rem;
+        }
+
+        .skeleton-line {
+            height: 12px;
+            margin-bottom: 0.75rem;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        .skeleton-line.short {
+            width: 60%;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Toggle Button (Mobile) */
+        .filter-toggle {
+            display: none;
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .dogs-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+
+            .page-container {
+                gap: 1.5rem;
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-container {
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: relative;
+            }
+
+            .filter-panel {
+                position: static;
+                margin-bottom: 2rem;
+            }
+
+            .filter-toggle {
+                display: block;
+            }
+
+            .filter-panel.hidden {
+                display: none;
+            }
+
+            .filter-panel.visible {
+                display: block;
+            }
+
+            .dogs-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header h1 {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:9999;padding:8px;background:#00ff41;color:#1a1a1a;font-weight:bold;text-decoration:none;&:focus{position:fixed;left:0;top:0;width:auto;height:auto;}">Skip to main content</a>
+    <noscript><div style="background:#ff4444;color:white;padding:16px;text-align:center;font-family:sans-serif;">This site requires JavaScript to function. Please enable JavaScript in your browser settings.</div></noscript>
+
+    <!-- Header (same as homepage) -->
+    <header class="sticky-header">
+        <div class="header-content">
+            <div class="header-left">
+                <a href="/" class="logo">
+                    <span class="logo-icon">🐕</span>
+                    <span class="logo-text">WaitingTheLongest</span>
+                </a>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dogs.html" class="nav-link active">Browse Dogs</a>
+                <a href="/about.html" class="nav-link">About</a>
+                <a href="/contact.html" class="nav-link">Contact</a>
+            </nav>
+
+            <div class="header-right">
+                <button class="btn-secondary btn-small">Sign In</button>
+                <button class="mobile-menu-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="page-container">
+        <!-- Sidebar with Filter Panel -->
+        <aside class="sidebar">
+            <button class="filter-toggle" id="filterToggle">Show Filters</button>
+
+            <div class="filter-panel visible" id="filterPanel">
+                <h2>Filters</h2>
+
+                <!-- State Filter -->
+                <div class="filter-group">
+                    <label for="stateFilter">State</label>
+                    <select id="stateFilter">
+                        <option value="">All States</option>
+                    </select>
+                </div>
+
+                <!-- Breed Filter -->
+                <div class="filter-group">
+                    <label for="breedFilter">Breed</label>
+                    <input type="text" id="breedFilter" placeholder="e.g., Labrador">
+                </div>
+
+                <!-- Size Filter -->
+                <div class="filter-group">
+                    <label>Size</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sizeSmall" name="size" value="small">
+                            <label for="sizeSmall">Small</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sizeMedium" name="size" value="medium">
+                            <label for="sizeMedium">Medium</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sizeLarge" name="size" value="large">
+                            <label for="sizeLarge">Large</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sizeXLarge" name="size" value="xlarge">
+                            <label for="sizeXLarge">X-Large</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Age Filter -->
+                <div class="filter-group">
+                    <label>Age</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="agePuppy" name="age" value="puppy">
+                            <label for="agePuppy">Puppy</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="ageYoung" name="age" value="young">
+                            <label for="ageYoung">Young</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="ageAdult" name="age" value="adult">
+                            <label for="ageAdult">Adult</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="ageSenior" name="age" value="senior">
+                            <label for="ageSenior">Senior</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gender Filter -->
+                <div class="filter-group">
+                    <label>Gender</label>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" id="genderAny" name="gender" value="" checked>
+                            <label for="genderAny">Any</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="genderMale" name="gender" value="male">
+                            <label for="genderMale">Male</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="genderFemale" name="gender" value="female">
+                            <label for="genderFemale">Female</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Good With Filter -->
+                <div class="filter-group">
+                    <label>Good With</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="goodChildren" name="goodWith" value="children">
+                            <label for="goodChildren">Children</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="goodDogs" name="goodWith" value="dogs">
+                            <label for="goodDogs">Dogs</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="goodCats" name="goodWith" value="cats">
+                            <label for="goodCats">Cats</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Special Filters -->
+                <div class="filter-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="apartmentSuitable" name="special" value="apartment">
+                        <label for="apartmentSuitable">Apartment Suitable</label>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="specialNeeds" name="special" value="special-needs">
+                        <label for="specialNeeds">Special Needs</label>
+                    </div>
+                </div>
+
+                <!-- Sort Filter -->
+                <div class="filter-group">
+                    <label for="sortFilter">Sort By</label>
+                    <select id="sortFilter">
+                        <option value="wait_time">Longest Waiting</option>
+                        <option value="newest">Newest</option>
+                        <option value="name">Name A-Z</option>
+                    </select>
+                </div>
+
+                <!-- Filter Actions -->
+                <div class="filter-actions">
+                    <button class="btn-apply" id="applyFilters">Apply Filters</button>
+                    <a href="#" class="btn-clear" id="clearFilters">Clear Filters</a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>
+                    Browse Dogs Waiting for Homes
+                    <span class="dog-count-badge" id="dogCountBadge">0</span>
+                </h1>
+                <p class="page-subtitle">Help find their forever home</p>
+            </div>
+
+            <!-- Dogs Grid -->
+            <div class="dogs-grid" id="dogsGrid">
+                <!-- Loading skeletons will be inserted here -->
+                <div class="skeleton-card">
+                    <div class="skeleton-image skeleton"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line skeleton"></div>
+                        <div class="skeleton-line short skeleton"></div>
+                        <div class="skeleton-line skeleton"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-image skeleton"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line skeleton"></div>
+                        <div class="skeleton-line short skeleton"></div>
+                        <div class="skeleton-line skeleton"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-image skeleton"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line skeleton"></div>
+                        <div class="skeleton-line short skeleton"></div>
+                        <div class="skeleton-line skeleton"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- Footer (same as homepage) -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>About</h4>
+                <ul>
+                    <li><a href="/about.html">About Us</a></li>
+                    <li><a href="/mission.html">Our Mission</a></li>
+                    <li><a href="/team.html">Team</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h4>Resources</h4>
+                <ul>
+                    <li><a href="/guides.html">Adoption Guides</a></li>
+                    <li><a href="/shelters.html">Find Shelters</a></li>
+                    <li><a href="/faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h4>Support</h4>
+                <ul>
+                    <li><a href="/contact.html">Contact</a></li>
+                    <li><a href="/donate.html">Donate</a></li>
+                    <li><a href="/volunteer.html">Volunteer</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="/privacy.html">Privacy Policy</a></li>
+                    <li><a href="/terms.html">Terms of Service</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>&copy; 2025 WaitingTheLongest.com. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Files -->
+    <script src="js/websocket-client.js"></script>
+    <script src="js/led-counter.js"></script>
+
+    <script>
+        // State management
+        const state = {
+            currentPage: 1,
+            pageSize: 9,
+            totalDogs: 0,
+            dogs: [],
+            filters: {
+                state: '',
+                breed: '',
+                size: [],
+                age: [],
+                gender: '',
+                goodWith: [],
+                apartment: false,
+                specialNeeds: false,
+                sort: 'wait_time'
+            }
+        };
+
+        // DOM Elements
+        const dogsGrid = document.getElementById('dogsGrid');
+        const pagination = document.getElementById('pagination');
+        const dogCountBadge = document.getElementById('dogCountBadge');
+        const filterPanel = document.getElementById('filterPanel');
+        const filterToggle = document.getElementById('filterToggle');
+        const stateFilter = document.getElementById('stateFilter');
+        const breedFilter = document.getElementById('breedFilter');
+        const sortFilter = document.getElementById('sortFilter');
+        const applyFiltersBtn = document.getElementById('applyFilters');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStates();
+            parseUrlParams();
+            fetchDogs();
+            setupEventListeners();
+        });
+
+        // Load states from API
+        async function loadStates() {
+            try {
+                const response = await fetch('/api/states');
+                const states = await response.json();
+
+                states.forEach(st => {
+                    const option = document.createElement('option');
+                    option.value = st.code;
+                    option.textContent = st.name;
+                    stateFilter.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading states:', error);
+            }
+        }
+
+        // Parse URL parameters for initial filter state
+        function parseUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+
+            if (params.has('state')) {
+                state.filters.state = params.get('state');
+                stateFilter.value = state.filters.state;
+            }
+
+            if (params.has('breed')) {
+                state.filters.breed = params.get('breed');
+                breedFilter.value = state.filters.breed;
+            }
+
+            if (params.has('size')) {
+                const sizes = params.get('size').split(',');
+                state.filters.size = sizes;
+                sizes.forEach(size => {
+                    document.getElementById(`size${capitalize(size)}`).checked = true;
+                });
+            }
+
+            if (params.has('age')) {
+                const ages = params.get('age').split(',');
+                state.filters.age = ages;
+                ages.forEach(age => {
+                    document.getElementById(`age${capitalize(age)}`).checked = true;
+                });
+            }
+
+            if (params.has('gender')) {
+                state.filters.gender = params.get('gender');
+                document.querySelector(`input[name="gender"][value="${state.filters.gender}"]`).checked = true;
+            }
+
+            if (params.has('sort')) {
+                state.filters.sort = params.get('sort');
+                sortFilter.value = state.filters.sort;
+            }
+
+            if (params.has('page')) {
+                state.currentPage = parseInt(params.get('page'), 10);
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            applyFiltersBtn.addEventListener('click', applyFilters);
+            clearFiltersBtn.addEventListener('click', clearFilters);
+            filterToggle.addEventListener('click', toggleFilterPanel);
+        }
+
+        // Toggle filter panel on mobile
+        function toggleFilterPanel() {
+            filterPanel.classList.toggle('visible');
+            filterPanel.classList.toggle('hidden');
+
+            if (filterPanel.classList.contains('visible')) {
+                filterToggle.textContent = 'Hide Filters';
+            } else {
+                filterToggle.textContent = 'Show Filters';
+            }
+        }
+
+        // Apply filters and fetch dogs
+        function applyFilters() {
+            state.currentPage = 1;
+            updateFiltersFromUI();
+            updateUrl();
+            fetchDogs();
+
+            // Close filter panel on mobile
+            if (window.innerWidth <= 768) {
+                filterPanel.classList.remove('visible');
+                filterPanel.classList.add('hidden');
+                filterToggle.textContent = 'Show Filters';
+            }
+        }
+
+        // Clear all filters
+        function clearFilters(e) {
+            e.preventDefault();
+
+            state.filters = {
+                state: '',
+                breed: '',
+                size: [],
+                age: [],
+                gender: '',
+                goodWith: [],
+                apartment: false,
+                specialNeeds: false,
+                sort: 'wait_time'
+            };
+            state.currentPage = 1;
+
+            // Reset UI
+            stateFilter.value = '';
+            breedFilter.value = '';
+            sortFilter.value = 'wait_time';
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            document.querySelectorAll('input[type="radio"]').forEach(rb => {
+                rb.checked = rb.value === '';
+            });
+
+            updateUrl();
+            fetchDogs();
+        }
+
+        // Update filters from UI
+        function updateFiltersFromUI() {
+            state.filters.state = stateFilter.value;
+            state.filters.breed = breedFilter.value;
+            state.filters.sort = sortFilter.value;
+
+            // Size checkboxes
+            state.filters.size = Array.from(document.querySelectorAll('input[name="size"]:checked'))
+                .map(cb => cb.value);
+
+            // Age checkboxes
+            state.filters.age = Array.from(document.querySelectorAll('input[name="age"]:checked'))
+                .map(cb => cb.value);
+
+            // Gender radio
+            state.filters.gender = document.querySelector('input[name="gender"]:checked').value;
+
+            // Good with checkboxes
+            state.filters.goodWith = Array.from(document.querySelectorAll('input[name="goodWith"]:checked'))
+                .map(cb => cb.value);
+
+            // Special needs
+            state.filters.apartment = document.getElementById('apartmentSuitable').checked;
+            state.filters.specialNeeds = document.getElementById('specialNeeds').checked;
+        }
+
+        // Update URL with current filters
+        function updateUrl() {
+            const params = new URLSearchParams();
+
+            if (state.filters.state) params.set('state', state.filters.state);
+            if (state.filters.breed) params.set('breed', state.filters.breed);
+            if (state.filters.size.length > 0) params.set('size', state.filters.size.join(','));
+            if (state.filters.age.length > 0) params.set('age', state.filters.age.join(','));
+            if (state.filters.gender) params.set('gender', state.filters.gender);
+            if (state.filters.sort !== 'wait_time') params.set('sort', state.filters.sort);
+            if (state.currentPage > 1) params.set('page', state.currentPage);
+
+            const url = params.toString() ? `/dogs.html?${params.toString()}` : '/dogs.html';
+            window.history.replaceState({}, '', url);
+        }
+
+        // Fetch dogs from API
+        async function fetchDogs() {
+            try {
+                // Show loading skeleton
+                dogsGrid.innerHTML = Array(6).fill(0).map(() => createSkeleton()).join('');
+
+                // Build query params
+                const params = new URLSearchParams({
+                    page: state.currentPage,
+                    limit: state.pageSize,
+                    sort: state.filters.sort
+                });
+
+                if (state.filters.state) params.append('state', state.filters.state);
+                if (state.filters.breed) params.append('breed', state.filters.breed);
+                state.filters.size.forEach(s => params.append('size', s));
+                state.filters.age.forEach(a => params.append('age', a));
+                if (state.filters.gender) params.append('gender', state.filters.gender);
+                state.filters.goodWith.forEach(g => params.append('good_with', g));
+                if (state.filters.apartment) params.append('apartment_suitable', 'true');
+                if (state.filters.specialNeeds) params.append('special_needs', 'true');
+
+                const response = await fetch(`/api/dogs?${params.toString()}`);
+                const data = await response.json();
+
+                state.dogs = data.dogs || [];
+                state.totalDogs = data.total || 0;
+
+                // Update UI
+                dogCountBadge.textContent = state.totalDogs;
+                renderDogs();
+                renderPagination();
+                initializeLedCounters();
+
+            } catch (error) {
+                console.error('Error fetching dogs:', error);
+                dogsGrid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 2rem;">
+                        <p style="color: #666; font-size: 1.1rem;">Error loading dogs. Please try again.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render dog cards
+        function renderDogs() {
+            if (state.dogs.length === 0) {
+                dogsGrid.innerHTML = `
+                    <div style="grid-column: 1/-1;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🔍</div>
+                            <h3>No Dogs Found</h3>
+                            <p>Try adjusting your filters to see more results</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            dogsGrid.innerHTML = state.dogs.map(dog => createDogCard(dog)).join('');
+
+            // Add event listeners to favorite buttons
+            document.querySelectorAll('.favorite-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    btn.classList.toggle('favorited');
+                    const dogId = btn.dataset.dogId;
+                    toggleFavorite(dogId);
+                });
+            });
+        }
+
+        // Create dog card HTML
+        function createDogCard(dog) {
+            const badges = [];
+            if (dog.urgent) badges.push('<span class="badge badge-urgent">Urgent</span>');
+            if (dog.sponsored) badges.push('<span class="badge badge-sponsored">Sponsored</span>');
+            if (dog.overlooked) badges.push('<span class="badge badge-overlooked">Overlooked</span>');
+
+            const imageUrl = dog.photo_url || 'https://via.placeholder.com/300x300?text=No+Photo';
+
+            return `
+                <div class="dog-card">
+                    <div class="dog-image-container">
+                        <img src="${imageUrl}" alt="${dog.name}" class="dog-image">
+                        <div class="dog-badges">
+                            ${badges.join('')}
+                        </div>
+                        <button class="favorite-btn" data-dog-id="${dog.id}">♡</button>
+                    </div>
+                    <div class="dog-card-body">
+                        <a href="/dog.html?id=${dog.id}" class="dog-name">${escapeHtml(dog.name)}</a>
+                        <div class="dog-breed">${escapeHtml(dog.breed || 'Mixed')}</div>
+                        <div class="dog-details">
+                            <span class="dog-detail-item">${escapeHtml(dog.age || 'Unknown')}</span>
+                            <span class="dog-detail-item">${escapeHtml(dog.size || 'Medium')}</span>
+                            <span class="dog-detail-item">${dog.gender === 'M' ? 'Male' : dog.gender === 'F' ? 'Female' : 'Unknown'}</span>
+                        </div>
+                        <div class="led-counter-compact" data-dog-id="${dog.id}" data-wait-days="${dog.days_waiting || 0}">
+                            <div class="led-counter-display" style="font-size: 0.9rem; color: #FF6B6B; font-weight: 600;">
+                                Loading...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dog-card-footer">
+                        <div class="shelter-name">${escapeHtml(dog.shelter_name || 'Unknown Shelter')}</div>
+                        <div class="shelter-location">${escapeHtml(dog.city || '')}, ${escapeHtml(dog.state || '')}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create skeleton loader
+        function createSkeleton() {
+            return `
+                <div class="skeleton-card">
+                    <div class="skeleton-image skeleton"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line skeleton"></div>
+                        <div class="skeleton-line short skeleton"></div>
+                        <div class="skeleton-line skeleton"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render pagination
+        function renderPagination() {
+            const totalPages = Math.ceil(state.totalDogs / state.pageSize);
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            // Previous button
+            if (state.currentPage > 1) {
+                html += `<button onclick="goToPage(${state.currentPage - 1})">← Previous</button>`;
+            } else {
+                html += `<button class="disabled" disabled>← Previous</button>`;
+            }
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === state.currentPage) {
+                    html += `<button class="page-active">${i}</button>`;
+                } else if (i === 1 || i === totalPages || (i >= state.currentPage - 1 && i <= state.currentPage + 1)) {
+                    html += `<button onclick="goToPage(${i})">${i}</button>`;
+                } else if (i === 2 || i === totalPages - 1) {
+                    html += `<span>...</span>`;
+                }
+            }
+
+            // Next button
+            if (state.currentPage < totalPages) {
+                html += `<button onclick="goToPage(${state.currentPage + 1})">Next →</button>`;
+            } else {
+                html += `<button class="disabled" disabled>Next →</button>`;
+            }
+
+            pagination.innerHTML = html;
+        }
+
+        // Go to page
+        function goToPage(page) {
+            state.currentPage = page;
+            updateUrl();
+            fetchDogs();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Initialize LED counters
+        function initializeLedCounters() {
+            document.querySelectorAll('.led-counter-compact').forEach(container => {
+                const waitDays = parseInt(container.dataset.waitDays, 10) || 0;
+                const display = container.querySelector('.led-counter-display');
+
+                if (display) {
+                    const { text, cssClass } = formatWaitTime(waitDays);
+                    display.textContent = text;
+                    display.className = `led-counter-display ${cssClass}`;
+                }
+            });
+        }
+
+        // Format wait time
+        function formatWaitTime(days) {
+            if (days < 30) {
+                return { text: `${days}d waiting`, cssClass: 'text-green' };
+            } else if (days < 90) {
+                return { text: `${Math.floor(days / 7)}w waiting`, cssClass: 'text-yellow' };
+            } else if (days < 365) {
+                return { text: `${Math.floor(days / 30)}mo waiting`, cssClass: 'text-orange' };
+            } else {
+                return { text: `${Math.floor(days / 365)}y waiting`, cssClass: 'text-red' };
+            }
+        }
+
+        // Toggle favorite
+        function toggleFavorite(dogId) {
+            // Store in localStorage or send to API
+            let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            const index = favorites.indexOf(dogId);
+
+            if (index > -1) {
+                favorites.splice(index, 1);
+            } else {
+                favorites.push(dogId);
+            }
+
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+        }
+
+        // Utility functions
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Responsive filter panel
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                filterPanel.classList.add('visible');
+                filterPanel.classList.remove('hidden');
+                filterToggle.style.display = 'none';
+            } else {
+                filterToggle.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
