@@ -34,6 +34,9 @@ CREATE TABLE shelters (
 ALTER TABLE shelters ADD CONSTRAINT shelters_type_valid
     CHECK (shelter_type IN ('municipal', 'private', 'rescue', 'foster_network', 'humane_society', 'spca', 'other'));
 
+-- Unique constraint for deduplication
+CREATE UNIQUE INDEX idx_shelters_name_state ON shelters(name, state_code);
+
 -- Indexes
 CREATE INDEX idx_shelters_state ON shelters(state_code);
 CREATE INDEX idx_shelters_city_state ON shelters(city, state_code);
