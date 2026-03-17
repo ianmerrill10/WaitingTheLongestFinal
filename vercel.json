@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/update-urgency",
-      "schedule": "0 */12 * * *"
+      "schedule": "0 18 * * *"
     }
   ]
 }
