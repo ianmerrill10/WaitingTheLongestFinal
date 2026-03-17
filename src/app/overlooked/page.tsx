@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import DogGrid from "@/components/dogs/DogGrid";
 
 export const metadata: Metadata = {
   title: "Overlooked Angels - Dogs That Need Extra Love",
@@ -117,7 +119,72 @@ const SECTIONS = [
   },
 ];
 
-export default function OverlookedPage() {
+// Fetch dogs per category from Supabase
+async function fetchOverlookedDogs() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const categories: Record<string, any[]> = {};
+  try {
+    const supabase = await createClient();
+
+    // Senior dogs
+    const { data: seniors } = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .eq("age_category", "senior")
+      .order("intake_date", { ascending: true })
+      .limit(4);
+    categories["senior-dogs"] = seniors || [];
+
+    // Special needs dogs
+    const { data: specialNeeds } = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .eq("has_special_needs", true)
+      .order("intake_date", { ascending: true })
+      .limit(4);
+    categories["special-needs"] = specialNeeds || [];
+
+    // Long-term residents (intake > 6 months ago)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const { data: longTimers } = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .lt("intake_date", sixMonthsAgo.toISOString())
+      .order("intake_date", { ascending: true })
+      .limit(4);
+    categories["long-timers"] = longTimers || [];
+
+    // Pit bulls / bully breeds
+    const { data: pitBulls } = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .or("breed_primary.ilike.%pit bull%,breed_primary.ilike.%american staffordshire%,breed_primary.ilike.%staffordshire bull%,breed_primary.ilike.%bull terrier%")
+      .order("intake_date", { ascending: true })
+      .limit(4);
+    categories["pit-bulls"] = pitBulls || [];
+
+    // Black dogs
+    const { data: blackDogs } = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .ilike("color_primary", "%black%")
+      .order("intake_date", { ascending: true })
+      .limit(4);
+    categories["black-dogs"] = blackDogs || [];
+  } catch {
+    // Supabase not configured yet
+  }
+  return categories;
+}
+
+export default async function OverlookedPage() {
+  const categoryDogs = await fetchOverlookedDogs();
   return (
     <div>
       {/* Hero Header */}
@@ -203,47 +270,21 @@ export default function OverlookedPage() {
               </div>
             </div>
 
-            {/* Dog Cards Placeholder */}
+            {/* Dog Cards */}
             <div className="px-6 md:px-8 pb-6">
               <h3 className="font-semibold text-gray-900 mb-3">
                 {section.title} Available for Adoption
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-lg border border-gray-200 overflow-hidden"
-                  >
-                    <div className="aspect-square bg-gray-200 flex items-center justify-center">
-                      <svg
-                        className="w-10 h-10 text-gray-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                    </div>
-                    <div className="p-3">
-                      <p className="font-medium text-gray-900 text-sm">
-                        Dog Name
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Breed &middot; City, ST
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-center text-sm text-gray-500 mt-4">
-                Connect Supabase to see {section.title.toLowerCase()} available
-                for adoption
-              </p>
+              {categoryDogs[section.id] && categoryDogs[section.id].length > 0 ? (
+                <DogGrid dogs={categoryDogs[section.id]} emptyMessage={`No ${section.title.toLowerCase()} currently available.`} />
+              ) : (
+                <div className="text-center py-8 bg-white/50 rounded-lg">
+                  <p className="text-sm text-gray-500">
+                    {section.title} available for adoption will appear here once
+                    the database is connected and synced.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Quote / CTA */}
