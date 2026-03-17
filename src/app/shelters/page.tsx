@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Shelter Directory - Find Shelters Near You",
@@ -40,17 +41,20 @@ const US_STATES = [
   { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" },
 ];
 
-const PLACEHOLDER_SHELTERS = Array.from({ length: 6 }, (_, i) => ({
-  id: `shelter-${i}`,
-  name: `Shelter ${i + 1}`,
-  city: "City",
-  state_code: "ST",
-  shelter_type: "municipal" as const,
-  available_dogs: 0,
-  critical_dogs: 0,
-}));
+export default async function SheltersPage() {
+  const supabase = await createClient();
 
-export default function SheltersPage() {
+  // Fetch shelters
+  const { data: shelters } = await supabase
+    .from("shelters")
+    .select("*")
+    .limit(24);
+
+  // Fetch total shelter count
+  const { count: totalShelterCount } = await supabase
+    .from("shelters")
+    .select("id", { count: "exact", head: true });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page Header */}
@@ -60,10 +64,20 @@ export default function SheltersPage() {
         </h1>
         <p className="text-gray-600 text-lg">
           Find animal shelters and rescue organizations across the United States.
+          {totalShelterCount != null && totalShelterCount > 0 && (
+            <span className="text-gray-500">
+              {" "}
+              Currently tracking{" "}
+              <span className="font-semibold text-gray-700">
+                {totalShelterCount.toLocaleString()}
+              </span>{" "}
+              shelters.
+            </span>
+          )}
         </p>
       </div>
 
-      {/* Search Bar */}
+      {/* Search Bar (visual only) */}
       <div className="mb-8">
         <div className="max-w-xl">
           <label htmlFor="shelter-search" className="sr-only">
@@ -92,7 +106,7 @@ export default function SheltersPage() {
             />
           </div>
           <p className="text-xs text-gray-400 mt-1.5">
-            Search will be available once Supabase is connected
+            Search coming soon
           </p>
         </div>
       </div>
@@ -119,82 +133,83 @@ export default function SheltersPage() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900">All Shelters</h2>
-          <p className="text-sm text-gray-500">
-            Connect Supabase to see shelters
-          </p>
+          {shelters && shelters.length > 0 && (
+            <p className="text-sm text-gray-500">
+              Showing {shelters.length} of{" "}
+              {(totalShelterCount ?? shelters.length).toLocaleString()}
+            </p>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {PLACEHOLDER_SHELTERS.map((shelter) => (
-            <div
-              key={shelter.id}
-              className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-bold text-gray-900">{shelter.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {shelter.city}, {shelter.state_code}
-                  </p>
-                </div>
-                <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full capitalize">
-                  {shelter.shelter_type}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                <div className="flex items-center gap-1">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                    />
-                  </svg>
-                  <span>-- dogs</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 bg-red-500 rounded-full" />
-                  <span className="text-red-600">-- urgent</span>
-                </div>
-              </div>
-              <Link
-                href={`/shelters/${shelter.id}`}
-                className="block w-full text-center py-2 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium rounded-md text-sm transition border border-gray-200"
+        {shelters && shelters.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {shelters.map((shelter) => (
+              <div
+                key={shelter.id}
+                className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition"
               >
-                View Shelter
-              </Link>
-            </div>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        <div className="text-center py-12 mt-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <svg
-            className="mx-auto h-10 w-10 text-gray-400 mb-3"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1}
-              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-            />
-          </svg>
-          <p className="text-gray-600 font-medium">
-            Connect Supabase to see shelters
-          </p>
-          <p className="text-sm text-gray-500 mt-1">
-            Over 40,000 shelters and rescue organizations will be listed here
-          </p>
-        </div>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-gray-900 truncate">
+                      {shelter.name}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {shelter.city}, {shelter.state_code}
+                    </p>
+                  </div>
+                  {shelter.shelter_type && (
+                    <span className="flex-shrink-0 px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full capitalize">
+                      {shelter.shelter_type.replace(/_/g, " ")}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs mb-4">
+                  {shelter.is_kill_shelter && (
+                    <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-full">
+                      Kill Shelter
+                    </span>
+                  )}
+                  {shelter.accepts_rescue_pulls && (
+                    <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-full">
+                      Accepts Rescue Pulls
+                    </span>
+                  )}
+                  {shelter.phone && (
+                    <span className="text-gray-500">{shelter.phone}</span>
+                  )}
+                </div>
+                <Link
+                  href={`/shelters/${shelter.id}`}
+                  className="block w-full text-center py-2 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium rounded-md text-sm transition border border-gray-200"
+                >
+                  View Shelter
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <svg
+              className="mx-auto h-10 w-10 text-gray-400 mb-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+              />
+            </svg>
+            <p className="text-gray-600 font-medium">
+              No shelters found
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Check back soon as new shelters are being added regularly.
+            </p>
+          </div>
+        )}
       </section>
     </div>
   );

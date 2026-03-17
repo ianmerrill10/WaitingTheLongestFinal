@@ -1,43 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  return {
-    title: `Shelter Profile - ${id}`,
-    description:
-      "View this shelter's profile, available dogs, and contact information. Help connect dogs with loving homes.",
-    openGraph: {
-      title: `Shelter Profile | WaitingTheLongest.com`,
-      description:
-        "View shelter details, available dogs, and how to adopt or volunteer.",
-    },
-  };
-}
-
-const PLACEHOLDER_SHELTER = {
-  id: "shelter-1",
-  name: "City Animal Shelter",
-  shelter_type: "municipal" as const,
-  address: "123 Main Street",
-  city: "Austin",
-  state_code: "TX",
-  zip_code: "78701",
-  phone: "(555) 123-4567",
-  email: "info@cityshelter.example.com",
-  website: "https://cityshelter.example.com",
-  description:
-    "City Animal Shelter is a municipal open-admission shelter serving the greater metro area. We are committed to finding loving homes for all animals in our care and work with rescue partners to ensure the best outcomes for every animal.",
-  is_kill_shelter: true,
-  accepts_rescue_pulls: true,
-  total_dogs: 0,
-  available_dogs: 0,
-  critical_dogs: 0,
-};
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import DogGrid from "@/components/dogs/DogGrid";
 
 const SHELTER_TYPE_LABELS: Record<string, string> = {
   municipal: "Municipal Shelter",
@@ -48,13 +13,82 @@ const SHELTER_TYPE_LABELS: Record<string, string> = {
   spca: "SPCA",
 };
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: shelter } = await supabase
+    .from("shelters")
+    .select("name, city, state_code")
+    .eq("id", id)
+    .single();
+
+  const shelterName = shelter?.name ?? "Shelter Profile";
+  const location = shelter
+    ? `${shelter.city}, ${shelter.state_code}`
+    : "";
+
+  return {
+    title: `${shelterName} - Shelter Profile`,
+    description: `View ${shelterName}${location ? ` in ${location}` : ""} - available dogs, contact information, and how to adopt or volunteer.`,
+    openGraph: {
+      title: `${shelterName} | WaitingTheLongest.com`,
+      description: `View shelter details, available dogs, and how to adopt or volunteer.`,
+    },
+  };
+}
+
 export default async function ShelterProfilePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const shelter = PLACEHOLDER_SHELTER;
+  const supabase = await createClient();
+
+  // Fetch shelter
+  const { data: shelter, error } = await supabase
+    .from("shelters")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !shelter) {
+    notFound();
+  }
+
+  // Fetch dogs at this shelter
+  const { data: dogs } = await supabase
+    .from("dogs")
+    .select("*, shelters!inner(name, city, state_code)")
+    .eq("shelter_id", id)
+    .eq("is_available", true)
+    .order("intake_date", { ascending: true })
+    .limit(12);
+
+  // Fetch available dogs count
+  const { count: availableCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("shelter_id", id)
+    .eq("is_available", true);
+
+  // Fetch urgent dogs count
+  const { count: urgentCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("shelter_id", id)
+    .eq("is_available", true)
+    .in("urgency_level", ["critical", "urgent"]);
+
+  // Fetch total dogs count (including unavailable)
+  const { count: totalCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("shelter_id", id);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -77,11 +111,6 @@ export default async function ShelterProfilePage({
         </ol>
       </nav>
 
-      {/* Placeholder Notice */}
-      <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-        This is a placeholder profile. Connect Supabase to load real shelter data.
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
@@ -93,12 +122,16 @@ export default async function ShelterProfilePage({
                   {shelter.name}
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  {shelter.city}, {shelter.state_code} {shelter.zip_code}
+                  {shelter.city}, {shelter.state_code}{" "}
+                  {shelter.zip_code ?? ""}
                 </p>
               </div>
-              <span className="inline-flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full font-medium">
-                {SHELTER_TYPE_LABELS[shelter.shelter_type] || shelter.shelter_type}
-              </span>
+              {shelter.shelter_type && (
+                <span className="inline-flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full font-medium">
+                  {SHELTER_TYPE_LABELS[shelter.shelter_type] ||
+                    shelter.shelter_type.replace(/_/g, " ")}
+                </span>
+              )}
             </div>
             {shelter.description && (
               <p className="text-gray-700 leading-relaxed">
@@ -125,14 +158,21 @@ export default async function ShelterProfilePage({
               Statistics
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatCard label="Total Dogs" value="--" />
-              <StatCard label="Available" value="--" />
-              <StatCard label="Urgent" value="--" urgent />
-              <StatCard label="Avg. Wait" value="-- days" />
+              <StatCard label="Total Dogs" value={String(totalCount ?? 0)} />
+              <StatCard
+                label="Available"
+                value={String(availableCount ?? 0)}
+              />
+              <StatCard
+                label="Urgent"
+                value={String(urgentCount ?? 0)}
+                urgent
+              />
+              <StatCard
+                label="Showing"
+                value={`${dogs?.length ?? 0} dogs`}
+              />
             </div>
-            <p className="text-xs text-gray-400 mt-4">
-              Statistics will update in real-time once Supabase is connected
-            </p>
           </div>
 
           {/* Dogs at This Shelter */}
@@ -149,46 +189,12 @@ export default async function ShelterProfilePage({
               </Link>
             </div>
 
-            {/* Dog Card Placeholders */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <div className="w-20 h-20 flex-shrink-0 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-8 h-8 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 text-sm">
-                      Dog Name
-                    </p>
-                    <p className="text-xs text-gray-500">Breed</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Waiting -- days
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center py-6 mt-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-              <p className="text-gray-500 text-sm">
-                Connect Supabase to see dogs at this shelter
-              </p>
-            </div>
+            <DogGrid
+              dogs={dogs ?? []}
+              showCountdown
+              urgencyHighlight
+              emptyMessage="No dogs currently available at this shelter."
+            />
           </div>
         </div>
 
@@ -200,51 +206,64 @@ export default async function ShelterProfilePage({
               Contact Information
             </h3>
             <div className="space-y-4">
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
-                  Address
-                </p>
-                <p className="text-gray-900 text-sm">
-                  {shelter.address}
-                  <br />
-                  {shelter.city}, {shelter.state_code} {shelter.zip_code}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
-                  Phone
-                </p>
-                <a
-                  href={`tel:${shelter.phone}`}
-                  className="text-blue-600 hover:underline text-sm"
-                >
-                  {shelter.phone}
-                </a>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
-                  Email
-                </p>
-                <a
-                  href={`mailto:${shelter.email}`}
-                  className="text-blue-600 hover:underline text-sm break-all"
-                >
-                  {shelter.email}
-                </a>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
-                  Website
-                </p>
-                <a
-                  href={shelter.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline text-sm break-all"
-                >
-                  {shelter.website}
-                </a>
-              </div>
+              {(shelter.address || shelter.city) && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
+                    Address
+                  </p>
+                  <p className="text-gray-900 text-sm">
+                    {shelter.address && (
+                      <>
+                        {shelter.address}
+                        <br />
+                      </>
+                    )}
+                    {shelter.city}, {shelter.state_code}{" "}
+                    {shelter.zip_code ?? ""}
+                  </p>
+                </div>
+              )}
+              {shelter.phone && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
+                    Phone
+                  </p>
+                  <a
+                    href={`tel:${shelter.phone}`}
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {shelter.phone}
+                  </a>
+                </div>
+              )}
+              {shelter.email && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
+                    Email
+                  </p>
+                  <a
+                    href={`mailto:${shelter.email}`}
+                    className="text-blue-600 hover:underline text-sm break-all"
+                  >
+                    {shelter.email}
+                  </a>
+                </div>
+              )}
+              {shelter.website && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
+                    Website
+                  </p>
+                  <a
+                    href={shelter.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm break-all"
+                  >
+                    {shelter.website}
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
@@ -317,9 +336,17 @@ function StatCard({
   urgent?: boolean;
 }) {
   return (
-    <div className={`rounded-lg p-3 text-center ${urgent ? "bg-red-50" : "bg-gray-50"}`}>
+    <div
+      className={`rounded-lg p-3 text-center ${
+        urgent ? "bg-red-50" : "bg-gray-50"
+      }`}
+    >
       <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className={`text-xl font-bold ${urgent ? "text-red-600" : "text-gray-900"}`}>
+      <p
+        className={`text-xl font-bold ${
+          urgent ? "text-red-600" : "text-gray-900"
+        }`}
+      >
         {value}
       </p>
     </div>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import DogGrid from "@/components/dogs/DogGrid";
 
 const STATE_NAMES: Record<string, string> = {
   al: "Alabama", ak: "Alaska", az: "Arizona", ar: "Arkansas", ca: "California",
@@ -40,6 +42,41 @@ export default async function StateDetailPage({
   const stateCode = code.toUpperCase();
   const stateName = STATE_NAMES[code.toLowerCase()] || stateCode;
 
+  const supabase = await createClient();
+
+  // Fetch dogs in this state (longest waiting first)
+  const { data: dogs } = await supabase
+    .from("dogs")
+    .select("*, shelters!inner(name, city, state_code)")
+    .eq("is_available", true)
+    .eq("shelters.state_code", stateCode)
+    .order("intake_date", { ascending: true })
+    .limit(12);
+
+  // Fetch urgent dogs count for this state
+  const { count: urgentCount } = await supabase
+    .from("dogs")
+    .select("id, shelters!inner(state_code)", { count: "exact", head: true })
+    .eq("is_available", true)
+    .eq("shelters.state_code", stateCode)
+    .in("urgency_level", ["critical", "urgent"]);
+
+  // Fetch total available dogs count for this state
+  const { count: totalDogsCount } = await supabase
+    .from("dogs")
+    .select("id, shelters!inner(state_code)", { count: "exact", head: true })
+    .eq("is_available", true)
+    .eq("shelters.state_code", stateCode);
+
+  // Fetch shelters in this state
+  const { data: shelters } = await supabase
+    .from("shelters")
+    .select("*")
+    .eq("state_code", stateCode)
+    .limit(20);
+
+  const shelterCount = shelters?.length ?? 0;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -76,10 +113,17 @@ export default async function StateDetailPage({
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-        <StatCard label="Available Dogs" value="--" />
-        <StatCard label="Urgent Dogs" value="--" urgent />
-        <StatCard label="Shelters" value="--" />
-        <StatCard label="Avg. Wait Time" value="-- days" />
+        <StatCard
+          label="Available Dogs"
+          value={String(totalDogsCount ?? 0)}
+        />
+        <StatCard
+          label="Urgent Dogs"
+          value={String(urgentCount ?? 0)}
+          urgent
+        />
+        <StatCard label="Shelters" value={String(shelterCount)} />
+        <StatCard label="Showing" value={`${dogs?.length ?? 0} dogs`} />
       </div>
 
       {/* Dogs Section */}
@@ -96,41 +140,12 @@ export default async function StateDetailPage({
           </Link>
         </div>
 
-        {/* Dog Card Placeholders */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm"
-            >
-              <div className="aspect-square bg-gray-200 flex items-center justify-center">
-                <svg
-                  className="w-12 h-12 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              <div className="p-3">
-                <p className="font-medium text-gray-900 text-sm">Dog Name</p>
-                <p className="text-xs text-gray-500">Breed &middot; Age</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="text-center py-8 mt-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <p className="text-gray-500">
-            Connect Supabase to see dogs in {stateName}
-          </p>
-        </div>
+        <DogGrid
+          dogs={dogs ?? []}
+          showCountdown
+          urgencyHighlight
+          emptyMessage={`No dogs currently available in ${stateName}.`}
+        />
       </section>
 
       {/* Shelters Section */}
@@ -147,30 +162,40 @@ export default async function StateDetailPage({
           </Link>
         </div>
 
-        {/* Shelter Card Placeholders */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm"
-            >
-              <h3 className="font-bold text-gray-900 mb-1">Shelter Name</h3>
-              <p className="text-sm text-gray-600 mb-3">
-                City, {stateCode}
-              </p>
-              <div className="flex items-center gap-4 text-xs text-gray-500">
-                <span>-- dogs</span>
-                <span>-- urgent</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="text-center py-8 mt-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <p className="text-gray-500">
-            Connect Supabase to see shelters in {stateName}
-          </p>
-        </div>
+        {shelters && shelters.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {shelters.map((shelter) => (
+              <Link
+                key={shelter.id}
+                href={`/shelters/${shelter.id}`}
+                className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm hover:shadow-md hover:border-blue-300 transition block"
+              >
+                <h3 className="font-bold text-gray-900 mb-1">
+                  {shelter.name}
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  {shelter.city}, {shelter.state_code}
+                </p>
+                {shelter.shelter_type && (
+                  <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full capitalize">
+                    {shelter.shelter_type.replace(/_/g, " ")}
+                  </span>
+                )}
+                {shelter.is_kill_shelter && (
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-red-50 text-red-600 rounded-full">
+                    Kill Shelter
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <p className="text-gray-500">
+              No shelters currently listed in {stateName}.
+            </p>
+          </div>
+        )}
       </section>
     </div>
   );
