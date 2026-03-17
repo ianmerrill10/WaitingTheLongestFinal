@@ -1,0 +1,18 @@
+/* TEAM */
+Project: WaitingTheLongest.com
+Site: https://waitingthelongest.com
+Description: Real-time dog rescue platform
+Mission: Save dogs from shelter euthanasia
+
+/* TECHNOLOGY */
+Language: C++17
+Framework: Drogon
+Database: PostgreSQL 16
+Cache: Redis 7
+Frontend: Vanilla HTML/CSS/JS
+Server: Nginx
+Deploy: Docker
+
+/* SITE */
+Last update: 2026-02-12
+Standards: HTML5, CSS3, ES6+

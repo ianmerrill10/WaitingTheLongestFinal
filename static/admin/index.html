@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🐾</text></svg>">
+    <meta name="description" content="WaitingTheLongest Admin Dashboard">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin Dashboard - WaitingTheLongest</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" integrity="sha384-LGOfiHMRd7gmjwXibTVFnrB8ihPsIVDQ9G6nraGqHOVYJB1mv9YPcoEuNDWymEB" crossorigin="anonymous">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Admin CSS -->
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="ri-heart-pulse-line"></i>
+                <span>WTL Admin</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebar-toggle">
+                <i class="ri-menu-fold-line"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="nav-list">
+                <li class="nav-item active" data-page="dashboard">
+                    <a href="#dashboard" class="nav-link">
+                        <i class="ri-dashboard-3-line"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="dogs">
+                    <a href="#dogs" class="nav-link">
+                        <i class="ri-emotion-happy-line"></i>
+                        <span>Dogs</span>
+                        <span class="badge badge-warning" id="urgent-dogs-badge">0</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="shelters">
+                    <a href="#shelters" class="nav-link">
+                        <i class="ri-home-heart-line"></i>
+                        <span>Shelters</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="users">
+                    <a href="#users" class="nav-link">
+                        <i class="ri-user-line"></i>
+                        <span>Users</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="fosters">
+                    <a href="#fosters" class="nav-link">
+                        <i class="ri-hand-heart-line"></i>
+                        <span>Fosters</span>
+                    </a>
+                </li>
+
+                <li class="nav-divider"></li>
+
+                <li class="nav-item" data-page="content">
+                    <a href="#content" class="nav-link">
+                        <i class="ri-article-line"></i>
+                        <span>Content</span>
+                        <span class="badge badge-info" id="pending-content-badge">0</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="analytics">
+                    <a href="#analytics" class="nav-link">
+                        <i class="ri-line-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+
+                <li class="nav-divider"></li>
+
+                <li class="nav-item" data-page="system">
+                    <a href="#system" class="nav-link">
+                        <i class="ri-settings-3-line"></i>
+                        <span>System</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="config">
+                    <a href="#config" class="nav-link">
+                        <i class="ri-tools-line"></i>
+                        <span>Configuration</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="audit">
+                    <a href="#audit" class="nav-link">
+                        <i class="ri-file-list-3-line"></i>
+                        <span>Audit Log</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="ri-admin-line"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name" id="admin-name">Admin</span>
+                    <span class="user-role">Administrator</span>
+                </div>
+            </div>
+            <button class="btn-logout" id="logout-btn">
+                <i class="ri-logout-box-r-line"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+                    <i class="ri-menu-line"></i>
+                </button>
+                <h1 class="page-title" id="page-title">Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="header-btn" id="refresh-btn" title="Refresh Data">
+                        <i class="ri-refresh-line"></i>
+                    </button>
+                    <button class="header-btn" id="notifications-btn" title="Notifications">
+                        <i class="ri-notification-3-line"></i>
+                        <span class="notification-dot" id="notification-dot"></span>
+                    </button>
+                    <div class="system-status" id="system-status">
+                        <span class="status-indicator healthy"></span>
+                        <span class="status-text">System Healthy</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content Container -->
+        <div class="page-content" id="page-content">
+            <!-- Dashboard Page -->
+            <section class="page active" id="page-dashboard">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon dogs">
+                            <i class="ri-emotion-happy-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 class="stat-value" id="stat-total-dogs">0</h3>
+                            <p class="stat-label">Total Dogs</p>
+                            <span class="stat-change positive" id="stat-dogs-change">+0%</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon urgent">
+                            <i class="ri-alarm-warning-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 class="stat-value" id="stat-urgent-dogs">0</h3>
+                            <p class="stat-label">Urgent Dogs</p>
+                            <span class="stat-sublabel" id="stat-critical-count">0 critical</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon shelters">
+                            <i class="ri-home-heart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 class="stat-value" id="stat-total-shelters">0</h3>
+                            <p class="stat-label">Shelters</p>
+                            <span class="stat-sublabel" id="stat-verified-shelters">0 verified</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon users">
+                            <i class="ri-user-heart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 class="stat-value" id="stat-total-users">0</h3>
+                            <p class="stat-label">Users</p>
+                            <span class="stat-sublabel" id="stat-active-users">0 active today</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon fosters">
+                            <i class="ri-hand-heart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 class="stat-value" id="stat-foster-homes">0</h3>
+                            <p class="stat-label">Foster Homes</p>
+                            <span class="stat-sublabel" id="stat-active-placements">0 active placements</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon adoptions">
+                            <i class="ri-heart-3-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 class="stat-value" id="stat-adoptions">0</h3>
+                            <p class="stat-label">Adoptions</p>
+                            <span class="stat-sublabel">This month</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Urgency Overview</h3>
+                            <div class="chart-actions">
+                                <select id="urgency-period">
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d" selected>Last 7 Days</option>
+                                    <option value="30d">Last 30 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="urgency-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Adoption Trends</h3>
+                            <div class="chart-actions">
+                                <select id="adoption-period">
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d" selected>Last 30 Days</option>
+                                    <option value="90d">Last 90 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="adoption-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Alerts -->
+                <div class="content-grid">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h3>Recent Activity</h3>
+                            <a href="#audit" class="view-all">View All</a>
+                        </div>
+                        <div class="card-body">
+                            <ul class="activity-list" id="recent-activity">
+                                <li class="activity-item loading">Loading...</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="content-card alerts-card">
+                        <div class="card-header">
+                            <h3>Urgent Alerts</h3>
+                            <span class="badge badge-danger" id="alerts-count">0</span>
+                        </div>
+                        <div class="card-body">
+                            <ul class="alerts-list" id="urgent-alerts">
+                                <li class="alert-item loading">Loading...</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Health -->
+                <div class="system-health-card">
+                    <div class="card-header">
+                        <h3>System Health</h3>
+                        <span class="health-status healthy" id="overall-health">Healthy</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="health-grid" id="health-indicators">
+                            <div class="health-item">
+                                <div class="health-icon">
+                                    <i class="ri-database-2-line"></i>
+                                </div>
+                                <div class="health-info">
+                                    <span class="health-name">Database</span>
+                                    <span class="health-value healthy">Connected</span>
+                                </div>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-icon">
+                                    <i class="ri-time-line"></i>
+                                </div>
+                                <div class="health-info">
+                                    <span class="health-name">Workers</span>
+                                    <span class="health-value healthy">All Running</span>
+                                </div>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-icon">
+                                    <i class="ri-error-warning-line"></i>
+                                </div>
+                                <div class="health-info">
+                                    <span class="health-name">Error Rate</span>
+                                    <span class="health-value healthy">0.1%</span>
+                                </div>
+                            </div>
+                            <div class="health-item">
+                                <div class="health-icon">
+                                    <i class="ri-server-line"></i>
+                                </div>
+                                <div class="health-info">
+                                    <span class="health-name">API Status</span>
+                                    <span class="health-value healthy">Operational</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dogs Management Page -->
+            <section class="page" id="page-dogs">
+                <div class="page-header">
+                    <h2>Dog Management</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary" id="export-dogs-btn">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                        <button class="btn btn-primary" id="add-dog-btn">
+                            <i class="ri-add-line"></i> Add Dog
+                        </button>
+                    </div>
+                </div>
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <i class="ri-search-line"></i>
+                        <input type="text" id="dogs-search" placeholder="Search dogs...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="dogs-status-filter">
+                            <option value="">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="adopted">Adopted</option>
+                            <option value="fostered">Fostered</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                        <select id="dogs-urgency-filter">
+                            <option value="">All Urgency</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="normal">Normal</option>
+                        </select>
+                        <select id="dogs-shelter-filter">
+                            <option value="">All Shelters</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="dogs-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="dogs-select-all"></th>
+                                <th>Photo</th>
+                                <th data-sort="name">Name</th>
+                                <th data-sort="breed">Breed</th>
+                                <th data-sort="shelter">Shelter</th>
+                                <th data-sort="intake_date">Wait Time</th>
+                                <th data-sort="urgency">Urgency</th>
+                                <th data-sort="status">Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dogs-tbody">
+                            <tr><td colspan="9" class="loading">Loading dogs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="dogs-pagination"></div>
+            </section>
+
+            <!-- Shelters Management Page -->
+            <section class="page" id="page-shelters">
+                <div class="page-header">
+                    <h2>Shelter Management</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" id="add-shelter-btn">
+                            <i class="ri-add-line"></i> Add Shelter
+                        </button>
+                    </div>
+                </div>
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <i class="ri-search-line"></i>
+                        <input type="text" id="shelters-search" placeholder="Search shelters...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="shelters-state-filter">
+                            <option value="">All States</option>
+                        </select>
+                        <select id="shelters-verified-filter">
+                            <option value="">All Verification</option>
+                            <option value="verified">Verified</option>
+                            <option value="unverified">Unverified</option>
+                        </select>
+                        <select id="shelters-type-filter">
+                            <option value="">All Types</option>
+                            <option value="kill">Kill Shelters</option>
+                            <option value="nokill">No-Kill Shelters</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="shelters-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="name">Name</th>
+                                <th data-sort="state">State</th>
+                                <th data-sort="dogs">Dogs</th>
+                                <th data-sort="type">Type</th>
+                                <th data-sort="verified">Verified</th>
+                                <th data-sort="urgent">Urgent Dogs</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shelters-tbody">
+                            <tr><td colspan="7" class="loading">Loading shelters...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="shelters-pagination"></div>
+            </section>
+
+            <!-- Users Management Page -->
+            <section class="page" id="page-users">
+                <div class="page-header">
+                    <h2>User Management</h2>
+                </div>
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <i class="ri-search-line"></i>
+                        <input type="text" id="users-search" placeholder="Search users...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="users-role-filter">
+                            <option value="">All Roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="shelter_admin">Shelter Admin</option>
+                            <option value="foster">Foster</option>
+                            <option value="user">User</option>
+                        </select>
+                        <select id="users-status-filter">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="name">Name</th>
+                                <th data-sort="email">Email</th>
+                                <th data-sort="role">Role</th>
+                                <th data-sort="status">Status</th>
+                                <th data-sort="created">Joined</th>
+                                <th data-sort="last_login">Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <tr><td colspan="7" class="loading">Loading users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="users-pagination"></div>
+            </section>
+
+            <!-- Fosters Page -->
+            <section class="page" id="page-fosters">
+                <div class="page-header">
+                    <h2>Foster Management</h2>
+                </div>
+                <div class="content-tabs">
+                    <button class="tab-btn active" data-tab="foster-homes">Foster Homes</button>
+                    <button class="tab-btn" data-tab="applications">Applications</button>
+                    <button class="tab-btn" data-tab="placements">Active Placements</button>
+                </div>
+                <div class="tab-content active" id="tab-foster-homes">
+                    <div class="table-container">
+                        <table class="data-table" id="fosters-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Location</th>
+                                    <th>Capacity</th>
+                                    <th>Current Dogs</th>
+                                    <th>Experience</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fosters-tbody">
+                                <tr><td colspan="7" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-applications">
+                    <div class="table-container">
+                        <table class="data-table" id="applications-table">
+                            <thead>
+                                <tr>
+                                    <th>Applicant</th>
+                                    <th>Dog</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="applications-tbody">
+                                <tr><td colspan="5" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-placements">
+                    <div class="table-container">
+                        <table class="data-table" id="placements-table">
+                            <thead>
+                                <tr>
+                                    <th>Foster</th>
+                                    <th>Dog</th>
+                                    <th>Start Date</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="placements-tbody">
+                                <tr><td colspan="6" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Content Management Page -->
+            <section class="page" id="page-content">
+                <div class="page-header">
+                    <h2>Content Management</h2>
+                </div>
+                <div class="content-tabs">
+                    <button class="tab-btn active" data-tab="moderation">Moderation Queue</button>
+                    <button class="tab-btn" data-tab="tiktok">TikTok Posts</button>
+                    <button class="tab-btn" data-tab="blog">Blog Posts</button>
+                    <button class="tab-btn" data-tab="scheduled">Scheduled</button>
+                </div>
+                <div class="tab-content active" id="tab-moderation">
+                    <div class="content-queue" id="content-queue">
+                        <p class="empty-state">No items pending moderation</p>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-tiktok">
+                    <div class="content-grid" id="tiktok-posts">
+                        <p class="empty-state">No TikTok posts yet</p>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-blog">
+                    <div class="content-list" id="blog-posts">
+                        <p class="empty-state">No blog posts yet</p>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-scheduled">
+                    <div class="content-calendar" id="scheduled-content">
+                        <p class="empty-state">No scheduled content</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics Page -->
+            <section class="page" id="page-analytics">
+                <div class="page-header">
+                    <h2>Analytics Dashboard</h2>
+                    <div class="page-actions">
+                        <select id="analytics-period">
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d" selected>Last 30 Days</option>
+                            <option value="90d">Last 90 Days</option>
+                            <option value="year">This Year</option>
+                        </select>
+                        <button class="btn btn-secondary" id="export-analytics-btn">
+                            <i class="ri-download-line"></i> Export Report
+                        </button>
+                    </div>
+                </div>
+                <div class="analytics-grid" id="analytics-content">
+                    <!-- Charts and metrics loaded by JS -->
+                </div>
+            </section>
+
+            <!-- System Health Page -->
+            <section class="page" id="page-system">
+                <div class="page-header">
+                    <h2>System Health</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary" id="refresh-health-btn">
+                            <i class="ri-refresh-line"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="system-grid" id="system-content">
+                    <!-- System health loaded by JS -->
+                </div>
+            </section>
+
+            <!-- Configuration Page -->
+            <section class="page" id="page-config">
+                <div class="page-header">
+                    <h2>System Configuration</h2>
+                </div>
+                <div class="content-tabs">
+                    <button class="tab-btn active" data-tab="settings">Settings</button>
+                    <button class="tab-btn" data-tab="features">Feature Flags</button>
+                    <button class="tab-btn" data-tab="workers">Workers</button>
+                </div>
+                <div class="tab-content active" id="tab-settings">
+                    <div class="config-grid" id="config-settings">
+                        <!-- Config loaded by JS -->
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-features">
+                    <div class="feature-flags-list" id="feature-flags">
+                        <!-- Feature flags loaded by JS -->
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-workers">
+                    <div class="workers-list" id="workers-status">
+                        <!-- Workers loaded by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Audit Log Page -->
+            <section class="page" id="page-audit">
+                <div class="page-header">
+                    <h2>Audit Log</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary" id="export-audit-btn">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                </div>
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <i class="ri-search-line"></i>
+                        <input type="text" id="audit-search" placeholder="Search audit log...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="audit-action-filter">
+                            <option value="">All Actions</option>
+                            <option value="UPDATE_DOG">Update Dog</option>
+                            <option value="DELETE_DOG">Delete Dog</option>
+                            <option value="UPDATE_USER">Update User</option>
+                            <option value="CHANGE_USER_ROLE">Change Role</option>
+                            <option value="UPDATE_CONFIG">Update Config</option>
+                        </select>
+                        <select id="audit-entity-filter">
+                            <option value="">All Entities</option>
+                            <option value="dog">Dogs</option>
+                            <option value="shelter">Shelters</option>
+                            <option value="user">Users</option>
+                            <option value="config">Configuration</option>
+                        </select>
+                        <input type="date" id="audit-date-start" placeholder="Start Date">
+                        <input type="date" id="audit-date-end" placeholder="End Date">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Entity</th>
+                                <th>Details</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody">
+                            <tr><td colspan="6" class="loading">Loading audit log...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="audit-pagination"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Modal</h3>
+                <button class="modal-close" id="modal-close">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Modal content loaded dynamically -->
+            </div>
+            <div class="modal-footer" id="modal-footer">
+                <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="modal-confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Admin JavaScript -->
+    <script src="js/admin.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/dogs-manager.js"></script>
+    <script src="js/shelters-manager.js"></script>
+    <script src="js/users-manager.js"></script>
+    <script src="js/content-manager.js"></script>
+    <script src="js/analytics-dashboard.js"></script>
+    <script src="js/system-health.js"></script>
+</body>
+</html>

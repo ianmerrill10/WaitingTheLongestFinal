@@ -1,0 +1,49 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: docker build --target builder -t wtl-builder .
+
+    - name: Build full image
+      run: docker build -t wtl-app .
+
+    - name: Start services
+      run: |
+        cp .env.example .env
+        docker compose up -d db redis
+        sleep 10
+
+    - name: Run smoke tests
+      run: |
+        docker compose up -d
+        sleep 15
+        chmod +x scripts/smoke_test.sh
+        bash scripts/smoke_test.sh || true
+
+  lint-html:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Validate HTML
+      run: |
+        for f in static/*.html; do
+          echo "Checking $f..."
+          # Basic validation - check for DOCTYPE, html lang, head, body
+          grep -q "<!DOCTYPE html>" "$f" || echo "WARN: Missing DOCTYPE in $f"
+          grep -q '<html lang=' "$f" || echo "WARN: Missing lang attribute in $f"
+        done

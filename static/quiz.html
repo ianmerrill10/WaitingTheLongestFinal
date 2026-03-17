@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🐾</text></svg>">
+    <meta name="description" content="Lifestyle Matching Quiz - Find your perfect dog match. WaitingTheLongest.com helps adopters connect with compatible rescue dogs.">
+    <meta name="keywords" content="dog adoption, lifestyle match, rescue dogs, adopter quiz, dog compatibility">
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Lifestyle Matching Quiz - WaitingTheLongest">
+    <meta property="og:description" content="Take our lifestyle matching quiz to find the perfect dog match for your home and family.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://waitingthelongest.com/quiz.html">
+    <meta property="og:image" content="https://waitingthelongest.com/og-image.jpg">
+    <meta property="og:site_name" content="WaitingTheLongest">
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Lifestyle Matching Quiz - WaitingTheLongest">
+    <meta name="twitter:description" content="Take our lifestyle matching quiz to find the perfect dog match for your home and family.">
+    <meta name="twitter:image" content="https://waitingthelongest.com/og-image.jpg">
+
+    <link rel="canonical" href="https://waitingthelongest.com/quiz.html">
+    <meta name="theme-color" content="#00ff41">
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/led-counter.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <title>Lifestyle Matching Quiz - WaitingTheLongest</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #0f0f0f;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        /* Header Styles */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+            padding: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .logo-highlight {
+            color: #ff6b6b;
+        }
+
+        .paw-icon {
+            font-size: 1.3rem;
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        nav a {
+            color: #b0b0b0;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            cursor: pointer;
+        }
+
+        nav a:hover {
+            color: #ff6b6b;
+        }
+
+        nav a.active {
+            color: #ff6b6b;
+            border-bottom: 2px solid #ff6b6b;
+            padding-bottom: 2px;
+        }
+
+        .login-btn {
+            background-color: #ff6b6b;
+            color: #fff;
+            padding: 0.5rem 1.2rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .login-btn:hover {
+            background-color: #ff5252;
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 5px;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background-color: #fff;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(10px, 10px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        /* Quiz Container */
+        .quiz-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+            min-height: calc(100vh - 300px);
+        }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .quiz-header h1 {
+            font-size: 2.5rem;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-header p {
+            color: #b0b0b0;
+            font-size: 1.1rem;
+        }
+
+        /* Progress Bar */
+        .progress-section {
+            margin-bottom: 3rem;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #333;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #ff6b6b;
+            transition: width 0.4s ease;
+            border-radius: 4px;
+        }
+
+        .step-indicators {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+            gap: 0.5rem;
+        }
+
+        .step-indicator {
+            flex: 1;
+            height: 4px;
+            background-color: #333;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .step-indicator.active {
+            background-color: #ff6b6b;
+        }
+
+        .step-indicator.completed {
+            background-color: #27ae60;
+        }
+
+        /* Quiz Form Styles */
+        .quiz-form {
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .quiz-step {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .quiz-step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .question-group {
+            margin-bottom: 2rem;
+        }
+
+        .question-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .question-label {
+            display: block;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .question-label.required::after {
+            content: ' *';
+            color: #ff6b6b;
+        }
+
+        /* Radio/Checkbox Options */
+        .options-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background-color: #2a2a2a;
+            border: 2px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option-item:hover {
+            border-color: #ff6b6b;
+            background-color: #333;
+        }
+
+        .option-item input[type="radio"],
+        .option-item input[type="checkbox"] {
+            margin-right: 1rem;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            accent-color: #ff6b6b;
+            flex-shrink: 0;
+        }
+
+        .option-label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #e0e0e0;
+        }
+
+        .option-item.selected {
+            background-color: rgba(255, 107, 107, 0.1);
+            border-color: #ff6b6b;
+        }
+
+        /* Icon Options (for activity level) */
+        .icon-options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+
+        .icon-option {
+            position: relative;
+        }
+
+        .icon-option input {
+            display: none;
+        }
+
+        .icon-option-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem;
+            background-color: #2a2a2a;
+            border: 2px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .icon-option input:checked + .icon-option-label {
+            background-color: rgba(255, 107, 107, 0.1);
+            border-color: #ff6b6b;
+        }
+
+        .icon-option-label:hover {
+            border-color: #ff6b6b;
+        }
+
+        .icon-option-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .icon-option-text {
+            font-size: 0.9rem;
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        /* Range Slider */
+        .range-slider-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .range-slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .range-slider-label-left {
+            color: #b0b0b0;
+        }
+
+        .range-slider-label-right {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+        }
+
+        /* Number Input */
+        input[type="number"] {
+            padding: 0.75rem 1rem;
+            background-color: #2a2a2a;
+            border: 2px solid #333;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 150px;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #ff6b6b;
+            background-color: #333;
+        }
+
+        /* Conditional Display */
+        .conditional-question {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .conditional-question.show {
+            display: block;
+        }
+
+        /* Navigation Buttons */
+        .form-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 2.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background-color: #ff6b6b;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background-color: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-primary:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: #b0b0b0;
+            border: 2px solid #333;
+        }
+
+        .btn-secondary:hover {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Results Section */
+        .results-section {
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .loading-animation {
+            text-align: center;
+            padding: 3rem 2rem;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 4px solid #333;
+            border-top-color: #ff6b6b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        .results-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .results-header h2 {
+            font-size: 2rem;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        .results-header p {
+            color: #b0b0b0;
+            font-size: 1rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .result-card {
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover {
+            border-color: #ff6b6b;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(255, 107, 107, 0.15);
+        }
+
+        .result-card-match {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.05));
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .result-card-match-score {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #ff6b6b;
+        }
+
+        .result-card-match-label {
+            font-size: 0.85rem;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-card-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            overflow: hidden;
+        }
+
+        .result-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .result-card-content {
+            padding: 1.5rem;
+        }
+
+        .result-dog-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-dog-breed {
+            color: #b0b0b0;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .result-dog-waittime {
+            background-color: rgba(255, 107, 107, 0.1);
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .result-dog-waittime-label {
+            font-size: 0.75rem;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        .result-dog-waittime-counter {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #ff6b6b;
+        }
+
+        .result-why-match {
+            margin-bottom: 1.5rem;
+        }
+
+        .result-why-match-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-why-match-list {
+            list-style: none;
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        .result-why-match-list li {
+            padding: 0.35rem 0;
+            padding-left: 1.25rem;
+            position: relative;
+        }
+
+        .result-why-match-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .result-card-actions {
+            padding-top: 1rem;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .result-card-actions .btn {
+            flex: 1;
+            padding: 0.6rem;
+            font-size: 0.95rem;
+        }
+
+        .empty-results {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #b0b0b0;
+        }
+
+        .empty-results .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Footer Styles */
+        footer {
+            background-color: #0f0f0f;
+            border-top: 1px solid #333;
+            padding: 4rem 2rem 1rem;
+            color: #b0b0b0;
+        }
+
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-section h4 {
+            color: #fff;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-section a {
+            color: #b0b0b0;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .footer-section a:hover {
+            color: #ff6b6b;
+        }
+
+        .footer-brand {
+            margin-bottom: 2rem;
+        }
+
+        .footer-brand .logo {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+
+        .footer-brand p {
+            color: #999;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid #333;
+            padding-top: 2rem;
+            text-align: center;
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 1rem;
+            }
+
+            nav {
+                display: none;
+                gap: 0;
+            }
+
+            nav.mobile-open {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background-color: #1a1a1a;
+                padding: 1rem;
+                gap: 0.5rem;
+                border-bottom: 1px solid #333;
+            }
+
+            nav a {
+                padding: 0.75rem;
+                display: block;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .quiz-header h1 {
+                font-size: 1.8rem;
+            }
+
+            .quiz-container {
+                padding: 2rem 1.5rem;
+            }
+
+            .quiz-form {
+                padding: 1.5rem;
+            }
+
+            .option-item {
+                padding: 0.75rem;
+            }
+
+            .form-navigation {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .icon-options-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quiz-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .quiz-container {
+                padding: 1.5rem 1rem;
+            }
+
+            .quiz-form {
+                padding: 1rem;
+            }
+
+            .question-label {
+                font-size: 1rem;
+            }
+
+            .option-label {
+                font-size: 0.95rem;
+            }
+
+            .icon-options-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .icon-option-icon {
+                font-size: 2rem;
+            }
+
+            .form-navigation {
+                flex-direction: column-reverse;
+            }
+
+            .result-card {
+                margin-bottom: 1rem;
+            }
+
+            .progress-section {
+                margin-bottom: 1.5rem;
+            }
+
+            .step-indicators {
+                gap: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:9999;padding:8px;background:#00ff41;color:#1a1a1a;font-weight:bold;text-decoration:none;&:focus{position:fixed;left:0;top:0;width:auto;height:auto;}">Skip to main content</a>
+    <noscript><div style="background:#ff4444;color:white;padding:16px;text-align:center;font-family:sans-serif;">This site requires JavaScript to function. Please enable JavaScript in your browser settings.</div></noscript>
+
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <a href="/" class="logo">
+                <span class="paw-icon">🐾</span>
+                Waiting<span class="logo-highlight">The</span>Longest
+            </a>
+            <nav id="nav-menu">
+                <a href="/dogs.html">Browse Dogs</a>
+                <a href="/states.html">States</a>
+                <a href="/search.html">Search</a>
+                <a href="/overlooked.html">Overlooked Angels</a>
+                <a href="/quiz.html" class="active">Take the Quiz</a>
+                <a href="/login.html" class="login-btn">Login</a>
+            </nav>
+            <button class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="quiz-container">
+        <div class="quiz-header">
+            <h1>Find Your Perfect Dog Match</h1>
+            <p>Answer a few questions about your lifestyle and preferences to discover compatible dogs waiting for adoption.</p>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section">
+            <div class="progress-label">
+                <span id="progress-text">Step 1 of 5</span>
+                <span id="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="step-indicators" id="step-indicators"></div>
+        </div>
+
+        <!-- Quiz Form -->
+        <form class="quiz-form" id="quiz-form">
+            <!-- STEP 1: Living Situation -->
+            <div class="quiz-step active" data-step="1">
+                <h2 style="color: #fff; margin-bottom: 1.5rem; font-size: 1.5rem;">Living Situation</h2>
+
+                <div class="question-group">
+                    <label class="question-label required">What type of home do you live in?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="homeType" value="apartment">
+                            <span class="option-label">Apartment</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="homeType" value="condo">
+                            <span class="option-label">Condo</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="homeType" value="house">
+                            <span class="option-label">House</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="homeType" value="farm">
+                            <span class="option-label">Farm</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">Do you have a yard?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="hasYard" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="hasYard" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group conditional-question" id="yardFenced">
+                    <label class="question-label required">Is it fenced?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="yardFenced" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="yardFenced" value="partially">
+                            <span class="option-label">Partially</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="yardFenced" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2: Household -->
+            <div class="quiz-step" data-step="2">
+                <h2 style="color: #fff; margin-bottom: 1.5rem; font-size: 1.5rem;">Household</h2>
+
+                <div class="question-group">
+                    <label class="question-label required">Do you have children?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="hasChildren" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="hasChildren" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group conditional-question" id="childrenAges">
+                    <label class="question-label required">What ages?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="checkbox" name="childrenAges" value="toddler">
+                            <span class="option-label">Toddler (0-3)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="childrenAges" value="young">
+                            <span class="option-label">Young (4-7)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="childrenAges" value="elementary">
+                            <span class="option-label">Elementary (8-12)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="childrenAges" value="teen">
+                            <span class="option-label">Teen (13-17)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">Do you have other dogs?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="hasOtherDogs" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="hasOtherDogs" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group conditional-question" id="numberOfDogs">
+                    <label class="question-label required">How many?</label>
+                    <input type="number" name="numberOfDogs" min="1" max="10" placeholder="Enter number">
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">Do you have cats?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="hasCats" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="hasCats" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 3: Lifestyle -->
+            <div class="quiz-step" data-step="3">
+                <h2 style="color: #fff; margin-bottom: 1.5rem; font-size: 1.5rem;">Lifestyle</h2>
+
+                <div class="question-group">
+                    <label class="question-label required">How active are you?</label>
+                    <div class="icon-options-grid">
+                        <label class="icon-option">
+                            <input type="radio" name="activityLevel" value="couch">
+                            <div class="icon-option-label">
+                                <div class="icon-option-icon">🛋️</div>
+                                <div class="icon-option-text">Couch Potato</div>
+                            </div>
+                        </label>
+                        <label class="icon-option">
+                            <input type="radio" name="activityLevel" value="moderate">
+                            <div class="icon-option-label">
+                                <div class="icon-option-icon">🚶</div>
+                                <div class="icon-option-text">Moderate</div>
+                            </div>
+                        </label>
+                        <label class="icon-option">
+                            <input type="radio" name="activityLevel" value="active">
+                            <div class="icon-option-label">
+                                <div class="icon-option-icon">🏃</div>
+                                <div class="icon-option-text">Active</div>
+                            </div>
+                        </label>
+                        <label class="icon-option">
+                            <input type="radio" name="activityLevel" value="athlete">
+                            <div class="icon-option-label">
+                                <div class="icon-option-icon">⚽</div>
+                                <div class="icon-option-text">Athlete</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">How many hours are you home daily?</label>
+                    <div class="range-slider-container">
+                        <div class="range-slider-label">
+                            <span class="range-slider-label-left">0 hours</span>
+                            <span class="range-slider-label-right" id="hoursHome-value">0 hours</span>
+                        </div>
+                        <input type="range" name="hoursHome" id="hoursHome-slider" min="0" max="24" value="12">
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">Do you work from home?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="workFromHome" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="workFromHome" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">How often do you travel?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="travelFrequency" value="rarely">
+                            <span class="option-label">Rarely</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="travelFrequency" value="monthly">
+                            <span class="option-label">Monthly</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="travelFrequency" value="weekly">
+                            <span class="option-label">Weekly</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 4: Experience & Preferences -->
+            <div class="quiz-step" data-step="4">
+                <h2 style="color: #fff; margin-bottom: 1.5rem; font-size: 1.5rem;">Experience & Preferences</h2>
+
+                <div class="question-group">
+                    <label class="question-label required">Have you owned a dog before?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="dogExperience" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="dogExperience" value="some">
+                            <span class="option-label">Some Experience</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="dogExperience" value="experienced">
+                            <span class="option-label">Experienced</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">Are you willing to train a new dog?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="willingToTrain" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="willingToTrain" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">What size dog do you prefer? (Select all that apply)</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="checkbox" name="preferredSize" value="small">
+                            <span class="option-label">Small (under 25 lbs)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="preferredSize" value="medium">
+                            <span class="option-label">Medium (25-50 lbs)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="preferredSize" value="large">
+                            <span class="option-label">Large (over 50 lbs)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">What age do you prefer? (Select all that apply)</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="checkbox" name="preferredAge" value="puppy">
+                            <span class="option-label">Puppy (0-1 year)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="preferredAge" value="young">
+                            <span class="option-label">Young (1-5 years)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="preferredAge" value="adult">
+                            <span class="option-label">Adult (5-10 years)</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="checkbox" name="preferredAge" value="senior">
+                            <span class="option-label">Senior (10+ years)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">Open to special needs dogs?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="specialNeeds" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="specialNeeds" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 5: Housing Restrictions -->
+            <div class="quiz-step" data-step="5">
+                <h2 style="color: #fff; margin-bottom: 1.5rem; font-size: 1.5rem;">Housing Restrictions</h2>
+
+                <div class="question-group">
+                    <label class="question-label required">Does your landlord have breed restrictions?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="breedRestrictions" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="breedRestrictions" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="breedRestrictions" value="own">
+                            <span class="option-label">I Own My Home</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group conditional-question" id="restrictedBreeds">
+                    <label class="question-label required">Which breeds are restricted?</label>
+                    <input type="text" name="restrictedBreeds" placeholder="Enter breed names (comma separated)" style="width: 100%; padding: 0.75rem 1rem; background-color: #2a2a2a; border: 2px solid #333; border-radius: 6px; color: #fff; font-size: 1rem; font-family: inherit;">
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label required">Is there a weight limit for pets?</label>
+                    <div class="options-grid">
+                        <label class="option-item">
+                            <input type="radio" name="weightLimit" value="yes">
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-item">
+                            <input type="radio" name="weightLimit" value="no">
+                            <span class="option-label">No</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="question-group conditional-question" id="weightLimitAmount">
+                    <label class="question-label required">Maximum weight limit (lbs)</label>
+                    <input type="number" name="weightLimitAmount" min="1" max="200" placeholder="Enter weight in pounds">
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="form-navigation">
+                <button type="button" class="btn btn-secondary" id="btn-prev" disabled>Back</button>
+                <button type="button" class="btn btn-primary" id="btn-next">Next</button>
+            </div>
+        </form>
+
+        <!-- Results Section -->
+        <div class="results-section" id="results-section">
+            <div id="loading-state" class="loading-animation">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Finding your perfect match...</p>
+            </div>
+
+            <div id="results-content" style="display: none;">
+                <div class="results-header">
+                    <h2>Dogs That Match Your Life</h2>
+                    <p>Based on your answers, here are the rescue dogs that would be a great fit for you.</p>
+                </div>
+                <div class="results-grid" id="results-grid"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section footer-brand">
+                    <div class="logo">
+                        <span class="paw-icon">🐾</span>
+                        Waiting<span class="logo-highlight">The</span>Longest
+                    </div>
+                    <p>Real-time insight into dogs waiting for adoption. We believe every dog deserves a loving home, and we're here to make connections happen faster.</p>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Dogs</h4>
+                    <ul>
+                        <li><a href="/dogs.html">Browse All Dogs</a></li>
+                        <li><a href="/dogs.html?sort=wait_time">Longest Waiting</a></li>
+                        <li><a href="/overlooked.html">Overlooked Angels</a></li>
+                        <li><a href="/states.html">Find by State</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="/quiz.html">Lifestyle Matching Quiz</a></li>
+                        <li><a href="/housing.html">Housing Guide</a></li>
+                        <li><a href="/transport.html">Transport Help</a></li>
+                        <li><a href="/resources.html">Rescue Resources</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>About</h4>
+                    <ul>
+                        <li><a href="/mission.html">Our Mission</a></li>
+                        <li><a href="/contact.html">Contact Us</a></li>
+                        <li><a href="/privacy.html">Privacy Policy</a></li>
+                        <li><a href="/terms.html">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2024 WaitingTheLongest.com. All rights reserved. Helping dogs find homes, one second at a time.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/led-counter.js"></script>
+    <script>
+        // ========================================
+        // Quiz State Management
+        // ========================================
+        let currentStep = 1;
+        const totalSteps = 5;
+        const quizData = {};
+
+        // ========================================
+        // Hamburger Menu Toggle
+        // ========================================
+        const hamburger = document.getElementById('hamburger');
+        const navMenu = document.getElementById('nav-menu');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navMenu.classList.toggle('mobile-open');
+        });
+
+        document.querySelectorAll('#nav-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navMenu.classList.remove('mobile-open');
+            });
+        });
+
+        // ========================================
+        // Initialize Progress Indicators
+        // ========================================
+        function initializeProgress() {
+            const indicators = document.getElementById('step-indicators');
+            for (let i = 1; i <= totalSteps; i++) {
+                const indicator = document.createElement('div');
+                indicator.className = 'step-indicator';
+                if (i === 1) indicator.classList.add('active');
+                indicators.appendChild(indicator);
+            }
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const percent = (currentStep / totalSteps) * 100;
+            document.getElementById('progress-fill').style.width = percent + '%';
+            document.getElementById('progress-text').textContent = `Step ${currentStep} of ${totalSteps}`;
+            document.getElementById('progress-percent').textContent = Math.round(percent) + '%';
+
+            document.querySelectorAll('.step-indicator').forEach((ind, i) => {
+                ind.classList.remove('active', 'completed');
+                if (i + 1 < currentStep) {
+                    ind.classList.add('completed');
+                } else if (i + 1 === currentStep) {
+                    ind.classList.add('active');
+                }
+            });
+        }
+
+        // ========================================
+        // Show/Hide Steps
+        // ========================================
+        function showStep(step) {
+            document.querySelectorAll('.quiz-step').forEach(s => s.classList.remove('active'));
+            document.querySelector(`[data-step="${step}"]`).classList.add('active');
+
+            document.getElementById('btn-prev').disabled = step === 1;
+            document.getElementById('btn-next').textContent = step === totalSteps ? 'Submit' : 'Next';
+
+            updateProgress();
+            handleConditionalQuestions();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ========================================
+        // Conditional Question Handling
+        // ========================================
+        function handleConditionalQuestions() {
+            // Step 1: Yard fenced
+            const yardFenced = document.getElementById('yardFenced');
+            const hasYard = document.querySelector('input[name="hasYard"]:checked');
+            if (hasYard && hasYard.value === 'yes') {
+                yardFenced.classList.add('show');
+            } else {
+                yardFenced.classList.remove('show');
+            }
+
+            // Step 2: Children ages
+            const childrenAges = document.getElementById('childrenAges');
+            const hasChildren = document.querySelector('input[name="hasChildren"]:checked');
+            if (hasChildren && hasChildren.value === 'yes') {
+                childrenAges.classList.add('show');
+            } else {
+                childrenAges.classList.remove('show');
+            }
+
+            // Step 2: Number of dogs
+            const numberOfDogs = document.getElementById('numberOfDogs');
+            const hasOtherDogs = document.querySelector('input[name="hasOtherDogs"]:checked');
+            if (hasOtherDogs && hasOtherDogs.value === 'yes') {
+                numberOfDogs.classList.add('show');
+            } else {
+                numberOfDogs.classList.remove('show');
+            }
+
+            // Step 5: Restricted breeds
+            const restrictedBreeds = document.getElementById('restrictedBreeds');
+            const breedRestrictions = document.querySelector('input[name="breedRestrictions"]:checked');
+            if (breedRestrictions && breedRestrictions.value === 'yes') {
+                restrictedBreeds.classList.add('show');
+            } else {
+                restrictedBreeds.classList.remove('show');
+            }
+
+            // Step 5: Weight limit
+            const weightLimitAmount = document.getElementById('weightLimitAmount');
+            const weightLimit = document.querySelector('input[name="weightLimit"]:checked');
+            if (weightLimit && weightLimit.value === 'yes') {
+                weightLimitAmount.classList.add('show');
+            } else {
+                weightLimitAmount.classList.remove('show');
+            }
+        }
+
+        // ========================================
+        // Range Slider Update
+        // ========================================
+        const hoursSlider = document.getElementById('hoursHome-slider');
+        if (hoursSlider) {
+            hoursSlider.addEventListener('input', (e) => {
+                const hours = e.target.value;
+                document.getElementById('hoursHome-value').textContent = hours + ' hours';
+            });
+        }
+
+        // ========================================
+        // Option Item Selection (Mobile friendly)
+        // ========================================
+        document.querySelectorAll('.option-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') {
+                    const input = item.querySelector('input');
+                    if (input.type === 'radio') {
+                        document.querySelectorAll(`input[name="${input.name}"]`).forEach(inp => {
+                            inp.parentElement.classList.remove('selected');
+                        });
+                    }
+                    input.click();
+                    item.classList.toggle('selected');
+                }
+            });
+
+            const input = item.querySelector('input');
+            input.addEventListener('change', () => {
+                if (input.type === 'radio') {
+                    document.querySelectorAll(`input[name="${input.name}"]`).forEach(inp => {
+                        inp.parentElement.classList.remove('selected');
+                    });
+                    item.classList.add('selected');
+                } else if (input.type === 'checkbox') {
+                    item.classList.toggle('selected');
+                }
+                handleConditionalQuestions();
+            });
+        });
+
+        // ========================================
+        // Icon Option Selection
+        // ========================================
+        document.querySelectorAll('.icon-option input').forEach(input => {
+            input.addEventListener('change', () => {
+                document.querySelectorAll(`input[name="${input.name}"]`).forEach(inp => {
+                    inp.parentElement.querySelector('.icon-option-label').style.borderColor = '#333';
+                    inp.parentElement.querySelector('.icon-option-label').style.backgroundColor = '#2a2a2a';
+                });
+                if (input.checked) {
+                    input.parentElement.querySelector('.icon-option-label').style.borderColor = '#ff6b6b';
+                    input.parentElement.querySelector('.icon-option-label').style.backgroundColor = 'rgba(255, 107, 107, 0.1)';
+                }
+            });
+        });
+
+        // ========================================
+        // Form Validation
+        // ========================================
+        function validateStep(step) {
+            const stepElement = document.querySelector(`[data-step="${step}"]`);
+            const radios = stepElement.querySelectorAll('input[type="radio"]');
+            const checkboxes = stepElement.querySelectorAll('input[type="checkbox"]');
+            const textInputs = stepElement.querySelectorAll('input[type="text"]');
+            const numberInputs = stepElement.querySelectorAll('input[type="number"]');
+
+            // Get required field groups based on visibility
+            const requiredFields = new Map();
+            stepElement.querySelectorAll('.question-group').forEach(group => {
+                const label = group.querySelector('.question-label.required');
+                if (label && !group.classList.contains('conditional-question')) {
+                    const fieldName = group.querySelector('input').name;
+                    requiredFields.set(fieldName, group);
+                } else if (label && group.classList.contains('conditional-question') && group.classList.contains('show')) {
+                    const fieldName = group.querySelector('input').name;
+                    requiredFields.set(fieldName, group);
+                }
+            });
+
+            // Validate required fields
+            for (const [fieldName, group] of requiredFields) {
+                const inputs = group.querySelectorAll(`input[name="${fieldName}"]`);
+                let isValid = false;
+
+                if (inputs[0].type === 'radio') {
+                    isValid = Array.from(inputs).some(input => input.checked);
+                } else if (inputs[0].type === 'checkbox') {
+                    isValid = Array.from(inputs).some(input => input.checked);
+                } else if (inputs[0].type === 'text' || inputs[0].type === 'number') {
+                    isValid = inputs[0].value.trim() !== '';
+                }
+
+                if (!isValid) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function collectData(step) {
+            const stepElement = document.querySelector(`[data-step="${step}"]`);
+            stepElement.querySelectorAll('input').forEach(input => {
+                if (input.type === 'radio' && input.checked) {
+                    quizData[input.name] = input.value;
+                } else if (input.type === 'checkbox' && input.checked) {
+                    if (!quizData[input.name]) {
+                        quizData[input.name] = [];
+                    }
+                    quizData[input.name].push(input.value);
+                } else if ((input.type === 'text' || input.type === 'number') && input.value) {
+                    quizData[input.name] = input.value;
+                }
+            });
+        }
+
+        // ========================================
+        // Navigation Handlers
+        // ========================================
+        document.getElementById('btn-next').addEventListener('click', (e) => {
+            e.preventDefault();
+
+            if (!validateStep(currentStep)) {
+                alert('Please answer all required questions before proceeding.');
+                return;
+            }
+
+            collectData(currentStep);
+
+            if (currentStep === totalSteps) {
+                submitQuiz();
+            } else {
+                currentStep++;
+                showStep(currentStep);
+            }
+        });
+
+        document.getElementById('btn-prev').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentStep > 1) {
+                collectData(currentStep);
+                currentStep--;
+                showStep(currentStep);
+            }
+        });
+
+        // ========================================
+        // Submit Quiz
+        // ========================================
+        async function submitQuiz() {
+            collectData(currentStep);
+
+            const form = document.getElementById('quiz-form');
+            form.style.display = 'none';
+
+            const resultsSection = document.getElementById('results-section');
+            resultsSection.classList.add('active');
+
+            try {
+                // Post quiz data
+                const submitResponse = await fetch('/api/v1/matching/quiz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(quizData)
+                });
+
+                if (!submitResponse.ok) {
+                    throw new Error('Failed to submit quiz');
+                }
+
+                const submitData = await submitResponse.json();
+                const profileId = submitData.profile_id || submitData.id;
+
+                // Simulate loading delay for better UX
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Fetch results
+                const resultsResponse = await fetch(`/api/v1/matching/results?profile_id=${profileId}`);
+                if (!resultsResponse.ok) {
+                    throw new Error('Failed to fetch results');
+                }
+
+                const results = await resultsResponse.json();
+
+                // Hide loading, show results
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('results-content').style.display = 'block';
+
+                displayResults(results);
+            } catch (error) {
+                console.error('Error submitting quiz:', error);
+                document.getElementById('loading-state').innerHTML = `
+                    <div class="empty-icon">⚠️</div>
+                    <p class="loading-text">Unable to find matches at this time. Please try again later.</p>
+                    <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 1rem;">Try Again</button>
+                `;
+            }
+        }
+
+        // ========================================
+        // Display Results
+        // ========================================
+        function displayResults(results) {
+            const grid = document.getElementById('results-grid');
+            grid.innerHTML = '';
+
+            if (!results || results.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1;">
+                        <div class="empty-results">
+                            <div class="empty-icon">🐾</div>
+                            <h3>No Perfect Matches Yet</h3>
+                            <p>We didn't find any dogs that perfectly match your lifestyle right now, but new dogs are arriving daily. Check back soon or browse all available dogs.</p>
+                            <a href="/dogs.html" class="btn btn-primary" style="margin-top: 1rem;">Browse All Dogs</a>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            results.forEach(dog => {
+                const matchPercent = Math.round((dog.match_score || 0.75) * 100);
+                const waitDays = dog.wait_days || 0;
+
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.innerHTML = `
+                    <div class="result-card-match">
+                        <div class="result-card-match-score">${matchPercent}%</div>
+                        <div class="result-card-match-label">Match Score</div>
+                    </div>
+
+                    <div class="result-card-image">
+                        ${dog.image_url ? `<img src="${dog.image_url}" alt="${dog.name}">` : '🐕'}
+                    </div>
+
+                    <div class="result-card-content">
+                        <div class="result-dog-name">${dog.name}</div>
+                        <div class="result-dog-breed">${dog.breed || 'Mixed Breed'}</div>
+
+                        <div class="result-dog-waittime">
+                            <div class="result-dog-waittime-label">Waiting Since</div>
+                            <div class="result-dog-waittime-counter">${waitDays} days</div>
+                        </div>
+
+                        <div class="result-why-match">
+                            <div class="result-why-match-title">Why This Match</div>
+                            <ul class="result-why-match-list">
+                                ${dog.match_reasons ? dog.match_reasons.map(reason => `<li>${reason}</li>`).join('') : '<li>Great temperament for your lifestyle</li><li>Perfect size and energy level match</li>'}
+                            </ul>
+                        </div>
+
+                        <div class="result-card-actions">
+                            <a href="/dog.html?id=${dog.id}" class="btn btn-primary">Meet ${dog.name}</a>
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            // Initialize LED counters if available
+            if (typeof LEDCounter !== 'undefined') {
+                LEDCounter.initAll();
+            }
+        }
+
+        // ========================================
+        // Initialize
+        // ========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeProgress();
+            showStep(1);
+
+            // Listen for radio/checkbox changes to update conditionals
+            document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+                input.addEventListener('change', handleConditionalQuestions);
+            });
+        });
+    </script>
+</body>
+</html>

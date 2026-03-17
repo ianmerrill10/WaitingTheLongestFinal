@@ -1,0 +1,44 @@
+{
+  "name": "urgent_countdown",
+  "category": "tiktok",
+  "type": "URGENT_COUNTDOWN",
+  "description": "TikTok template for dogs with urgent countdown timers approaching euthanasia dates",
+  "version": 1,
+  "is_active": true,
+  "is_default": true,
+  "caption": "{{urgencyEmoji urgency_level}} {{dog_name}} has only {{countdown_human}} left.\n\n{{dog_name}} has waited {{wait_time_human}} for a home. Now time is running out.\n\n{{dog_pronoun_possessive}} story: {{#if dog_description}}{{truncate dog_description 200}}{{else}}A beautiful {{dog_breed}} who deserves a second chance at life.{{/if}}\n\n{{dog_name}} is a {{formatAge dog_age_months}} {{dog_breed}} ({{formatSize dog_size}}) looking for {{dog_pronoun_possessive}} forever family.\n\n{{shelter_name}}, {{shelter_location}}\n{{#if shelter_phone}}Call: {{shelter_phone}}{{/if}}\n\nShare to save a life. Someone out there is looking for {{dog_name}}.\n\n{{hashtags_formatted}}",
+  "hashtags": [
+    "SaveThisLife",
+    "AdoptDontShop",
+    "UrgentDogs",
+    "ShelterDogs",
+    "RescueDog",
+    "AdoptMe",
+    "DogsOfTikTok",
+    "ShelterDogsOfTikTok"
+  ],
+  "overlay_style": "countdown_red",
+  "character_limit": 2200,
+  "use_for_urgency": ["critical", "high"],
+  "use_for_platforms": ["tiktok", "instagram_reels"],
+  "variables": {
+    "dog_name": "Required - Dog's name",
+    "countdown_human": "Required - Human-readable countdown",
+    "wait_time_human": "Required - How long dog has waited",
+    "dog_breed": "Required - Primary breed",
+    "dog_age_months": "Required - Age in months",
+    "dog_size": "Required - Size category",
+    "dog_description": "Optional - Dog's description",
+    "shelter_name": "Required - Shelter name",
+    "shelter_location": "Required - City, State",
+    "shelter_phone": "Optional - Shelter phone",
+    "urgency_level": "Required - Urgency level for emoji"
+  },
+  "config": {
+    "music_suggestion": "emotional_piano",
+    "text_overlay": true,
+    "countdown_display": true,
+    "countdown_position": "top_right",
+    "countdown_color": "#FF0000"
+  }
+}

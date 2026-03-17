@@ -1,0 +1,336 @@
+<!--
+  Admin Dashboard Header Partial
+  WaitingTheLongest.com Admin Dashboard
+  Author: Agent 20
+
+  Top header bar with search, notifications, and quick actions
+-->
+
+<header class="admin-header" id="admin-header">
+    <!-- Left Section: Breadcrumb & Page Title -->
+    <div class="header-left">
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
+            <i class="ri-menu-line"></i>
+        </button>
+
+        <div class="header-breadcrumb">
+            <nav aria-label="Breadcrumb">
+                <ol class="breadcrumb" id="header-breadcrumb">
+                    <li class="breadcrumb-item"><a href="/admin">Admin</a></li>
+                    <li class="breadcrumb-item active" aria-current="page" id="current-page-title">Dashboard</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Center Section: Global Search -->
+    <div class="header-center">
+        <div class="global-search">
+            <i class="ri-search-line search-icon"></i>
+            <input type="text"
+                   id="global-search-input"
+                   class="search-input"
+                   placeholder="Search dogs, shelters, users..."
+                   autocomplete="off">
+            <kbd class="search-shortcut">Ctrl+K</kbd>
+
+            <!-- Search Results Dropdown -->
+            <div class="search-results" id="search-results" style="display: none;">
+                <div class="search-results-content" id="search-results-content">
+                    <!-- Results populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Section: Actions & User -->
+    <div class="header-right">
+        <!-- System Status Indicator -->
+        <div class="header-status" id="header-status">
+            <span class="status-indicator healthy" id="header-status-indicator"></span>
+            <span class="status-text" id="header-status-text">System Healthy</span>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="header-actions">
+            <!-- Refresh Button -->
+            <button class="header-action-btn" id="refresh-btn" title="Refresh Data">
+                <i class="ri-refresh-line"></i>
+            </button>
+
+            <!-- Notifications -->
+            <div class="notifications-wrapper">
+                <button class="header-action-btn" id="notifications-btn" title="Notifications">
+                    <i class="ri-notification-3-line"></i>
+                    <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
+                </button>
+
+                <!-- Notifications Dropdown -->
+                <div class="notifications-dropdown" id="notifications-dropdown" style="display: none;">
+                    <div class="notifications-header">
+                        <h4>Notifications</h4>
+                        <button class="mark-all-read" onclick="AdminNotifications.markAllRead()">Mark all read</button>
+                    </div>
+                    <div class="notifications-list" id="notifications-list">
+                        <!-- Notifications populated dynamically -->
+                        <p class="empty-notifications">No new notifications</p>
+                    </div>
+                    <div class="notifications-footer">
+                        <a href="#" onclick="AdminNav.navigate('notifications'); return false;">View all notifications</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts -->
+            <div class="alerts-wrapper">
+                <button class="header-action-btn" id="alerts-btn" title="Urgent Alerts">
+                    <i class="ri-alarm-warning-line"></i>
+                    <span class="alert-badge danger" id="alerts-badge" style="display: none;">0</span>
+                </button>
+
+                <!-- Alerts Dropdown -->
+                <div class="alerts-dropdown" id="alerts-dropdown" style="display: none;">
+                    <div class="alerts-header">
+                        <h4>Urgent Alerts</h4>
+                    </div>
+                    <div class="alerts-list" id="alerts-list">
+                        <!-- Alerts populated dynamically -->
+                        <p class="empty-alerts">No urgent alerts</p>
+                    </div>
+                    <div class="alerts-footer">
+                        <a href="#" onclick="AdminNav.navigate('dogs'); DogsManager.filters.urgency = 'critical'; DogsManager.loadDogs(); return false;">View all urgent dogs</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help -->
+            <button class="header-action-btn" id="help-btn" title="Help & Documentation">
+                <i class="ri-question-line"></i>
+            </button>
+        </div>
+
+        <!-- User Menu -->
+        <div class="header-user">
+            <button class="header-user-btn" id="header-user-btn">
+                <div class="user-avatar-small" id="header-user-avatar">
+                    <i class="ri-user-line"></i>
+                </div>
+                <span class="user-name" id="header-user-name">Admin</span>
+                <i class="ri-arrow-down-s-line"></i>
+            </button>
+
+            <!-- User Dropdown -->
+            <div class="header-user-dropdown" id="header-user-dropdown" style="display: none;">
+                <div class="user-dropdown-header">
+                    <div class="user-avatar-large" id="dropdown-user-avatar">
+                        <i class="ri-user-line"></i>
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name" id="dropdown-user-name">Admin User</span>
+                        <span class="user-email" id="dropdown-user-email">admin@waitingthelongest.com</span>
+                    </div>
+                </div>
+                <div class="user-dropdown-menu">
+                    <a href="#" onclick="AdminNav.navigate('profile'); return false;">
+                        <i class="ri-user-settings-line"></i> My Profile
+                    </a>
+                    <a href="#" onclick="AdminNav.navigate('settings'); return false;">
+                        <i class="ri-settings-3-line"></i> Preferences
+                    </a>
+                    <a href="#" onclick="AdminNav.navigate('audit-log'); return false;">
+                        <i class="ri-history-line"></i> Activity Log
+                    </a>
+                    <hr>
+                    <a href="#" onclick="AdminAuth.logout(); return false;" class="logout-link">
+                        <i class="ri-logout-box-r-line"></i> Sign Out
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<script>
+// Header functionality initialization
+(function() {
+    // Mobile menu toggle
+    document.getElementById('mobile-menu-btn')?.addEventListener('click', function() {
+        document.getElementById('admin-sidebar').classList.add('mobile-open');
+        document.getElementById('sidebar-overlay').classList.add('show');
+    });
+
+    // Global search
+    const searchInput = document.getElementById('global-search-input');
+    const searchResults = document.getElementById('search-results');
+    let searchDebounce;
+
+    searchInput?.addEventListener('input', function(e) {
+        clearTimeout(searchDebounce);
+        const query = e.target.value.trim();
+
+        if (query.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        searchDebounce = setTimeout(() => {
+            performGlobalSearch(query);
+        }, 300);
+    });
+
+    searchInput?.addEventListener('focus', function() {
+        if (this.value.trim().length >= 2) {
+            searchResults.style.display = 'block';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.global-search')) {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    // Keyboard shortcut for search
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            searchInput?.focus();
+        }
+        if (e.key === 'Escape') {
+            searchResults.style.display = 'none';
+            searchInput?.blur();
+        }
+    });
+
+    async function performGlobalSearch(query) {
+        try {
+            const response = await AdminAPI.get('/search', { q: query, limit: 10 });
+            const results = response.data || [];
+
+            renderSearchResults(results, query);
+            searchResults.style.display = 'block';
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }
+
+    function renderSearchResults(results, query) {
+        const content = document.getElementById('search-results-content');
+        if (!content) return;
+
+        if (results.length === 0) {
+            content.innerHTML = `<p class="no-results">No results found for "${AdminUtils.escapeHtml(query)}"</p>`;
+            return;
+        }
+
+        const grouped = {};
+        results.forEach(result => {
+            const type = result.type || 'other';
+            if (!grouped[type]) grouped[type] = [];
+            grouped[type].push(result);
+        });
+
+        let html = '';
+        for (const [type, items] of Object.entries(grouped)) {
+            html += `<div class="search-group">
+                <h5 class="search-group-title">${type.charAt(0).toUpperCase() + type.slice(1)}s</h5>
+                ${items.map(item => `
+                    <a href="#" class="search-result-item" onclick="AdminNav.navigate('${type}s'); return false;">
+                        <span class="result-icon"><i class="${getTypeIcon(type)}"></i></span>
+                        <span class="result-text">${AdminUtils.escapeHtml(item.name || item.title || item.email)}</span>
+                        <span class="result-meta">${AdminUtils.escapeHtml(item.subtitle || '')}</span>
+                    </a>
+                `).join('')}
+            </div>`;
+        }
+
+        content.innerHTML = html;
+    }
+
+    function getTypeIcon(type) {
+        const icons = {
+            'dog': 'ri-heart-pulse-line',
+            'shelter': 'ri-building-4-line',
+            'user': 'ri-user-3-line',
+            'foster': 'ri-home-heart-line'
+        };
+        return icons[type] || 'ri-file-line';
+    }
+
+    // Notifications dropdown
+    document.getElementById('notifications-btn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('notifications-dropdown');
+        const alertsDropdown = document.getElementById('alerts-dropdown');
+        const userDropdown = document.getElementById('header-user-dropdown');
+
+        alertsDropdown.style.display = 'none';
+        userDropdown.style.display = 'none';
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Alerts dropdown
+    document.getElementById('alerts-btn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('alerts-dropdown');
+        const notificationsDropdown = document.getElementById('notifications-dropdown');
+        const userDropdown = document.getElementById('header-user-dropdown');
+
+        notificationsDropdown.style.display = 'none';
+        userDropdown.style.display = 'none';
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // User dropdown
+    document.getElementById('header-user-btn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('header-user-dropdown');
+        const notificationsDropdown = document.getElementById('notifications-dropdown');
+        const alertsDropdown = document.getElementById('alerts-dropdown');
+
+        notificationsDropdown.style.display = 'none';
+        alertsDropdown.style.display = 'none';
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', function() {
+        document.getElementById('notifications-dropdown').style.display = 'none';
+        document.getElementById('alerts-dropdown').style.display = 'none';
+        document.getElementById('header-user-dropdown').style.display = 'none';
+    });
+
+    // Prevent dropdown close when clicking inside
+    document.querySelectorAll('.notifications-dropdown, .alerts-dropdown, .header-user-dropdown').forEach(dropdown => {
+        dropdown?.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+
+    // Refresh button
+    document.getElementById('refresh-btn')?.addEventListener('click', function() {
+        if (typeof AdminDashboard !== 'undefined' && AdminState?.currentPage === 'dashboard') {
+            AdminDashboard.load();
+        }
+        AdminToast.info('Refreshing', 'Data refreshed');
+    });
+
+    // Help button
+    document.getElementById('help-btn')?.addEventListener('click', function() {
+        window.open('/docs/admin-guide', '_blank');
+    });
+})();
+
+// Update header based on current page
+function updateHeader(page, title) {
+    const pageTitle = document.getElementById('current-page-title');
+    if (pageTitle) {
+        pageTitle.textContent = title || page.charAt(0).toUpperCase() + page.slice(1);
+    }
+}
+
+// Expose to AdminNav
+if (typeof AdminNav !== 'undefined') {
+    AdminNav.updateHeader = updateHeader;
+}
+</script>

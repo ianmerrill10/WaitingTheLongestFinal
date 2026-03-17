@@ -1,0 +1,38 @@
+{
+  "name": "success_story",
+  "category": "tiktok",
+  "type": "SUCCESS_STORY",
+  "description": "TikTok template celebrating adoption success stories",
+  "version": 1,
+  "is_active": true,
+  "is_default": true,
+  "caption": "{{dog_name}} FOUND A HOME!\n\nAfter {{pluralize days_in_shelter \"day\" \"days\"}} waiting, {{dog_name}} finally met {{dog_pronoun_possessive}} perfect match.\n\n{{#if adopter_name}}{{adopter_name}} walked in and knew immediately - {{dog_name}} was the one.{{else}}Someone special walked in and their hearts connected instantly.{{/if}}\n\n{{wait_time_formatted}} of waiting\n{{pluralize days_in_shelter \"day\" \"days\"}} in the shelter\nCountless people who walked past\n\nBut all it took was ONE person to see what we always knew - {{dog_name}} is perfect.\n\n{{#if dog_description}}{{truncate dog_description 150}}{{/if}}\n\nEvery share brings more dogs home. Every adoption proves that shelter dogs are amazing.\n\nThank you to everyone who shared, commented, and believed in {{dog_name}}.\n\nThis is why we do what we do.\n\nWho's next? There are more {{dog_name}}'s waiting.\n\n{{hashtags_formatted}}",
+  "hashtags": [
+    "AdoptionSuccess",
+    "HappyTails",
+    "AdoptDontShop",
+    "ForeverHome",
+    "RescueDog",
+    "AdoptedPet",
+    "ShelterSuccess",
+    "DogsOfTikTok"
+  ],
+  "overlay_style": "celebration",
+  "character_limit": 2200,
+  "use_for_urgency": [],
+  "use_for_platforms": ["tiktok", "instagram_reels", "facebook_reels"],
+  "variables": {
+    "dog_name": "Required - Dog's name",
+    "days_in_shelter": "Required - Days dog spent in shelter",
+    "wait_time_formatted": "Optional - Formatted wait time",
+    "adopter_name": "Optional - Adopter's first name",
+    "dog_description": "Optional - Brief description"
+  },
+  "config": {
+    "music_suggestion": "celebration_pop",
+    "text_overlay": true,
+    "confetti_effect": true,
+    "before_after_photos": true,
+    "celebration_banner": true
+  }
+}
