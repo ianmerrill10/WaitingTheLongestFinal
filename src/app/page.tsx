@@ -3,44 +3,61 @@ import { createClient } from "@/lib/supabase/server";
 import DogGrid from "@/components/dogs/DogGrid";
 
 export default async function HomePage() {
-  const supabase = await createClient();
+  let totalDogs = 0;
+  let urgentCount = 0;
+  let shelterCount = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let urgentDogs: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let longestWaiting: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let overlookedDogs: any[] = [];
 
-  // Fetch stats
-  const [dogsResult, urgentResult, shelterResult] = await Promise.all([
-    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true),
-    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).in("urgency_level", ["critical", "high"]),
-    supabase.from("shelters").select("id", { count: "exact", head: true }),
-  ]);
+  try {
+    const supabase = await createClient();
 
-  const totalDogs = dogsResult.count || 0;
-  const urgentCount = urgentResult.count || 0;
-  const shelterCount = shelterResult.count || 0;
+    // Fetch stats
+    const [dogsResult, urgentResult, shelterResult] = await Promise.all([
+      supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true),
+      supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).in("urgency_level", ["critical", "high"]),
+      supabase.from("shelters").select("id", { count: "exact", head: true }),
+    ]);
 
-  // Fetch urgent dogs (top 6 by euthanasia date)
-  const { data: urgentDogs } = await supabase
-    .from("dogs")
-    .select("*, shelters!inner(name, city, state_code)")
-    .eq("is_available", true)
-    .in("urgency_level", ["critical", "high"])
-    .order("euthanasia_date", { ascending: true, nullsFirst: false })
-    .limit(6);
+    totalDogs = dogsResult.count || 0;
+    urgentCount = urgentResult.count || 0;
+    shelterCount = shelterResult.count || 0;
 
-  // Fetch longest waiting dogs (top 6)
-  const { data: longestWaiting } = await supabase
-    .from("dogs")
-    .select("*, shelters!inner(name, city, state_code)")
-    .eq("is_available", true)
-    .order("intake_date", { ascending: true })
-    .limit(6);
+    // Fetch urgent dogs (top 6 by euthanasia date)
+    const urgentRes = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .in("urgency_level", ["critical", "high"])
+      .order("euthanasia_date", { ascending: true, nullsFirst: false })
+      .limit(6);
+    urgentDogs = urgentRes.data || [];
 
-  // Fetch overlooked dogs (seniors, special needs)
-  const { data: overlookedDogs } = await supabase
-    .from("dogs")
-    .select("*, shelters!inner(name, city, state_code)")
-    .eq("is_available", true)
-    .or("age_category.eq.senior,has_special_needs.eq.true")
-    .order("intake_date", { ascending: true })
-    .limit(6);
+    // Fetch longest waiting dogs (top 6)
+    const waitingRes = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .order("intake_date", { ascending: true })
+      .limit(6);
+    longestWaiting = waitingRes.data || [];
+
+    // Fetch overlooked dogs (seniors, special needs)
+    const overlookedRes = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .or("age_category.eq.senior,has_special_needs.eq.true")
+      .order("intake_date", { ascending: true })
+      .limit(6);
+    overlookedDogs = overlookedRes.data || [];
+  } catch {
+    // Supabase not configured yet — show empty state
+  }
 
   return (
     <div>

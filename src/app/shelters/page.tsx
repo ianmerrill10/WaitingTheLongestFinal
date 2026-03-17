@@ -42,18 +42,26 @@ const US_STATES = [
 ];
 
 export default async function SheltersPage() {
-  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let shelters: any[] = [];
+  let totalShelterCount: number | null = 0;
 
-  // Fetch shelters
-  const { data: shelters } = await supabase
-    .from("shelters")
-    .select("*")
-    .limit(24);
+  try {
+    const supabase = await createClient();
 
-  // Fetch total shelter count
-  const { count: totalShelterCount } = await supabase
-    .from("shelters")
-    .select("id", { count: "exact", head: true });
+    const shelterRes = await supabase
+      .from("shelters")
+      .select("*")
+      .limit(24);
+    shelters = shelterRes.data || [];
+
+    const countRes = await supabase
+      .from("shelters")
+      .select("id", { count: "exact", head: true });
+    totalShelterCount = countRes.count;
+  } catch {
+    // Supabase not configured yet
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

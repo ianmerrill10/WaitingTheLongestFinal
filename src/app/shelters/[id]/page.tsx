@@ -18,27 +18,31 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: shelter } = await supabase
-    .from("shelters")
-    .select("name, city, state_code")
-    .eq("id", id)
-    .single();
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const { data: shelter } = await supabase
+      .from("shelters")
+      .select("name, city, state_code")
+      .eq("id", id)
+      .single();
 
-  const shelterName = shelter?.name ?? "Shelter Profile";
-  const location = shelter
-    ? `${shelter.city}, ${shelter.state_code}`
-    : "";
+    const shelterName = shelter?.name ?? "Shelter Profile";
+    const location = shelter
+      ? `${shelter.city}, ${shelter.state_code}`
+      : "";
 
-  return {
-    title: `${shelterName} - Shelter Profile`,
-    description: `View ${shelterName}${location ? ` in ${location}` : ""} - available dogs, contact information, and how to adopt or volunteer.`,
-    openGraph: {
-      title: `${shelterName} | WaitingTheLongest.com`,
-      description: `View shelter details, available dogs, and how to adopt or volunteer.`,
-    },
-  };
+    return {
+      title: `${shelterName} - Shelter Profile`,
+      description: `View ${shelterName}${location ? ` in ${location}` : ""} - available dogs, contact information, and how to adopt or volunteer.`,
+      openGraph: {
+        title: `${shelterName} | WaitingTheLongest.com`,
+        description: `View shelter details, available dogs, and how to adopt or volunteer.`,
+      },
+    };
+  } catch {
+    return { title: "Shelter Profile" };
+  }
 }
 
 export default async function ShelterProfilePage({
@@ -47,48 +51,65 @@ export default async function ShelterProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  // Fetch shelter
-  const { data: shelter, error } = await supabase
-    .from("shelters")
-    .select("*")
-    .eq("id", id)
-    .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let shelter: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let dogs: any[] = [];
+  let availableCount: number | null = 0;
+  let urgentCount: number | null = 0;
+  let totalCount: number | null = 0;
 
-  if (error || !shelter) {
+  try {
+    const supabase = await createClient();
+
+    const { data: shelterData, error } = await supabase
+      .from("shelters")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !shelterData) {
+      notFound();
+    }
+    shelter = shelterData;
+
+    const dogsRes = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("shelter_id", id)
+      .eq("is_available", true)
+      .order("intake_date", { ascending: true })
+      .limit(12);
+    dogs = dogsRes.data || [];
+
+    const availRes = await supabase
+      .from("dogs")
+      .select("id", { count: "exact", head: true })
+      .eq("shelter_id", id)
+      .eq("is_available", true);
+    availableCount = availRes.count;
+
+    const urgentRes = await supabase
+      .from("dogs")
+      .select("id", { count: "exact", head: true })
+      .eq("shelter_id", id)
+      .eq("is_available", true)
+      .in("urgency_level", ["critical", "urgent"]);
+    urgentCount = urgentRes.count;
+
+    const totalRes = await supabase
+      .from("dogs")
+      .select("id", { count: "exact", head: true })
+      .eq("shelter_id", id);
+    totalCount = totalRes.count;
+  } catch {
     notFound();
   }
 
-  // Fetch dogs at this shelter
-  const { data: dogs } = await supabase
-    .from("dogs")
-    .select("*, shelters!inner(name, city, state_code)")
-    .eq("shelter_id", id)
-    .eq("is_available", true)
-    .order("intake_date", { ascending: true })
-    .limit(12);
-
-  // Fetch available dogs count
-  const { count: availableCount } = await supabase
-    .from("dogs")
-    .select("id", { count: "exact", head: true })
-    .eq("shelter_id", id)
-    .eq("is_available", true);
-
-  // Fetch urgent dogs count
-  const { count: urgentCount } = await supabase
-    .from("dogs")
-    .select("id", { count: "exact", head: true })
-    .eq("shelter_id", id)
-    .eq("is_available", true)
-    .in("urgency_level", ["critical", "urgent"]);
-
-  // Fetch total dogs count (including unavailable)
-  const { count: totalCount } = await supabase
-    .from("dogs")
-    .select("id", { count: "exact", head: true })
-    .eq("shelter_id", id);
+  if (!shelter) {
+    notFound();
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

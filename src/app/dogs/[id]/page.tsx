@@ -15,25 +15,29 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const supabase = await createClient();
-  const { data: dog } = await supabase
-    .from("dogs")
-    .select("name, breed_primary, primary_photo_url")
-    .eq("id", id)
-    .single();
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const { data: dog } = await supabase
+      .from("dogs")
+      .select("name, breed_primary, primary_photo_url")
+      .eq("id", id)
+      .single();
 
-  const name = dog?.name || "Dog Profile";
-  const breed = dog?.breed_primary || "Adoptable Dog";
-  return {
-    title: `${name} - ${breed}`,
-    description: `Meet ${name}, a ${breed} waiting for a forever home. View their full profile and find out how to adopt.`,
-    openGraph: {
-      title: `${name} | WaitingTheLongest.com`,
-      description: `${name} is waiting for a loving home. See their full profile and find out how to help.`,
-      images: dog?.primary_photo_url ? [dog.primary_photo_url] : undefined,
-    },
-  };
+    const name = dog?.name || "Dog Profile";
+    const breed = dog?.breed_primary || "Adoptable Dog";
+    return {
+      title: `${name} - ${breed}`,
+      description: `Meet ${name}, a ${breed} waiting for a forever home. View their full profile and find out how to adopt.`,
+      openGraph: {
+        title: `${name} | WaitingTheLongest.com`,
+        description: `${name} is waiting for a loving home. See their full profile and find out how to help.`,
+        images: dog?.primary_photo_url ? [dog.primary_photo_url] : undefined,
+      },
+    };
+  } catch {
+    return { title: "Dog Profile" };
+  }
 }
 
 export default async function DogProfilePage({
@@ -42,28 +46,40 @@ export default async function DogProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const { data: dog, error } = await supabase
-    .from("dogs")
-    .select(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let dog: any = null;
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("dogs")
+      .select(
+        `
+        *,
+        shelters (
+          id,
+          name,
+          city,
+          state_code,
+          phone,
+          email,
+          website
+        )
       `
-      *,
-      shelters (
-        id,
-        name,
-        city,
-        state_code,
-        phone,
-        email,
-        website
       )
-    `
-    )
-    .eq("id", id)
-    .single();
+      .eq("id", id)
+      .single();
 
-  if (error || !dog) {
+    if (error || !data) {
+      notFound();
+    }
+    dog = data;
+  } catch {
+    notFound();
+  }
+
+  if (!dog) {
     notFound();
   }
 

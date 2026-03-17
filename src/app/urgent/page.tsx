@@ -43,25 +43,34 @@ const URGENCY_SECTIONS = [
 ] as const;
 
 export default async function UrgentPage() {
-  const supabase = await createClient();
-
-  // Fetch dogs for each urgency level
-  const results = await Promise.all(
-    URGENCY_SECTIONS.map((section) =>
-      supabase
-        .from("dogs")
-        .select("*, shelters!inner(name, city, state_code)")
-        .eq("is_available", true)
-        .eq("urgency_level", section.level)
-        .order("euthanasia_date", { ascending: true, nullsFirst: false })
-        .limit(12)
-    )
-  );
-
-  const sectionData = URGENCY_SECTIONS.map((section, i) => ({
+  let sectionData = URGENCY_SECTIONS.map((section) => ({
     ...section,
-    dogs: results[i].data || [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dogs: [] as any[],
   }));
+
+  try {
+    const supabase = await createClient();
+
+    const results = await Promise.all(
+      URGENCY_SECTIONS.map((section) =>
+        supabase
+          .from("dogs")
+          .select("*, shelters!inner(name, city, state_code)")
+          .eq("is_available", true)
+          .eq("urgency_level", section.level)
+          .order("euthanasia_date", { ascending: true, nullsFirst: false })
+          .limit(12)
+      )
+    );
+
+    sectionData = URGENCY_SECTIONS.map((section, i) => ({
+      ...section,
+      dogs: results[i].data || [],
+    }));
+  } catch {
+    // Supabase not configured yet
+  }
 
   const totalUrgent = sectionData.reduce((sum, s) => sum + s.dogs.length, 0);
 

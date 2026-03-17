@@ -67,31 +67,35 @@ const US_STATES = [
 ];
 
 export default async function StatesPage() {
-  const supabase = await createClient();
-
-  // Fetch all shelters' state codes to count per state
-  const { data: shelterRows } = await supabase
-    .from("shelters")
-    .select("state_code");
-
-  // Build a map of state_code -> shelter count
   const shelterCountByState: Record<string, number> = {};
   let totalShelters = 0;
-  if (shelterRows) {
-    for (const row of shelterRows) {
-      const sc = row.state_code?.toUpperCase();
-      if (sc) {
-        shelterCountByState[sc] = (shelterCountByState[sc] || 0) + 1;
-        totalShelters++;
+  let totalDogs: number | null = 0;
+
+  try {
+    const supabase = await createClient();
+
+    const { data: shelterRows } = await supabase
+      .from("shelters")
+      .select("state_code");
+
+    if (shelterRows) {
+      for (const row of shelterRows) {
+        const sc = row.state_code?.toUpperCase();
+        if (sc) {
+          shelterCountByState[sc] = (shelterCountByState[sc] || 0) + 1;
+          totalShelters++;
+        }
       }
     }
-  }
 
-  // Fetch total available dogs count
-  const { count: totalDogs } = await supabase
-    .from("dogs")
-    .select("id", { count: "exact", head: true })
-    .eq("is_available", true);
+    const dogsRes = await supabase
+      .from("dogs")
+      .select("id", { count: "exact", head: true })
+      .eq("is_available", true);
+    totalDogs = dogsRes.count;
+  } catch {
+    // Supabase not configured yet
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
