@@ -116,7 +116,8 @@ async function findOrCreateShelter(
  * Uses batch operations for performance.
  */
 export async function syncDogsFromRescueGroups(
-  maxPages: number = 10
+  maxPages: number = 10,
+  startPage: number = 1
 ): Promise<SyncResult> {
   const startTime = Date.now();
   const client = createRescueGroupsClient();
@@ -129,8 +130,9 @@ export async function syncDogsFromRescueGroups(
   let errors = 0;
 
   const shelterCache = new Map<string, string>();
+  const endPage = startPage + maxPages - 1;
 
-  for (let page = 1; page <= maxPages; page++) {
+  for (let page = startPage; page <= endPage; page++) {
     try {
       const response = await client.fetchAnimals(page, 100);
 

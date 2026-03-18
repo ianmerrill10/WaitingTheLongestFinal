@@ -134,7 +134,7 @@ export function mapRescueGroupsDog(
     good_with_cats: attrs.isCatsOk ?? null,
     energy_level: (attrs.energyLevel && ENERGY_MAP[attrs.energyLevel]) || null,
     tags: attrs.qualities || [],
-    intake_date: attrs.createdDate || new Date().toISOString(),
+    intake_date: attrs.updatedDate || attrs.createdDate || new Date().toISOString(),
     external_id: externalId,
     external_source: "rescuegroups",
     external_url: attrs.url || null,

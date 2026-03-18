@@ -4,143 +4,296 @@
 
 :root {
   --led-green: #00ff41;
-  --led-red: #ff0000;
+  --led-green-dim: #0a2e0a;
+  --led-red: #ff1a1a;
+  --led-red-dim: #2e0a0a;
   --led-orange: #ff8c00;
-  --led-dim: #1a3a1a;
-  --led-bg: #0a0a0a;
+  --led-bg: #050505;
+  --led-housing: #111111;
 }
 
-/* LED Counter Styles */
+/* ================================================================
+   LED COUNTER — Realistic 7-segment display
+   ================================================================ */
+
+/* Outer housing — looks like a real LED panel */
 .led-counter-container {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   background: var(--led-bg);
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px 6px;
+  border-radius: 8px;
+  border: 1px solid #222;
+  box-shadow:
+    inset 0 1px 4px rgba(0,0,0,0.8),
+    0 1px 0 rgba(255,255,255,0.05);
+  position: relative;
+}
+
+/* Subtle inner bevel */
+.led-counter-container::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.03);
+  pointer-events: none;
+}
+
+/* Green ambient glow behind wait-time counters */
+.led-counter.wait-time .led-counter-container {
+  box-shadow:
+    inset 0 1px 4px rgba(0,0,0,0.8),
+    0 0 20px rgba(0,255,65,0.08),
+    0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* Red ambient glow behind countdown counters */
+.led-counter.countdown .led-counter-container {
+  box-shadow:
+    inset 0 1px 4px rgba(0,0,0,0.8),
+    0 0 20px rgba(255,26,26,0.1),
+    0 1px 0 rgba(255,255,255,0.05);
 }
 
 .led-digit-group {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
 }
 
 .led-digits {
   display: flex;
-  gap: 1px;
+  gap: 2px;
 }
 
+/* Each digit cell */
 .led-digit {
   position: relative;
-  width: 18px;
-  height: 28px;
+  width: 22px;
+  height: 36px;
 }
 
-/* 7-segment display segments */
+/* ---- 7-segment pieces ---- */
 .led-segment {
   position: absolute;
-  background: var(--led-dim);
-  transition: background-color 0.15s ease;
+  transition: background-color 0.1s, box-shadow 0.1s;
 }
 
+/* Dim (off) segments — faintly visible like real LEDs */
+.led-segment {
+  background: var(--led-green-dim);
+  border-radius: 1px;
+}
+
+/* Active (on) segments — bright with layered glow */
 .led-segment.active {
   background: var(--led-green);
-  box-shadow: 0 0 4px var(--led-green);
+  box-shadow:
+    0 0 4px var(--led-green),
+    0 0 8px rgba(0,255,65,0.4),
+    0 0 1px #fff;
 }
 
-/* Countdown mode - red segments */
+/* Countdown mode: red segments */
+.led-counter.countdown .led-segment {
+  background: var(--led-red-dim);
+}
+
 .led-counter.countdown .led-segment.active {
   background: var(--led-red);
-  box-shadow: 0 0 4px var(--led-red);
+  box-shadow:
+    0 0 4px var(--led-red),
+    0 0 8px rgba(255,26,26,0.4),
+    0 0 1px #fff;
 }
 
+/* Critical pulsing — urgent red flash */
 .led-counter.critical .led-segment.active {
-  animation: led-pulse 1s ease-in-out infinite;
+  animation: led-critical-pulse 0.8s ease-in-out infinite;
 }
 
-@keyframes led-pulse {
+.led-counter.critical .led-separator-dot {
+  animation: led-critical-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes led-critical-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.25; }
 }
 
-/* Horizontal segments (a, d, g) */
-.led-segment-a { top: 0; left: 2px; width: 14px; height: 2px; border-radius: 1px; }
-.led-segment-d { bottom: 0; left: 2px; width: 14px; height: 2px; border-radius: 1px; }
-.led-segment-g { top: 50%; left: 2px; width: 14px; height: 2px; border-radius: 1px; transform: translateY(-50%); }
+/* ---- Segment geometry (beveled trapezoidal shapes) ---- */
+/* Horizontal segments: a (top), d (bottom), g (middle) */
+.led-segment-a {
+  top: 0;
+  left: 3px;
+  width: 16px;
+  height: 3px;
+  clip-path: polygon(2px 0, calc(100% - 2px) 0, 100% 100%, 0 100%);
+}
+.led-segment-d {
+  bottom: 0;
+  left: 3px;
+  width: 16px;
+  height: 3px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 2px) 100%, 2px 100%);
+}
+.led-segment-g {
+  top: 50%;
+  left: 3px;
+  width: 16px;
+  height: 3px;
+  transform: translateY(-50%);
+  clip-path: polygon(2px 0, calc(100% - 2px) 0, 100% 50%, calc(100% - 2px) 100%, 2px 100%, 0 50%);
+}
 
-/* Vertical segments (b, c, e, f) */
-.led-segment-b { top: 2px; right: 0; width: 2px; height: 12px; border-radius: 1px; }
-.led-segment-c { bottom: 2px; right: 0; width: 2px; height: 12px; border-radius: 1px; }
-.led-segment-e { bottom: 2px; left: 0; width: 2px; height: 12px; border-radius: 1px; }
-.led-segment-f { top: 2px; left: 0; width: 2px; height: 12px; border-radius: 1px; }
+/* Vertical segments: b (top-right), c (bottom-right), e (bottom-left), f (top-left) */
+.led-segment-f {
+  top: 3px;
+  left: 0;
+  width: 3px;
+  height: 15px;
+  clip-path: polygon(0 2px, 100% 0, 100% 100%, 0 calc(100% - 2px));
+}
+.led-segment-b {
+  top: 3px;
+  right: 0;
+  width: 3px;
+  height: 15px;
+  clip-path: polygon(0 0, 100% 2px, 100% calc(100% - 2px), 0 100%);
+}
+.led-segment-e {
+  bottom: 3px;
+  left: 0;
+  width: 3px;
+  height: 15px;
+  clip-path: polygon(0 2px, 100% 0, 100% 100%, 0 calc(100% - 2px));
+}
+.led-segment-c {
+  bottom: 3px;
+  right: 0;
+  width: 3px;
+  height: 15px;
+  clip-path: polygon(0 0, 100% 2px, 100% calc(100% - 2px), 0 100%);
+}
 
+/* ---- Colon separators ---- */
 .led-separator {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 0 2px;
+  gap: 10px;
+  padding: 0 3px;
   align-items: center;
   justify-content: center;
-  height: 28px;
+  height: 36px;
 }
 
 .led-separator-dot {
-  width: 3px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--led-green);
-  box-shadow: 0 0 3px var(--led-green);
+  box-shadow:
+    0 0 4px var(--led-green),
+    0 0 8px rgba(0,255,65,0.3);
 }
 
 .led-counter.countdown .led-separator-dot {
   background: var(--led-red);
-  box-shadow: 0 0 3px var(--led-red);
+  box-shadow:
+    0 0 4px var(--led-red),
+    0 0 8px rgba(255,26,26,0.3);
 }
 
+/* ---- Labels below each digit pair ---- */
 .led-label {
   font-size: 8px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-family: monospace;
+  letter-spacing: 1px;
+  font-family: 'Courier New', monospace;
   margin-top: 2px;
+  font-weight: 600;
 }
 
-/* Digit change animation */
-.led-digit.changing .led-segment.active {
-  filter: brightness(1.5);
+.led-counter.wait-time .led-label {
+  color: rgba(0, 255, 65, 0.35);
 }
 
-/* Compact variant for cards */
+.led-counter.countdown .led-label {
+  color: rgba(255, 26, 26, 0.35);
+}
+
+/* ================================================================
+   COMPACT variant — for dog cards
+   ================================================================ */
+.led-counter-sm .led-counter-container {
+  padding: 5px 8px 4px;
+  gap: 2px;
+  border-radius: 6px;
+}
+
 .led-counter-sm .led-digit {
-  width: 12px;
-  height: 20px;
+  width: 14px;
+  height: 24px;
 }
 
+/* Compact horizontal segments */
 .led-counter-sm .led-segment-a,
 .led-counter-sm .led-segment-d,
 .led-counter-sm .led-segment-g {
-  width: 8px;
+  width: 10px;
+  height: 2px;
   left: 2px;
 }
 
+/* Compact vertical segments */
+.led-counter-sm .led-segment-f,
 .led-counter-sm .led-segment-b,
-.led-counter-sm .led-segment-c,
 .led-counter-sm .led-segment-e,
-.led-counter-sm .led-segment-f {
-  height: 8px;
+.led-counter-sm .led-segment-c {
+  width: 2px;
+  height: 10px;
+}
+
+.led-counter-sm .led-segment-f,
+.led-counter-sm .led-segment-b {
+  top: 2px;
+}
+
+.led-counter-sm .led-segment-e,
+.led-counter-sm .led-segment-c {
+  bottom: 2px;
+}
+
+.led-counter-sm .led-separator {
+  height: 24px;
+  gap: 6px;
+  padding: 0 2px;
 }
 
 .led-counter-sm .led-separator-dot {
-  width: 2px;
-  height: 2px;
+  width: 3px;
+  height: 3px;
 }
 
 .led-counter-sm .led-label {
   font-size: 6px;
+  letter-spacing: 0.5px;
+}
+
+/* Simplify clip-paths at small size for clean rendering */
+.led-counter-sm .led-segment-a,
+.led-counter-sm .led-segment-d,
+.led-counter-sm .led-segment-g,
+.led-counter-sm .led-segment-b,
+.led-counter-sm .led-segment-c,
+.led-counter-sm .led-segment-e,
+.led-counter-sm .led-segment-f {
+  clip-path: none;
+  border-radius: 1px;
 }
 
 /* Urgency badges */
@@ -162,4 +315,9 @@
 
 .urgency-normal {
   @apply bg-green-600 text-white;
+}
+
+/* Safe area for iOS bottom bar */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

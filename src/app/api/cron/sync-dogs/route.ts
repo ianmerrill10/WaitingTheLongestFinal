@@ -12,14 +12,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Allow ?pages=N to control sync size (default 10 pages = 2,500 dogs)
+    // Allow ?pages=N&start=N to control sync size and offset
     const url = new URL(request.url);
     const maxPages = Math.min(
       parseInt(url.searchParams.get("pages") || "10", 10),
       50
     );
+    const startPage = Math.max(
+      parseInt(url.searchParams.get("start") || "1", 10),
+      1
+    );
 
-    const result = await syncDogsFromRescueGroups(maxPages);
+    const result = await syncDogsFromRescueGroups(maxPages, startPage);
 
     return NextResponse.json({
       success: true,
