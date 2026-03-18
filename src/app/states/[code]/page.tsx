@@ -66,7 +66,7 @@ export default async function StateDetailPage({
       .select("id, shelters!inner(state_code)", { count: "exact", head: true })
       .eq("is_available", true)
       .eq("shelters.state_code", stateCode)
-      .in("urgency_level", ["critical", "urgent"]);
+      .in("urgency_level", ["critical", "high"]);
     urgentCount = urgentRes.count;
 
     const totalRes = await supabase

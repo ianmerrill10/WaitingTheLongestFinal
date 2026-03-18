@@ -95,7 +95,7 @@ export default async function ShelterProfilePage({
       .select("id", { count: "exact", head: true })
       .eq("shelter_id", id)
       .eq("is_available", true)
-      .in("urgency_level", ["critical", "urgent"]);
+      .in("urgency_level", ["critical", "high"]);
     urgentCount = urgentRes.count;
 
     const totalRes = await supabase
