@@ -74,25 +74,30 @@ export default async function StatesPage() {
   try {
     const supabase = await createClient();
 
-    const { data: shelterRows } = await supabase
-      .from("shelters")
-      .select("state_code");
+    // Parallel count queries — avoids fetching all 45K+ shelter rows into memory
+    const stateCodes = US_STATES.map((s) => s.code);
+    const [dogsRes, totalShelterRes, ...stateCounts] = await Promise.all([
+      supabase
+        .from("dogs")
+        .select("id", { count: "exact", head: true })
+        .eq("is_available", true),
+      supabase
+        .from("shelters")
+        .select("id", { count: "exact", head: true }),
+      ...stateCodes.map((code) =>
+        supabase
+          .from("shelters")
+          .select("id", { count: "exact", head: true })
+          .eq("state_code", code)
+      ),
+    ]);
 
-    if (shelterRows) {
-      for (const row of shelterRows) {
-        const sc = row.state_code?.toUpperCase();
-        if (sc) {
-          shelterCountByState[sc] = (shelterCountByState[sc] || 0) + 1;
-          totalShelters++;
-        }
-      }
-    }
-
-    const dogsRes = await supabase
-      .from("dogs")
-      .select("id", { count: "exact", head: true })
-      .eq("is_available", true);
     totalDogs = dogsRes.count;
+    totalShelters = totalShelterRes.count || 0;
+
+    stateCodes.forEach((code, i) => {
+      shelterCountByState[code] = stateCounts[i].count || 0;
+    });
   } catch {
     // Supabase not configured yet
   }

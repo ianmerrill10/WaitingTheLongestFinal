@@ -1,18 +1,36 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
+  }
+
   const { name, email, phone, message } = body;
 
-  if (!name || !email) {
+  if (!name || typeof name !== "string" || name.trim().length < 2) {
     return NextResponse.json(
-      { error: "Name and email are required" },
+      { error: "Please provide your full name (at least 2 characters)" },
+      { status: 400 }
+    );
+  }
+
+  if (!email || typeof email !== "string" || !EMAIL_REGEX.test(email)) {
+    return NextResponse.json(
+      { error: "Please provide a valid email address" },
       { status: 400 }
     );
   }
@@ -24,9 +42,9 @@ export async function POST(
     .from("dogs")
     .select(
       `
-      id, name, breed_primary,
+      id, name, breed_primary, inquiry_count, external_url,
       shelters (
-        id, name, email, phone
+        id, name, email, phone, website
       )
     `
     )
@@ -37,24 +55,34 @@ export async function POST(
     return NextResponse.json({ error: "Dog not found" }, { status: 404 });
   }
 
-  // Increment inquiry count
-  try {
-    await supabase
-      .from("dogs")
-      .update({ inquiry_count: (dog as Record<string, unknown>).inquiry_count as number + 1 })
-      .eq("id", id);
-  } catch {
-    // Increment failed, non-critical
-  }
+  // Increment inquiry count safely
+  const currentCount =
+    typeof dog.inquiry_count === "number" ? dog.inquiry_count : 0;
+  await supabase
+    .from("dogs")
+    .update({ inquiry_count: currentCount + 1 })
+    .eq("id", id);
 
-  // For now, log the interest (later: send email to shelter via SendGrid)
+  // Log the interest for now (SendGrid integration TODO)
   console.log(
-    `ADOPTION INTEREST: ${name} (${email}, ${phone || "no phone"}) interested in ${dog.name} (${dog.breed_primary})`
+    `ADOPTION INTEREST: ${name.trim()} (${email.trim()}, ${phone || "no phone"}) interested in ${dog.name} (${dog.breed_primary}) [dog_id: ${id}]`
   );
-  if (message) console.log(`Message: ${message}`);
+  if (message) console.log(`  Message: ${message}`);
+
+  // Build response with shelter contact info
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const shelterData = dog.shelters as any;
+  const shelter = Array.isArray(shelterData) ? shelterData[0] : shelterData;
+  const shelterName = shelter?.name || "the shelter";
+  const shelterUrl = dog.external_url || shelter?.website || null;
 
   return NextResponse.json({
     success: true,
-    message: `Your interest in ${dog.name} has been sent to the shelter. They will contact you soon!`,
+    message: `Thank you for your interest in ${dog.name}! Please contact ${shelterName} directly to arrange a meeting.`,
+    shelter_name: shelterName,
+    shelter_phone: shelter?.phone || null,
+    shelter_email: shelter?.email || null,
+    shelter_url: shelterUrl,
+    dog_url: dog.external_url || null,
   });
 }
