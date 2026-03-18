@@ -168,15 +168,25 @@ async function fetchOverlookedDogs() {
       .limit(4);
     categories["pit-bulls"] = pitBulls || [];
 
-    // Black dogs
+    // Black dogs (search color_primary or breed description containing "black")
     const { data: blackDogs } = await supabase
       .from("dogs")
       .select("*, shelters!inner(name, city, state_code)")
       .eq("is_available", true)
-      .ilike("color_primary", "%black%")
+      .or("color_primary.ilike.%black%,breed_primary.ilike.%black%")
       .order("intake_date", { ascending: true })
       .limit(4);
     categories["black-dogs"] = blackDogs || [];
+
+    // Bonded pairs (search description for "bonded" keyword)
+    const { data: bondedPairs } = await supabase
+      .from("dogs")
+      .select("*, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .or("description.ilike.%bonded pair%,description.ilike.%bonded with%,description.ilike.%must be adopted together%,tags.cs.{bonded}")
+      .order("intake_date", { ascending: true })
+      .limit(4);
+    categories["bonded-pairs"] = bondedPairs || [];
   } catch {
     // Supabase not configured yet
   }

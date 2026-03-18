@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import ShelterSearch from "@/components/shelters/ShelterSearch";
 
 export const metadata: Metadata = {
   title: "Shelter Directory - Find Shelters Near You",
@@ -41,27 +42,46 @@ const US_STATES = [
   { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" },
 ];
 
-export default async function SheltersPage() {
+const PAGE_SIZE = 24;
+
+export default async function SheltersPage({
+  searchParams,
+}: {
+  searchParams: { q?: string; state?: string; page?: string };
+}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let shelters: any[] = [];
-  let totalShelterCount: number | null = 0;
+  let totalCount = 0;
+  const currentPage = Math.max(1, parseInt(searchParams.page || "1", 10));
+  const query = searchParams.q || "";
+  const stateFilter = searchParams.state || "";
 
   try {
     const supabase = await createClient();
 
-    const shelterRes = await supabase
+    let shelterQuery = supabase
       .from("shelters")
-      .select("*")
-      .limit(24);
-    shelters = shelterRes.data || [];
+      .select("*", { count: "exact" });
 
-    const countRes = await supabase
-      .from("shelters")
-      .select("id", { count: "exact", head: true });
-    totalShelterCount = countRes.count;
+    if (query) {
+      shelterQuery = shelterQuery.ilike("name", `%${query}%`);
+    }
+
+    if (stateFilter) {
+      shelterQuery = shelterQuery.eq("state_code", stateFilter.toUpperCase());
+    }
+
+    const { data, count } = await shelterQuery
+      .order("name")
+      .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+    shelters = data || [];
+    totalCount = count || 0;
   } catch {
     // Supabase not configured yet
   }
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -72,52 +92,44 @@ export default async function SheltersPage() {
         </h1>
         <p className="text-gray-600 text-lg">
           Find animal shelters and rescue organizations across the United States.
-          {totalShelterCount != null && totalShelterCount > 0 && (
+          {totalCount > 0 && (
             <span className="text-gray-500">
               {" "}
               Currently tracking{" "}
               <span className="font-semibold text-gray-700">
-                {totalShelterCount.toLocaleString()}
+                {totalCount.toLocaleString()}
               </span>{" "}
-              shelters.
+              organizations.
             </span>
           )}
         </p>
       </div>
 
-      {/* Search Bar (visual only) */}
-      <div className="mb-8">
-        <div className="max-w-xl">
-          <label htmlFor="shelter-search" className="sr-only">
-            Search shelters
-          </label>
-          <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              id="shelter-search"
-              type="text"
-              placeholder="Search by shelter name..."
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-1.5">
-            Search coming soon
-          </p>
+      {/* Search Bar */}
+      <ShelterSearch initialQuery={query} initialState={stateFilter} />
+
+      {/* Active Filters */}
+      {(query || stateFilter) && (
+        <div className="mb-6 flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-500">Filters:</span>
+          {query && (
+            <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
+              &quot;{query}&quot;
+            </span>
+          )}
+          {stateFilter && (
+            <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
+              {stateFilter.toUpperCase()}
+            </span>
+          )}
+          <Link
+            href="/shelters"
+            className="text-sm text-red-500 hover:text-red-700"
+          >
+            Clear all
+          </Link>
         </div>
-      </div>
+      )}
 
       {/* Browse by State */}
       <section className="mb-10">
@@ -128,8 +140,12 @@ export default async function SheltersPage() {
           {US_STATES.map((state) => (
             <Link
               key={state.code}
-              href={`/states/${state.code.toLowerCase()}`}
-              className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition"
+              href={`/shelters?state=${state.code}`}
+              className={`px-3 py-1.5 border rounded-full text-sm font-medium transition ${
+                stateFilter.toUpperCase() === state.code
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white border-gray-200 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50"
+              }`}
             >
               {state.code}
             </Link>
@@ -140,16 +156,19 @@ export default async function SheltersPage() {
       {/* Shelter Grid */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">All Shelters</h2>
-          {shelters && shelters.length > 0 && (
+          <h2 className="text-xl font-bold text-gray-900">
+            {stateFilter ? `Shelters in ${stateFilter.toUpperCase()}` : query ? `Results for "${query}"` : "All Shelters"}
+          </h2>
+          {shelters.length > 0 && (
             <p className="text-sm text-gray-500">
-              Showing {shelters.length} of{" "}
-              {(totalShelterCount ?? shelters.length).toLocaleString()}
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}-
+              {Math.min(currentPage * PAGE_SIZE, totalCount)} of{" "}
+              {totalCount.toLocaleString()}
             </p>
           )}
         </div>
 
-        {shelters && shelters.length > 0 ? (
+        {shelters.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {shelters.map((shelter) => (
               <div
@@ -210,12 +229,35 @@ export default async function SheltersPage() {
                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
               />
             </svg>
-            <p className="text-gray-600 font-medium">
-              No shelters found
-            </p>
+            <p className="text-gray-600 font-medium">No shelters found</p>
             <p className="text-sm text-gray-500 mt-1">
-              Check back soon as new shelters are being added regularly.
+              {query ? `No results for "${query}". Try a different search term.` : "Check back soon as new shelters are being added regularly."}
             </p>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8">
+            {currentPage > 1 && (
+              <Link
+                href={`/shelters?${new URLSearchParams({ ...(query && { q: query }), ...(stateFilter && { state: stateFilter }), page: String(currentPage - 1) }).toString()}`}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Previous
+              </Link>
+            )}
+            <span className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            {currentPage < totalPages && (
+              <Link
+                href={`/shelters?${new URLSearchParams({ ...(query && { q: query }), ...(stateFilter && { state: stateFilter }), page: String(currentPage + 1) }).toString()}`}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Next
+              </Link>
+            )}
           </div>
         )}
       </section>
