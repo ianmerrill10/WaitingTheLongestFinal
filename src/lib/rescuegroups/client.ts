@@ -5,43 +5,80 @@ interface RescueGroupsConfig {
   baseUrl?: string;
 }
 
-interface RescueGroupsAnimal {
-  id: string;
+// Matches the real v5 API response for animal attributes
+export interface RGAnimalAttributes {
+  name: string;
+  breedPrimary: string;
+  breedSecondary?: string | null;
+  breedString?: string;
+  isBreedMixed?: boolean;
+  ageGroup: string;
+  ageString?: string;
+  sex: string;
+  sizeGroup: string;
+  coatLength?: string;
+  descriptionText: string | null;
+  descriptionHtml?: string | null;
+  pictureThumbnailUrl: string | null;
+  pictureCount?: number;
+  adoptionFeeString?: string;
+  isAdoptionPending?: boolean;
+  isCurrentVaccinations?: boolean;
+  isAltered?: boolean;
+  isHousetrained?: boolean;
+  isSpecialNeeds?: boolean;
+  isKidsOk?: boolean | null;
+  isDogsOk?: boolean | null;
+  isCatsOk?: boolean | null;
+  isNeedingFoster?: boolean;
+  activityLevel?: string;
+  energyLevel?: string;
+  qualities?: string[];
+  url: string | null;
+  createdDate: string;
+  updatedDate?: string;
+  priority?: number;
+}
+
+export interface RGAnimal {
   type: string;
-  attributes: {
-    name: string;
-    breedPrimary: string;
-    breedSecondary: string | null;
-    isMixedBreed: boolean;
-    ageGroup: string;
-    sex: string;
-    sizeGroup: string;
-    colorDetails: string | null;
-    descriptionText: string | null;
-    pictureThumbnailUrl: string | null;
-    adoptionStatus: string;
-    isAltered: boolean;
-    isHousetrained: boolean;
-    isSpecialNeeds: boolean;
-    isKidsOk: boolean | null;
-    isDogsOk: boolean | null;
-    isCatsOk: boolean | null;
-    createdDate: string;
-    url: string | null;
-  };
+  id: string;
+  attributes: RGAnimalAttributes;
   relationships?: {
-    orgs?: {
-      data: { id: string; type: string }[];
-    };
-    pictures?: {
-      data: { id: string; type: string }[];
-    };
+    orgs?: { data: { id: string; type: string }[] };
+    pictures?: { data: { id: string; type: string }[] };
+    breeds?: { data: { id: string; type: string }[] };
+    colors?: { data: { id: string; type: string }[] };
+    locations?: { data: { id: string; type: string }[] };
   };
 }
 
-interface RescueGroupsResponse {
-  data: RescueGroupsAnimal[];
-  included?: unknown[];
+export interface RGOrgAttributes {
+  name: string;
+  city: string;
+  state: string;
+  postalcode?: string;
+  country?: string;
+  email?: string;
+  url?: string;
+  facebookUrl?: string;
+  phone?: string;
+  about?: string;
+  type?: string;
+  lat?: number;
+  lon?: number;
+  citystate?: string;
+}
+
+export interface RGIncludedItem {
+  type: string;
+  id: string;
+  attributes: Record<string, unknown>;
+}
+
+export interface RescueGroupsResponse {
+  data: RGAnimal[];
+  included?: RGIncludedItem[];
   meta?: {
     count: number;
     countReturned: number;
@@ -63,7 +100,6 @@ export class RescueGroupsClient {
 
   private async rateLimit(): Promise<void> {
     const now = Date.now();
-    // Keep only requests from the last minute
     this.requestQueue = this.requestQueue.filter((t) => now - t < 60000);
 
     if (this.requestQueue.length >= 100) {
@@ -71,7 +107,6 @@ export class RescueGroupsClient {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
 
-    // Also enforce 2 req/sec
     const recentRequests = this.requestQueue.filter((t) => now - t < 1000);
     if (recentRequests.length >= 2) {
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -80,11 +115,14 @@ export class RescueGroupsClient {
     this.requestQueue.push(Date.now());
   }
 
-  async fetchAnimals(page: number = 1, limit: number = 250): Promise<RescueGroupsResponse> {
+  async fetchAnimals(
+    page: number = 1,
+    limit: number = 250
+  ): Promise<RescueGroupsResponse> {
     await this.rateLimit();
 
     const response = await fetch(
-      `${this.baseUrl}/public/animals/search/available/dogs?page=${page}&limit=${limit}`,
+      `${this.baseUrl}/public/animals/search/available/dogs/?page=${page}&limit=${limit}&include=orgs,pictures`,
       {
         method: "GET",
         headers: {
@@ -103,26 +141,11 @@ export class RescueGroupsClient {
     return response.json();
   }
 
-  async fetchAnimalById(id: string): Promise<RescueGroupsAnimal | null> {
-    await this.rateLimit();
-
-    const response = await fetch(`${this.baseUrl}/public/animals/${id}`, {
-      headers: {
-        Authorization: this.apiKey,
-        "Content-Type": "application/vnd.api+json",
-      },
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.data?.[0] || data.data || null;
-  }
-
-  async fetchOrganizations(page: number = 1): Promise<unknown> {
+  async fetchAnimalById(id: string): Promise<RGAnimal | null> {
     await this.rateLimit();
 
     const response = await fetch(
-      `${this.baseUrl}/public/orgs?page=${page}&limit=250`,
+      `${this.baseUrl}/public/animals/${id}?include=orgs,pictures`,
       {
         headers: {
           Authorization: this.apiKey,
@@ -131,11 +154,9 @@ export class RescueGroupsClient {
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`RescueGroups orgs error: ${response.status}`);
-    }
-
-    return response.json();
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.data?.[0] || data.data || null;
   }
 }
 

@@ -1,3 +1,6 @@
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- States reference table
 CREATE TABLE states (
     code VARCHAR(2) PRIMARY KEY,

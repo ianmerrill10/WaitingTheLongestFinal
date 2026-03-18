@@ -12,12 +12,19 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await syncDogsFromRescueGroups(50);
+    // Allow ?pages=N to control sync size (default 10 pages = 2,500 dogs)
+    const url = new URL(request.url);
+    const maxPages = Math.min(
+      parseInt(url.searchParams.get("pages") || "10", 10),
+      50
+    );
+
+    const result = await syncDogsFromRescueGroups(maxPages);
 
     return NextResponse.json({
       success: true,
       ...result,
-      message: `Synced ${result.totalFetched} dogs: ${result.inserted} new, ${result.updated} updated, ${result.errors} errors`,
+      message: `Synced ${result.totalFetched} dogs: ${result.inserted} new, ${result.updated} updated, ${result.sheltersCreated} shelters created, ${result.errors} errors`,
     });
   } catch (error) {
     console.error("Sync error:", error);

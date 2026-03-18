@@ -251,7 +251,8 @@ async function main() {
 function mapShelterType(type?: string): string {
   if (!type) return "rescue";
   const lower = type.toLowerCase();
-  if (lower.includes("shelter") || lower === "municipal") return "shelter";
+  if (lower === "municipal") return "municipal";
+  if (lower.includes("shelter") || lower.includes("private")) return "private";
   if (lower.includes("humane")) return "humane_society";
   if (lower.includes("spca")) return "spca";
   if (lower.includes("foster")) return "foster_network";
