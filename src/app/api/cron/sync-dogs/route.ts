@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncDogsFromRescueGroups } from "@/lib/rescuegroups/sync";
+import { runAudit } from "@/lib/audit/engine";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes
@@ -22,13 +23,26 @@ export async function GET(request: Request) {
       parseInt(url.searchParams.get("start") || "1", 10),
       1
     );
+    const shouldAudit = url.searchParams.get("audit") === "true";
 
     const result = await syncDogsFromRescueGroups(maxPages, startPage);
+
+    // Run audit after sync if requested
+    let auditResult = null;
+    if (shouldAudit) {
+      try {
+        auditResult = await runAudit("quick", "post_sync");
+      } catch (auditErr) {
+        console.error("Post-sync audit error:", auditErr);
+        auditResult = { error: String(auditErr) };
+      }
+    }
 
     return NextResponse.json({
       success: true,
       ...result,
-      message: `Synced ${result.totalFetched} dogs: ${result.inserted} new, ${result.updated} updated, ${result.sheltersCreated} shelters created, ${result.errors} errors`,
+      audit: auditResult,
+      message: `Synced ${result.totalFetched} dogs: ${result.inserted} new, ${result.updated} updated, ${result.sheltersCreated} shelters created, ${result.errors} errors${auditResult ? " + audit completed" : ""}`,
     });
   } catch (error) {
     console.error("Sync error:", error);
