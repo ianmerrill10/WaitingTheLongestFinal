@@ -12,12 +12,12 @@ export async function GET(request: Request) {
   const results: string[] = [];
 
   try {
-    // Try session pooler first, fallback to direct connection
-    const connectionString = process.env.DATABASE_URL ||
-      "postgresql://postgres.hpssqzqwtsczsxvdfktt:WtL_Sup4b%40se2026!@aws-0-us-east-1.pooler.supabase.com:5432/postgres";
-
     const client = new Client({
-      connectionString,
+      host: process.env.SUPABASE_DB_HOST || "aws-0-us-east-1.pooler.supabase.com",
+      port: parseInt(process.env.SUPABASE_DB_PORT || "6543"),
+      user: process.env.SUPABASE_DB_USER || "postgres.hpssqzqwtsczsxvdfktt",
+      password: process.env.SUPABASE_DB_PASSWORD || "WtL_Sup4b@se2026!",
+      database: "postgres",
       ssl: { rejectUnauthorized: false },
     });
 
