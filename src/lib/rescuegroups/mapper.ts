@@ -3,6 +3,8 @@
 
 import type { RGAnimalAttributes, RGIncludedItem } from "./client";
 
+export type DateConfidence = "verified" | "high" | "medium" | "low" | "unknown";
+
 export interface MappedDog {
   name: string;
   breed_primary: string;
@@ -26,6 +28,8 @@ export interface MappedDog {
   energy_level: "low" | "medium" | "high" | null;
   tags: string[];
   intake_date: string;
+  date_confidence: DateConfidence;
+  date_source: string;
   external_id: string;
   external_source: string;
   external_url: string | null;
@@ -134,10 +138,100 @@ export function mapRescueGroupsDog(
     good_with_cats: attrs.isCatsOk ?? null,
     energy_level: (attrs.energyLevel && ENERGY_MAP[attrs.energyLevel]) || null,
     tags: attrs.qualities || [],
-    intake_date: attrs.updatedDate || attrs.createdDate || new Date().toISOString(),
+    ...computeIntakeDate(attrs),
     external_id: externalId,
     external_source: "rescuegroups",
     external_url: attrs.url || null,
     last_synced_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Compute intake_date with confidence scoring.
+ * RescueGroups provides createdDate (listing creation) and updatedDate (last edit).
+ * Neither is the actual shelter intake date — we score confidence accordingly.
+ */
+function computeIntakeDate(attrs: RGAnimalAttributes): {
+  intake_date: string;
+  date_confidence: DateConfidence;
+  date_source: string;
+} {
+  const now = new Date();
+  const updatedDate = attrs.updatedDate ? new Date(attrs.updatedDate) : null;
+  const createdDate = attrs.createdDate ? new Date(attrs.createdDate) : null;
+
+  // Prefer updatedDate — it's when the shelter last touched the record
+  if (updatedDate && !isNaN(updatedDate.getTime())) {
+    const daysSince = (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    // Future date — clearly wrong
+    if (daysSince < 0) {
+      return {
+        intake_date: now.toISOString(),
+        date_confidence: "low",
+        date_source: "rescuegroups_updated_date_future_corrected",
+      };
+    }
+
+    // Within 6 months — high confidence
+    if (daysSince <= 180) {
+      return {
+        intake_date: attrs.updatedDate!,
+        date_confidence: "high",
+        date_source: "rescuegroups_updated_date",
+      };
+    }
+
+    // 6 months to 2 years — medium
+    if (daysSince <= 730) {
+      return {
+        intake_date: attrs.updatedDate!,
+        date_confidence: "medium",
+        date_source: "rescuegroups_updated_date",
+      };
+    }
+
+    // Over 2 years — low confidence, use it but flag it
+    return {
+      intake_date: attrs.updatedDate!,
+      date_confidence: "low",
+      date_source: "rescuegroups_updated_date_stale",
+    };
+  }
+
+  // Fallback to createdDate — even less reliable
+  if (createdDate && !isNaN(createdDate.getTime())) {
+    const daysSince = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (daysSince < 0) {
+      return {
+        intake_date: now.toISOString(),
+        date_confidence: "low",
+        date_source: "rescuegroups_created_date_future_corrected",
+      };
+    }
+
+    // createdDate within 6 months — medium (not high, since it's listing creation not intake)
+    if (daysSince <= 180) {
+      return {
+        intake_date: attrs.createdDate!,
+        date_confidence: "medium",
+        date_source: "rescuegroups_created_date",
+      };
+    }
+
+    // Over 6 months — low confidence
+    return {
+      intake_date: attrs.createdDate!,
+      date_confidence: "low",
+      date_source: "rescuegroups_created_date_stale",
+    };
+  }
+
+  // No dates at all — use current time
+  return {
+    intake_date: now.toISOString(),
+    date_confidence: "unknown",
+    date_source: "no_date_available",
   };
 }

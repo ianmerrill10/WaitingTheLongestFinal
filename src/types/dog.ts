@@ -18,6 +18,9 @@ export interface Dog {
   status: string;
   is_available: boolean;
   intake_date: string;
+  date_confidence: "verified" | "high" | "medium" | "low" | "unknown" | null;
+  date_source: string | null;
+  last_audited_at: string | null;
   intake_type: string | null;
   available_date: string | null;
   euthanasia_date: string | null;

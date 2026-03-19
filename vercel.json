@@ -2,11 +2,23 @@
   "crons": [
     {
       "path": "/api/cron/sync-dogs",
-      "schedule": "0 6 * * *"
+      "schedule": "0 */6 * * *"
     },
     {
       "path": "/api/cron/update-urgency",
-      "schedule": "0 18 * * *"
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/audit-dogs?mode=quick",
+      "schedule": "0 1,9,17 * * *"
+    },
+    {
+      "path": "/api/cron/audit-dogs?mode=full",
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-dogs?pages=50&start=1",
+      "schedule": "30 2 * * *"
     }
   ]
 }

@@ -152,6 +152,13 @@ export default async function DogProfilePage({
             <p className="text-gray-500 text-xs mt-3">
               Since {new Date(dog.intake_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </p>
+            {dog.date_confidence && dog.date_confidence !== "verified" && dog.date_confidence !== "high" && (
+              <p className={`text-xs mt-2 ${dog.date_confidence === "low" || dog.date_confidence === "unknown" ? "text-amber-400" : "text-gray-500"}`}>
+                {dog.date_confidence === "low" || dog.date_confidence === "unknown"
+                  ? "* Wait time is estimated — exact intake date has not been verified by the shelter"
+                  : "* Wait time is approximate based on available data"}
+              </p>
+            )}
           </div>
 
           {/* Euthanasia Countdown */}
