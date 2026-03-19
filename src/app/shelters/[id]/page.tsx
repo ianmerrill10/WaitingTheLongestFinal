@@ -80,7 +80,7 @@ export default async function ShelterProfilePage({
       .eq("shelter_id", id)
       .eq("is_available", true)
       .order("intake_date", { ascending: true })
-      .limit(12);
+      .limit(24);
     dogs = dogsRes.data || [];
 
     const availRes = await supabase
@@ -178,7 +178,7 @@ export default async function ShelterProfilePage({
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Statistics
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <StatCard label="Total Dogs" value={String(totalCount ?? 0)} />
               <StatCard
                 label="Available"
@@ -188,10 +188,6 @@ export default async function ShelterProfilePage({
                 label="Urgent"
                 value={String(urgentCount ?? 0)}
                 urgent
-              />
-              <StatCard
-                label="Showing"
-                value={`${dogs?.length ?? 0} dogs`}
               />
             </div>
           </div>
@@ -336,9 +332,14 @@ export default async function ShelterProfilePage({
               >
                 Become a Foster
               </Link>
-              <button className="block w-full text-center py-2.5 px-4 bg-white hover:bg-green-50 text-green-700 font-medium rounded-lg transition text-sm border border-green-300">
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Help dogs at ${shelter.name} find homes!`)}&url=${encodeURIComponent(`https://waitingthelongest.com/shelters/${id}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-center py-2.5 px-4 bg-white hover:bg-green-50 text-green-700 font-medium rounded-lg transition text-sm border border-green-300"
+              >
                 Share This Shelter
-              </button>
+              </a>
             </div>
           </div>
         </div>

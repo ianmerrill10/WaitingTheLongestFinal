@@ -48,6 +48,7 @@ export default async function StateDetailPage({
   let totalDogsCount: number | null = 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let shelters: any[] = [];
+  let shelterCount = 0;
 
   try {
     const supabase = await createClient();
@@ -58,35 +59,40 @@ export default async function StateDetailPage({
       .eq("is_available", true)
       .eq("shelters.state_code", stateCode)
       .order("intake_date", { ascending: true })
-      .limit(12);
+      .limit(24);
     dogs = dogsRes.data || [];
 
-    const urgentRes = await supabase
-      .from("dogs")
-      .select("id, shelters!inner(state_code)", { count: "exact", head: true })
-      .eq("is_available", true)
-      .eq("shelters.state_code", stateCode)
-      .in("urgency_level", ["critical", "high"]);
+    const [urgentRes, totalRes, shelterCountRes, shelterRes] = await Promise.all([
+      supabase
+        .from("dogs")
+        .select("id, shelters!inner(state_code)", { count: "exact", head: true })
+        .eq("is_available", true)
+        .eq("shelters.state_code", stateCode)
+        .in("urgency_level", ["critical", "high"]),
+      supabase
+        .from("dogs")
+        .select("id, shelters!inner(state_code)", { count: "exact", head: true })
+        .eq("is_available", true)
+        .eq("shelters.state_code", stateCode),
+      supabase
+        .from("shelters")
+        .select("id", { count: "exact", head: true })
+        .eq("state_code", stateCode),
+      supabase
+        .from("shelters")
+        .select("*")
+        .eq("state_code", stateCode)
+        .order("name", { ascending: true })
+        .limit(30),
+    ]);
+
     urgentCount = urgentRes.count;
-
-    const totalRes = await supabase
-      .from("dogs")
-      .select("id, shelters!inner(state_code)", { count: "exact", head: true })
-      .eq("is_available", true)
-      .eq("shelters.state_code", stateCode);
     totalDogsCount = totalRes.count;
-
-    const shelterRes = await supabase
-      .from("shelters")
-      .select("*")
-      .eq("state_code", stateCode)
-      .limit(20);
+    shelterCount = shelterCountRes.count ?? 0;
     shelters = shelterRes.data || [];
   } catch {
     // Supabase not configured yet
   }
-
-  const shelterCount = shelters.length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -123,7 +129,7 @@ export default async function StateDetailPage({
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
         <StatCard
           label="Available Dogs"
           value={String(totalDogsCount ?? 0)}
@@ -134,7 +140,6 @@ export default async function StateDetailPage({
           urgent
         />
         <StatCard label="Shelters" value={String(shelterCount)} />
-        <StatCard label="Showing" value={`${dogs?.length ?? 0} dogs`} />
       </div>
 
       {/* Dogs Section */}

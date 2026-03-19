@@ -66,7 +66,7 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-4">
-              Every Day <span className="text-led-green">Matters</span>
+              Stop a Clock, <span className="text-led-green">Save a Life</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto mb-8">
               Find adoptable dogs from shelters and rescues across America.

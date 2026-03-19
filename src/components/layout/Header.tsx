@@ -18,7 +18,7 @@ export default function Header() {
                 Waiting<span className="text-led-green">The</span>Longest
               </span>
               <span className="hidden sm:inline text-xs text-gray-400 ml-2">
-                Because Every Day Matters
+                Stop a Clock, Save a Life
               </span>
             </div>
           </Link>

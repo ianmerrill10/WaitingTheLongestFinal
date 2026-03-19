@@ -209,21 +209,21 @@
 
 /* ---- Labels below each digit pair ---- */
 .led-label {
-  font-size: 8px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   font-family: 'Courier New', monospace;
-  margin-top: 2px;
-  font-weight: 600;
+  margin-top: 4px;
+  font-weight: 700;
 }
 
 .led-counter.wait-time .led-label {
-  color: rgba(0, 255, 65, 0.35);
+  color: rgba(0, 255, 65, 0.7);
 }
 
 .led-counter.countdown .led-label {
-  color: rgba(255, 26, 26, 0.35);
+  color: rgba(255, 26, 26, 0.7);
 }
 
 /* ================================================================
@@ -280,8 +280,9 @@
 }
 
 .led-counter-sm .led-label {
-  font-size: 6px;
-  letter-spacing: 0.5px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 700;
 }
 
 /* Simplify clip-paths at small size for clean rendering */

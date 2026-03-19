@@ -14,7 +14,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm">
-              Because Every Day Matters. Helping shelter dogs find loving homes
+              Stop a Clock, Save a Life. Helping shelter dogs find loving homes
               since 2024.
             </p>
           </div>
@@ -67,13 +67,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/quiz" className="hover:text-white transition">
-                  Find Your Match
-                </Link>
-              </li>
-              <li>
-                <Link href="/stories" className="hover:text-white transition">
-                  Success Stories
+                <Link href="/urgent" className="hover:text-white transition">
+                  Help Urgent Dogs
                 </Link>
               </li>
             </ul>

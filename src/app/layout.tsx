@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s | WaitingTheLongest.com",
   },
   description:
-    "Find adoptable dogs from shelters and rescues across the United States. Real-time euthanasia countdown timers help you save dogs before time runs out. Because every day matters.",
+    "Find adoptable dogs from shelters and rescues across the United States. Real-time euthanasia countdown timers help you save dogs before time runs out. Stop a clock, save a life.",
   keywords: [
     "adopt a dog",
     "shelter dogs",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     "save a dog",
   ],
   openGraph: {
-    title: "WaitingTheLongest.com - Because Every Day Matters",
+    title: "WaitingTheLongest.com - Stop a Clock, Save a Life",
     description:
       "Find and save adoptable shelter dogs across America. Real-time countdown timers for dogs on euthanasia lists.",
     url: "https://waitingthelongest.com",

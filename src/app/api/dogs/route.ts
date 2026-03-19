@@ -16,6 +16,7 @@ export async function GET(request: Request) {
   const state = searchParams.get("state");
   const urgency = searchParams.get("urgency");
   const search = searchParams.get("q");
+  const shelterId = searchParams.get("shelter");
 
   const supabase = createAdminClient();
 
@@ -35,6 +36,7 @@ export async function GET(request: Request) {
     .eq("is_available", true);
 
   // Apply filters
+  if (shelterId) query = query.eq("shelter_id", shelterId);
   if (breed) query = query.ilike("breed_primary", `%${breed}%`);
   if (size) query = query.eq("size", size);
   if (age) query = query.eq("age_category", age);
