@@ -2,6 +2,7 @@
 // Based on real API response structure
 
 import type { RGAnimalAttributes, RGIncludedItem } from "./client";
+import { parseDateFromDescription } from "@/lib/utils/parse-description-date";
 
 export type DateConfidence = "verified" | "high" | "medium" | "low" | "unknown";
 
@@ -138,7 +139,7 @@ export function mapRescueGroupsDog(
     good_with_cats: attrs.isCatsOk ?? null,
     energy_level: (attrs.energyLevel && ENERGY_MAP[attrs.energyLevel]) || null,
     tags: attrs.qualities || [],
-    ...computeIntakeDate(attrs),
+    ...computeIntakeDate(attrs, description),
     external_id: externalId,
     external_source: "rescuegroups",
     external_url: attrs.url || null,
@@ -148,19 +149,35 @@ export function mapRescueGroupsDog(
 
 /**
  * Compute intake_date with confidence scoring.
- * RescueGroups provides createdDate (listing creation) and updatedDate (last edit).
- * Neither is the actual shelter intake date — we score confidence accordingly.
+ * Priority order:
+ *   1. Date parsed from description text (e.g. "Posted 2/18/18") — highest confidence
+ *   2. RescueGroups updatedDate — medium confidence
+ *   3. RescueGroups createdDate — lower confidence
+ *   4. Current time — unknown confidence
  */
-function computeIntakeDate(attrs: RGAnimalAttributes): {
+function computeIntakeDate(attrs: RGAnimalAttributes, description?: string | null): {
   intake_date: string;
   date_confidence: DateConfidence;
   date_source: string;
 } {
   const now = new Date();
+
+  // Strategy 1: Parse a real date from the description text
+  // Descriptions often contain "Posted 2/18/18", "Listed on 01/15/2020", etc.
+  // These are the REAL intake/posting dates and should always be preferred.
+  const descDate = parseDateFromDescription(description ?? null);
+  if (descDate) {
+    return {
+      intake_date: descDate.date.toISOString(),
+      date_confidence: descDate.confidence === "high" ? "verified" : "high",
+      date_source: `description_parsed: ${descDate.source}`,
+    };
+  }
+
   const updatedDate = attrs.updatedDate ? new Date(attrs.updatedDate) : null;
   const createdDate = attrs.createdDate ? new Date(attrs.createdDate) : null;
 
-  // Prefer updatedDate — it's when the shelter last touched the record
+  // Strategy 2: updatedDate — it's when the shelter last touched the record
   if (updatedDate && !isNaN(updatedDate.getTime())) {
     const daysSince = (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24);
 

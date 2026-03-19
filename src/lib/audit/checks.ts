@@ -3,6 +3,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AuditLogger } from "./logger";
+import { parseDateFromDescription } from "@/lib/utils/parse-description-date";
 
 // ============================================================
 // 1. DATE VALIDATION — bulk classify and repair intake dates
@@ -537,4 +538,75 @@ export async function checkDataQuality(logger: AuditLogger): Promise<{
     .eq("is_available", true);
 
   return { checked: totalCount ?? 0, issues, repaired };
+}
+
+// ============================================================
+// 8. DESCRIPTION DATE PARSING — extract real intake dates from descriptions
+// ============================================================
+export async function checkDescriptionDates(logger: AuditLogger): Promise<{
+  checked: number;
+  updated: number;
+}> {
+  const supabase = createAdminClient();
+  const now = new Date();
+  let updated = 0;
+  let checked = 0;
+  let offset = 0;
+
+  // Process dogs in batches — only those with descriptions and not already verified
+  while (true) {
+    const { data: dogs } = await supabase
+      .from("dogs")
+      .select("id, name, description, intake_date, date_confidence, date_source")
+      .eq("is_available", true)
+      .not("description", "is", null)
+      .neq("date_confidence", "verified")
+      .order("id")
+      .range(offset, offset + 499);
+
+    if (!dogs || dogs.length === 0) break;
+
+    for (const dog of dogs) {
+      checked++;
+      if (!dog.description) continue;
+
+      const parsed = parseDateFromDescription(dog.description);
+      if (!parsed) continue;
+
+      const parsedISO = parsed.date.toISOString();
+      const currentIntake = new Date(dog.intake_date);
+
+      // Only update if the description date is OLDER (earlier) than the current intake_date,
+      // meaning the dog has been waiting LONGER than we thought.
+      // Also update if current confidence is low/unknown — description date is always better.
+      const descIsOlder = parsed.date < currentIntake;
+      const currentIsUnreliable = dog.date_confidence === "low" || dog.date_confidence === "unknown";
+
+      if (descIsOlder || currentIsUnreliable) {
+        await supabase
+          .from("dogs")
+          .update({
+            intake_date: parsedISO,
+            date_confidence: parsed.confidence === "high" ? "verified" : "high",
+            date_source: `description_parsed: ${parsed.source}`,
+            last_audited_at: now.toISOString(),
+          })
+          .eq("id", dog.id);
+        updated++;
+      }
+    }
+
+    offset += dogs.length;
+    if (dogs.length < 500) break;
+  }
+
+  logger.log({
+    audit_type: "description_date_parse",
+    entity_type: "dog",
+    severity: updated > 0 ? "warning" : "info",
+    message: `Parsed descriptions for ${checked} dogs — updated ${updated} intake dates from description text`,
+    action_taken: updated > 0 ? `Updated ${updated} dogs with dates from descriptions` : undefined,
+  });
+
+  return { checked, updated };
 }

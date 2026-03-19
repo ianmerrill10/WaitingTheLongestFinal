@@ -4,6 +4,7 @@
 import { AuditLogger } from "./logger";
 import {
   checkDates,
+  checkDescriptionDates,
   checkStaleness,
   checkDuplicates,
   checkStatuses,
@@ -12,7 +13,7 @@ import {
   checkDataQuality,
 } from "./checks";
 
-export type AuditMode = "full" | "quick" | "dates_only" | "stale_only" | "repair_only";
+export type AuditMode = "full" | "quick" | "dates_only" | "stale_only" | "repair_only" | "description_dates";
 
 export interface AuditResult {
   runId: string;
@@ -26,6 +27,7 @@ export interface AuditResult {
     photos?: { checked: number; missing: number };
     shelters?: { checked: number; issues: number };
     data_quality?: { checked: number; issues: number; repaired: number };
+    description_dates?: { checked: number; updated: number };
   };
   logStats: {
     info: number;
@@ -62,6 +64,12 @@ export async function runAudit(
       await logger.flush();
     }
 
+    // Description date parsing — extract real dates from "Posted 2/18/18" etc.
+    if (mode === "full" || mode === "dates_only" || mode === "repair_only" || mode === "description_dates") {
+      stats.description_dates = await checkDescriptionDates(logger);
+      await logger.flush();
+    }
+
     if (mode === "full" || mode === "quick" || mode === "stale_only") {
       stats.staleness = await checkStaleness(logger);
       await logger.flush();
@@ -87,6 +95,7 @@ export async function runAudit(
     // Calculate totals
     const totalRepairs =
       (stats.dates?.repaired ?? 0) +
+      (stats.description_dates?.updated ?? 0) +
       (stats.duplicates?.removed ?? 0) +
       (stats.statuses?.repaired ?? 0) +
       (stats.data_quality?.repaired ?? 0) +

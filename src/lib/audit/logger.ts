@@ -10,6 +10,7 @@ export type AuditType =
   | "status_check"
   | "shelter_check"
   | "data_quality"
+  | "description_date_parse"
   | "repair"
   | "system";
 
