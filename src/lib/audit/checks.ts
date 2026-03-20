@@ -617,8 +617,14 @@ export async function checkDescriptionDates(logger: AuditLogger): Promise<{
 // ============================================================
 /**
  * A dog cannot have been waiting in a shelter longer than it has been alive.
- * This check parses age from ageString/description, compares to intake_date,
- * and caps the intake_date to the dog's estimated birth date when impossible.
+ *
+ * Optimized: only queries dogs whose intake_date is impossibly old for their
+ * age_category, rather than scanning all 33K+ dogs.
+ * - puppy: intake_date > 1 year ago is suspect
+ * - young: intake_date > 3 years ago is suspect
+ * - adult: intake_date > 8 years ago is suspect
+ *
+ * Then parses age from description for finer checks.
  */
 export async function checkAgeSanity(logger: AuditLogger): Promise<{
   checked: number;
@@ -628,49 +634,105 @@ export async function checkAgeSanity(logger: AuditLogger): Promise<{
   const now = new Date();
   let fixed = 0;
   let checked = 0;
-  let offset = 0;
 
+  // Check each age category against its max possible age
+  const categories: { category: string; maxMonths: number }[] = [
+    { category: "puppy", maxMonths: 12 },
+    { category: "young", maxMonths: 36 },
+    { category: "adult", maxMonths: 96 },
+  ];
+
+  for (const { category, maxMonths } of categories) {
+    const cutoff = new Date(now);
+    cutoff.setMonth(cutoff.getMonth() - maxMonths);
+
+    let offset = 0;
+    while (true) {
+      const { data: dogs } = await supabase
+        .from("dogs")
+        .select("id, name, description, intake_date, age_months, age_category, date_confidence")
+        .eq("is_available", true)
+        .eq("age_category", category)
+        .lt("intake_date", cutoff.toISOString())
+        .order("id")
+        .range(offset, offset + 499);
+
+      if (!dogs || dogs.length === 0) break;
+
+      for (const dog of dogs) {
+        checked++;
+
+        // Try to get precise age from description or stored value
+        let ageMonths: number | null = dog.age_months;
+
+        if (!ageMonths && dog.description) {
+          ageMonths = parseAgeMonths(null, dog.description);
+        }
+
+        // Default to category max if no precise age
+        if (!ageMonths) ageMonths = maxMonths;
+
+        const intakeDate = new Date(dog.intake_date);
+        if (isNaN(intakeDate.getTime())) continue;
+
+        // Estimate birth date
+        const birthDate = new Date(now);
+        birthDate.setMonth(birthDate.getMonth() - ageMonths);
+
+        // If intake_date is before the dog was born, it's impossible
+        if (intakeDate < birthDate) {
+          const waitMonths = Math.round((now.getTime() - intakeDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+
+          await supabase
+            .from("dogs")
+            .update({
+              intake_date: birthDate.toISOString(),
+              age_months: ageMonths,
+              date_confidence: "low",
+              date_source: `age_sanity_capped|was_${waitMonths}mo_but_dog_is_${ageMonths}mo`,
+              last_audited_at: now.toISOString(),
+            })
+            .eq("id", dog.id);
+
+          fixed++;
+        } else if (dog.age_months === null && ageMonths !== maxMonths) {
+          // Store parsed age_months
+          await supabase
+            .from("dogs")
+            .update({ age_months: ageMonths })
+            .eq("id", dog.id);
+        }
+      }
+
+      offset += dogs.length;
+      if (dogs.length < 500) break;
+    }
+  }
+
+  // Also check dogs with known age_months where wait > age (any category)
+  let offset2 = 0;
   while (true) {
     const { data: dogs } = await supabase
       .from("dogs")
       .select("id, name, description, intake_date, age_months, age_category, date_confidence")
       .eq("is_available", true)
+      .not("age_months", "is", null)
+      .gt("age_months", 0)
       .order("id")
-      .range(offset, offset + 499);
+      .range(offset2, offset2 + 999);
 
     if (!dogs || dogs.length === 0) break;
 
     for (const dog of dogs) {
+      if (!dog.age_months) continue;
       checked++;
-
-      // Try to get age in months from: stored age_months, or parse from description
-      let ageMonths: number | null = dog.age_months;
-
-      if (!ageMonths && dog.description) {
-        ageMonths = parseAgeMonths(null, dog.description);
-      }
-
-      // Fallback: use age_category as rough estimate
-      if (!ageMonths && dog.age_category) {
-        const categoryMaxMonths: Record<string, number> = {
-          puppy: 12,
-          young: 36,
-          adult: 96,   // 8 years
-          senior: 180,  // 15 years
-        };
-        ageMonths = categoryMaxMonths[dog.age_category] || null;
-      }
-
-      if (!ageMonths || ageMonths <= 0) continue;
 
       const intakeDate = new Date(dog.intake_date);
       if (isNaN(intakeDate.getTime())) continue;
 
-      // Estimate birth date
       const birthDate = new Date(now);
-      birthDate.setMonth(birthDate.getMonth() - ageMonths);
+      birthDate.setMonth(birthDate.getMonth() - dog.age_months);
 
-      // If intake_date is before the dog was born, it's impossible
       if (intakeDate < birthDate) {
         const waitMonths = Math.round((now.getTime() - intakeDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
 
@@ -678,25 +740,18 @@ export async function checkAgeSanity(logger: AuditLogger): Promise<{
           .from("dogs")
           .update({
             intake_date: birthDate.toISOString(),
-            age_months: ageMonths,
             date_confidence: "low",
-            date_source: `age_sanity_capped|was_${waitMonths}mo_but_dog_is_${ageMonths}mo`,
+            date_source: `age_sanity_capped|was_${waitMonths}mo_but_dog_is_${dog.age_months}mo`,
             last_audited_at: now.toISOString(),
           })
           .eq("id", dog.id);
 
         fixed++;
-      } else if (dog.age_months === null && ageMonths) {
-        // Update age_months even if intake_date was ok
-        await supabase
-          .from("dogs")
-          .update({ age_months: ageMonths })
-          .eq("id", dog.id);
       }
     }
 
-    offset += dogs.length;
-    if (dogs.length < 500) break;
+    offset2 += dogs.length;
+    if (dogs.length < 1000) break;
   }
 
   logger.log({
