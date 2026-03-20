@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync-dogs?pages=50&start=1&audit=true",
+      "path": "/api/cron/sync-dogs?pages=50&start=1&verify_batch=100",
       "schedule": "0 6 * * *"
     },
     {

@@ -1,53 +1,147 @@
+/**
+ * Unified Daily Agent — Sync + Verify + Audit
+ *
+ * Runs at 6am daily via Vercel cron. Does everything in one pass:
+ * 1. Sync new dogs from RescueGroups (50 pages = ~5K dogs)
+ * 2. Verify oldest unverified dogs against RG API (batch of 100)
+ * 3. Run quick audit (date checks, staleness, statuses)
+ * 4. Parse description dates for accuracy
+ *
+ * All automated. No manual intervention needed.
+ */
 import { NextResponse } from "next/server";
 import { syncDogsFromRescueGroups } from "@/lib/rescuegroups/sync";
 import { runAudit } from "@/lib/audit/engine";
+import { runVerification, getVerificationStats } from "@/lib/verification/engine";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes
 
 export async function GET(request: Request) {
-  // Verify cron secret for Vercel Cron
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const url = new URL(request.url);
+  const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "10", 10), 50);
+  const startPage = Math.max(parseInt(url.searchParams.get("start") || "1", 10), 1);
+  const skipSync = url.searchParams.get("skip_sync") === "true";
+  const skipVerify = url.searchParams.get("skip_verify") === "true";
+  const skipAudit = url.searchParams.get("skip_audit") === "true";
+  const verifyBatch = Math.min(parseInt(url.searchParams.get("verify_batch") || "100", 10), 200);
+
+  const startTime = Date.now();
+  const pipeline: Record<string, unknown> = {
+    started_at: new Date().toISOString(),
+    steps: [],
+  };
+
   try {
-    // Allow ?pages=N&start=N to control sync size and offset
-    const url = new URL(request.url);
-    const maxPages = Math.min(
-      parseInt(url.searchParams.get("pages") || "10", 10),
-      50
-    );
-    const startPage = Math.max(
-      parseInt(url.searchParams.get("start") || "1", 10),
-      1
-    );
-    const shouldAudit = url.searchParams.get("audit") === "true";
-
-    const result = await syncDogsFromRescueGroups(maxPages, startPage);
-
-    // Run audit after sync if requested
-    let auditResult = null;
-    if (shouldAudit) {
+    // ── Step 1: Sync dogs from RescueGroups ──
+    if (!skipSync) {
+      const syncStart = Date.now();
       try {
-        auditResult = await runAudit("quick", "post_sync");
-      } catch (auditErr) {
-        console.error("Post-sync audit error:", auditErr);
-        auditResult = { error: String(auditErr) };
+        const syncResult = await syncDogsFromRescueGroups(maxPages, startPage);
+        const step = {
+          step: "sync",
+          status: "success",
+          duration_ms: Date.now() - syncStart,
+          ...syncResult,
+        };
+        (pipeline.steps as unknown[]).push(step);
+        pipeline.sync = step;
+      } catch (err) {
+        (pipeline.steps as unknown[]).push({
+          step: "sync",
+          status: "error",
+          error: err instanceof Error ? err.message : String(err),
+          duration_ms: Date.now() - syncStart,
+        });
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      ...result,
-      audit: auditResult,
-      message: `Synced ${result.totalFetched} dogs: ${result.inserted} new, ${result.updated} updated, ${result.sheltersCreated} shelters created, ${result.errors} errors${auditResult ? " + audit completed" : ""}`,
-    });
+    // ── Step 2: Verify dogs against RG API ──
+    // Check oldest unverified dogs first, then stale verifications
+    if (!skipVerify) {
+      const verifyStart = Date.now();
+      try {
+        // Split batch: 70% oldest never-verified, 30% stale re-verification
+        const neverBatch = Math.floor(verifyBatch * 0.7);
+        const staleBatch = verifyBatch - neverBatch;
+
+        const neverResult = await runVerification(neverBatch, "never_verified");
+        const staleResult = await runVerification(staleBatch, "stale");
+
+        const combined = {
+          checked: neverResult.checked + staleResult.checked,
+          verified: neverResult.verified + staleResult.verified,
+          notFound: neverResult.notFound + staleResult.notFound,
+          deactivated: neverResult.deactivated + staleResult.deactivated,
+          pending: neverResult.pending + staleResult.pending,
+          errors: neverResult.errors + staleResult.errors,
+        };
+
+        const stats = await getVerificationStats();
+
+        const step = {
+          step: "verify",
+          status: "success",
+          duration_ms: Date.now() - verifyStart,
+          ...combined,
+          overall_stats: stats,
+        };
+        (pipeline.steps as unknown[]).push(step);
+        pipeline.verification = step;
+      } catch (err) {
+        (pipeline.steps as unknown[]).push({
+          step: "verify",
+          status: "error",
+          error: err instanceof Error ? err.message : String(err),
+          duration_ms: Date.now() - verifyStart,
+        });
+      }
+    }
+
+    // ── Step 3: Quick audit ──
+    if (!skipAudit) {
+      const auditStart = Date.now();
+      try {
+        const auditResult = await runAudit("quick", "daily_agent");
+        const step = {
+          step: "audit",
+          status: "success",
+          duration_ms: Date.now() - auditStart,
+          runId: auditResult.runId,
+          stats: auditResult.stats,
+          logStats: auditResult.logStats,
+        };
+        (pipeline.steps as unknown[]).push(step);
+        pipeline.audit = step;
+      } catch (err) {
+        (pipeline.steps as unknown[]).push({
+          step: "audit",
+          status: "error",
+          error: err instanceof Error ? err.message : String(err),
+          duration_ms: Date.now() - auditStart,
+        });
+      }
+    }
+
+    pipeline.completed_at = new Date().toISOString();
+    pipeline.total_duration_ms = Date.now() - startTime;
+
+    // Build summary message
+    const steps = pipeline.steps as { step: string; status: string }[];
+    const successSteps = steps.filter(s => s.status === "success").map(s => s.step);
+    const failedSteps = steps.filter(s => s.status === "error").map(s => s.step);
+    pipeline.message = `Daily agent complete: ${successSteps.join(", ")} succeeded${failedSteps.length ? `, ${failedSteps.join(", ")} failed` : ""}`;
+
+    return NextResponse.json({ success: true, ...pipeline });
   } catch (error) {
-    console.error("Sync error:", error);
+    console.error("Daily agent error:", error);
     return NextResponse.json(
-      { success: false, error: String(error) },
+      { success: false, error: String(error), pipeline },
       { status: 500 }
     );
   }

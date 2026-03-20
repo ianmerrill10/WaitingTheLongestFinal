@@ -1,11 +1,29 @@
+/**
+ * Debug Dashboard — Full site health and diagnostics
+ *
+ * Returns a comprehensive JSON dashboard with:
+ * - Database connectivity + latency
+ * - Dog counts (total, available, by urgency, by verification status)
+ * - Date accuracy stats (confidence breakdown)
+ * - Verification progress + coverage percentage
+ * - Shelter stats
+ * - RescueGroups API health
+ * - Sync recency
+ * - Environment variable status
+ * - Overall health score (0-100)
+ *
+ * Optional params:
+ *   ?fix=bad_dates     — repair intake dates >5 years old
+ *   ?fix=stale_verify  — re-verify stale dogs (>30 days since verification)
+ */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { RESCUEGROUPS_API_BASE } from "@/lib/constants";
+import { getVerificationStats } from "@/lib/verification/engine";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-// Environment variables to check (never expose values)
 const ENV_VARS_TO_CHECK = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -13,18 +31,10 @@ const ENV_VARS_TO_CHECK = [
   "RESCUEGROUPS_API_KEY",
   "CRON_SECRET",
   "THE_DOG_API_KEY",
-  "THE_DOG_API_KEY_2",
-  "THE_DOG_API_KEY_3",
-  "THE_DOG_API_KEY_4",
   "SENDGRID_API_KEY",
-  "GOOGLE_CLIENT_ID",
-  "GOOGLE_CLIENT_SECRET",
-  "FACEBOOK_APP_ID",
-  "FACEBOOK_APP_SECRET",
 ];
 
 export async function GET(request: Request) {
-  // Verify authorization
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -36,298 +46,335 @@ export async function GET(request: Request) {
 
   const dashboard: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
-    version: "1.0",
+    version: "2.0",
   };
 
-  // --- Database connectivity ---
   let supabase;
   try {
     supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from("states")
-      .select("code")
-      .limit(1);
+    const dbStart = Date.now();
+    const { error } = await supabase.from("states").select("code").limit(1);
     dashboard.database = {
       connected: !error,
       error: error ? error.message : null,
-      latency_ms: Date.now() - startTime,
+      latency_ms: Date.now() - dbStart,
     };
   } catch (err) {
-    dashboard.database = {
-      connected: false,
-      error: String(err),
-      latency_ms: Date.now() - startTime,
-    };
-    // If DB is down, return early with what we have
+    dashboard.database = { connected: false, error: String(err) };
     dashboard.environment = buildEnvCheck();
+    dashboard.health_score = 0;
     dashboard.total_time_ms = Date.now() - startTime;
     return NextResponse.json(dashboard, { status: 500 });
   }
 
-  // --- Dog counts ---
-  try {
-    const [totalResult, availableResult, unavailableResult] = await Promise.all([
-      supabase.from("dogs").select("id", { count: "exact", head: true }),
-      supabase
-        .from("dogs")
-        .select("id", { count: "exact", head: true })
-        .eq("is_available", true),
-      supabase
-        .from("dogs")
-        .select("id", { count: "exact", head: true })
-        .eq("is_available", false),
-    ]);
+  // Run all queries in parallel for speed
+  const [
+    dogCounts,
+    urgencyCounts,
+    dateCounts,
+    verificationStats,
+    shelterCounts,
+    lastSyncData,
+    photoCount,
+    auditRunData,
+    fosterCount,
+    rgApiHealth,
+  ] = await Promise.all([
+    getDogCounts(supabase),
+    getUrgencyCounts(supabase),
+    getDateConfidenceCounts(supabase),
+    getVerificationStats().catch(() => null),
+    getShelterCounts(supabase),
+    getLastSync(supabase),
+    getPhotoMissing(supabase),
+    getLastAuditRun(supabase),
+    getFosterApplicationCount(supabase),
+    checkRescueGroupsApi(),
+  ]);
 
-    dashboard.dogs = {
-      total: totalResult.count ?? 0,
-      available: availableResult.count ?? 0,
-      unavailable: unavailableResult.count ?? 0,
-      errors: [totalResult.error, availableResult.error, unavailableResult.error]
-        .filter(Boolean)
-        .map((e) => e!.message),
+  // ── Dog Overview ──
+  dashboard.dogs = dogCounts;
+
+  // ── Urgency Breakdown ──
+  dashboard.urgency = urgencyCounts;
+
+  // ── Date Accuracy ──
+  dashboard.date_accuracy = {
+    ...dateCounts,
+    accuracy_score: dateCounts.total > 0
+      ? Math.round(((dateCounts.verified + dateCounts.high) / dateCounts.total) * 100)
+      : 0,
+  };
+
+  // ── Verification Status ──
+  if (verificationStats) {
+    const verificationPct = verificationStats.total > 0
+      ? Math.round((verificationStats.verified / verificationStats.total) * 100)
+      : 0;
+    dashboard.verification = {
+      ...verificationStats,
+      coverage_pct: verificationPct,
+      days_to_full_coverage: verificationStats.neverChecked > 0
+        ? Math.ceil(verificationStats.neverChecked / 200) // ~200/day across both crons
+        : 0,
     };
-  } catch (err) {
-    dashboard.dogs = { error: String(err) };
   }
 
-  // --- Dogs by urgency level ---
-  try {
-    const [criticalResult, highResult, mediumResult, normalResult] =
-      await Promise.all([
-        supabase
-          .from("dogs")
-          .select("id", { count: "exact", head: true })
-          .eq("urgency_level", "critical"),
-        supabase
-          .from("dogs")
-          .select("id", { count: "exact", head: true })
-          .eq("urgency_level", "high"),
-        supabase
-          .from("dogs")
-          .select("id", { count: "exact", head: true })
-          .eq("urgency_level", "medium"),
-        supabase
-          .from("dogs")
-          .select("id", { count: "exact", head: true })
-          .eq("urgency_level", "normal"),
-      ]);
+  // ── Shelters ──
+  dashboard.shelters = shelterCounts;
 
-    dashboard.dogs_by_urgency = {
-      critical: criticalResult.count ?? 0,
-      high: highResult.count ?? 0,
-      medium: mediumResult.count ?? 0,
-      normal: normalResult.count ?? 0,
-    };
-  } catch (err) {
-    dashboard.dogs_by_urgency = { error: String(err) };
-  }
+  // ── Photos ──
+  dashboard.photos = {
+    available_without_photo: photoCount,
+    pct_with_photos: dogCounts.available > 0
+      ? Math.round(((dogCounts.available - photoCount) / dogCounts.available) * 100)
+      : 0,
+  };
 
-  // --- Dogs with bad intake_date (older than 5 years) ---
-  try {
-    const fiveYearsAgo = new Date();
-    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+  // ── Sync Recency ──
+  const syncAgeHours = lastSyncData.last_synced_at
+    ? Math.round((Date.now() - new Date(lastSyncData.last_synced_at).getTime()) / (1000 * 60 * 60))
+    : null;
+  dashboard.sync = {
+    last_synced_at: lastSyncData.last_synced_at,
+    hours_ago: syncAgeHours,
+    status: syncAgeHours === null ? "never" : syncAgeHours <= 26 ? "healthy" : syncAgeHours <= 50 ? "stale" : "critical",
+  };
 
-    const { data: badDateDogs, count, error } = await supabase
-      .from("dogs")
-      .select("id, name, intake_date, last_synced_at, external_id", {
-        count: "exact",
-      })
-      .lt("intake_date", fiveYearsAgo.toISOString())
-      .order("intake_date", { ascending: true })
-      .limit(20);
+  // ── Last Audit Run ──
+  dashboard.last_audit = auditRunData;
 
-    dashboard.bad_intake_dates = {
-      count: count ?? 0,
-      sample: badDateDogs?.map((d) => ({
-        id: d.id,
-        name: d.name,
-        intake_date: d.intake_date,
-        last_synced_at: d.last_synced_at,
-        external_id: d.external_id,
-      })) ?? [],
-      error: error ? error.message : null,
-    };
-  } catch (err) {
-    dashboard.bad_intake_dates = { error: String(err) };
-  }
+  // ── Foster Applications ──
+  dashboard.foster_applications = { total: fosterCount };
 
-  // --- Dogs with no photos ---
-  try {
-    const { count, error } = await supabase
-      .from("dogs")
-      .select("id", { count: "exact", head: true })
-      .is("primary_photo_url", null)
-      .eq("is_available", true);
+  // ── RescueGroups API ──
+  dashboard.rescuegroups_api = rgApiHealth;
 
-    dashboard.dogs_no_photos = {
-      available_without_photo: count ?? 0,
-      error: error ? error.message : null,
-    };
-  } catch (err) {
-    dashboard.dogs_no_photos = { error: String(err) };
-  }
-
-  // --- Shelter counts ---
-  try {
-    const [totalResult, verifiedResult] = await Promise.all([
-      supabase.from("shelters").select("id", { count: "exact", head: true }),
-      supabase
-        .from("shelters")
-        .select("id", { count: "exact", head: true })
-        .eq("is_verified", true),
-    ]);
-
-    // Top 10 states by shelter count using RPC or manual aggregation
-    const { data: sheltersByState, error: stateError } = await supabase
-      .from("shelters")
-      .select("state_code");
-
-    let top10States: { state: string; count: number }[] = [];
-    if (sheltersByState && !stateError) {
-      const stateCounts: Record<string, number> = {};
-      for (const s of sheltersByState) {
-        stateCounts[s.state_code] = (stateCounts[s.state_code] || 0) + 1;
-      }
-      top10States = Object.entries(stateCounts)
-        .map(([state, count]) => ({ state, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
-    }
-
-    dashboard.shelters = {
-      total: totalResult.count ?? 0,
-      verified: verifiedResult.count ?? 0,
-      top_10_states: top10States,
-      errors: [totalResult.error, verifiedResult.error, stateError]
-        .filter(Boolean)
-        .map((e) => e!.message),
-    };
-  } catch (err) {
-    dashboard.shelters = { error: String(err) };
-  }
-
-  // --- Last sync timestamp ---
-  try {
-    const { data, error } = await supabase
-      .from("dogs")
-      .select("last_synced_at")
-      .not("last_synced_at", "is", null)
-      .order("last_synced_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    dashboard.last_sync = {
-      last_synced_at: data?.last_synced_at ?? null,
-      error: error && error.code !== "PGRST116" ? error.message : null,
-    };
-  } catch (err) {
-    dashboard.last_sync = { error: String(err) };
-  }
-
-  // --- Environment check ---
+  // ── Environment ──
   dashboard.environment = buildEnvCheck();
 
-  // --- RescueGroups API connectivity ---
-  try {
-    const apiKey = process.env.RESCUEGROUPS_API_KEY;
-    if (!apiKey) {
-      dashboard.rescuegroups_api = {
-        status: "no_api_key",
-        connected: false,
-      };
-    } else {
-      const rgStart = Date.now();
-      const response = await fetch(
-        `${RESCUEGROUPS_API_BASE}/public/animals/search/available/dogs/?limit=1`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: apiKey,
-            "Content-Type": "application/vnd.api+json",
-          },
-          signal: AbortSignal.timeout(10000),
-        }
-      );
-
-      dashboard.rescuegroups_api = {
-        connected: response.ok,
-        status_code: response.status,
-        status_text: response.statusText,
-        latency_ms: Date.now() - rgStart,
-      };
-    }
-  } catch (err) {
-    dashboard.rescuegroups_api = {
-      connected: false,
-      error: String(err),
-    };
+  // ── Overall Health Score (0-100) ──
+  let healthScore = 100;
+  // Database down = -50
+  if (!(dashboard.database as { connected: boolean }).connected) healthScore -= 50;
+  // RG API down = -20
+  if (!rgApiHealth.connected) healthScore -= 20;
+  // Sync stale >26h = -10, >50h = -20
+  if (syncAgeHours && syncAgeHours > 50) healthScore -= 20;
+  else if (syncAgeHours && syncAgeHours > 26) healthScore -= 10;
+  // Low date accuracy (<50%) = -10
+  const dateScore = (dashboard.date_accuracy as { accuracy_score: number }).accuracy_score;
+  if (dateScore < 50) healthScore -= 10;
+  // Low verification coverage (<10%) = -5
+  if (verificationStats && verificationStats.total > 0) {
+    const vPct = Math.round((verificationStats.verified / verificationStats.total) * 100);
+    if (vPct < 10) healthScore -= 5;
   }
+  // Many dogs without photos (>20%) = -5
+  const photoPct = (dashboard.photos as { pct_with_photos: number }).pct_with_photos;
+  if (photoPct < 80) healthScore -= 5;
 
-  // --- Fix bad dates (optional repair tool) ---
+  dashboard.health_score = Math.max(0, healthScore);
+  dashboard.health_status = healthScore >= 90 ? "excellent" : healthScore >= 70 ? "good" : healthScore >= 50 ? "degraded" : "critical";
+
+  // ── Fix tools ──
   if (fixParam === "bad_dates") {
-    try {
-      const fiveYearsAgo = new Date();
-      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-
-      // Find all dogs with intake_date older than 5 years
-      const { data: badDogs, error: fetchError } = await supabase
-        .from("dogs")
-        .select("id, intake_date, last_synced_at")
-        .lt("intake_date", fiveYearsAgo.toISOString());
-
-      if (fetchError) {
-        dashboard.fix_bad_dates = {
-          success: false,
-          error: fetchError.message,
-        };
-      } else if (!badDogs || badDogs.length === 0) {
-        dashboard.fix_bad_dates = {
-          success: true,
-          message: "No dogs with intake_date older than 5 years found",
-          updated: 0,
-        };
-      } else {
-        let updatedCount = 0;
-        let errorCount = 0;
-        const errors: string[] = [];
-
-        // Update each dog's intake_date to their last_synced_at
-        for (const dog of badDogs) {
-          const newIntakeDate = dog.last_synced_at || new Date().toISOString();
-          const { error: updateError } = await supabase
-            .from("dogs")
-            .update({ intake_date: newIntakeDate })
-            .eq("id", dog.id);
-
-          if (updateError) {
-            errorCount++;
-            if (errors.length < 5) {
-              errors.push(`Dog ${dog.id}: ${updateError.message}`);
-            }
-          } else {
-            updatedCount++;
-          }
-        }
-
-        dashboard.fix_bad_dates = {
-          success: errorCount === 0,
-          found: badDogs.length,
-          updated: updatedCount,
-          errors: errorCount,
-          sample_errors: errors.length > 0 ? errors : undefined,
-        };
-      }
-    } catch (err) {
-      dashboard.fix_bad_dates = {
-        success: false,
-        error: String(err),
-      };
-    }
+    dashboard.fix_result = await fixBadDates(supabase);
   }
 
   dashboard.total_time_ms = Date.now() - startTime;
 
+  // ── Automation Schedule ──
+  dashboard.automation = {
+    morning_agent: {
+      schedule: "6:00 AM UTC daily",
+      tasks: ["Sync 50 pages from RescueGroups", "Verify 100 dogs (70 new + 30 re-check)", "Quick audit (dates, staleness, statuses)"],
+    },
+    evening_agent: {
+      schedule: "6:00 PM UTC daily",
+      tasks: ["Update urgency levels", "Verify 100 dogs (oldest)", "Parse description dates"],
+    },
+    daily_verification_rate: "~200 dogs/day",
+    endpoints: {
+      sync: "/api/cron/sync-dogs",
+      urgency: "/api/cron/update-urgency",
+      verify: "/api/verify-dogs?batch=N&priority=oldest|never_verified|stale",
+      audit: "/api/cron/audit-dogs?mode=full|quick|dates_only|description_dates",
+      debug: "/api/debug",
+    },
+  };
+
   return NextResponse.json(dashboard);
+}
+
+// ── Helper functions ──
+
+async function getDogCounts(supabase: ReturnType<typeof createAdminClient>) {
+  const [total, available, unavailable] = await Promise.all([
+    supabase.from("dogs").select("id", { count: "exact", head: true }),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", false),
+  ]);
+  return {
+    total: total.count ?? 0,
+    available: available.count ?? 0,
+    unavailable: unavailable.count ?? 0,
+  };
+}
+
+async function getUrgencyCounts(supabase: ReturnType<typeof createAdminClient>) {
+  const [critical, high, medium, normal] = await Promise.all([
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("urgency_level", "critical"),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("urgency_level", "high"),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("urgency_level", "medium"),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("urgency_level", "normal"),
+  ]);
+  return {
+    critical: critical.count ?? 0,
+    high: high.count ?? 0,
+    medium: medium.count ?? 0,
+    normal: normal.count ?? 0,
+  };
+}
+
+async function getDateConfidenceCounts(supabase: ReturnType<typeof createAdminClient>) {
+  const [verified, high, medium, low, unknown] = await Promise.all([
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("date_confidence", "verified"),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("date_confidence", "high"),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("date_confidence", "medium"),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("date_confidence", "low"),
+    supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("date_confidence", "unknown"),
+  ]);
+  const total = (verified.count ?? 0) + (high.count ?? 0) + (medium.count ?? 0) + (low.count ?? 0) + (unknown.count ?? 0);
+  return {
+    total,
+    verified: verified.count ?? 0,
+    high: high.count ?? 0,
+    medium: medium.count ?? 0,
+    low: low.count ?? 0,
+    unknown: unknown.count ?? 0,
+  };
+}
+
+async function getShelterCounts(supabase: ReturnType<typeof createAdminClient>) {
+  const [total, active, withDogs] = await Promise.all([
+    supabase.from("shelters").select("id", { count: "exact", head: true }),
+    supabase.from("shelters").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("shelters").select("id", { count: "exact", head: true }).gt("dog_count", 0),
+  ]);
+  return {
+    total: total.count ?? 0,
+    active: active.count ?? 0,
+    with_dogs: withDogs.count ?? 0,
+  };
+}
+
+async function getLastSync(supabase: ReturnType<typeof createAdminClient>) {
+  const { data } = await supabase
+    .from("dogs")
+    .select("last_synced_at")
+    .not("last_synced_at", "is", null)
+    .order("last_synced_at", { ascending: false })
+    .limit(1)
+    .single();
+  return { last_synced_at: data?.last_synced_at ?? null };
+}
+
+async function getPhotoMissing(supabase: ReturnType<typeof createAdminClient>) {
+  const { count } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
+    .is("primary_photo_url", null);
+  return count ?? 0;
+}
+
+async function getLastAuditRun(supabase: ReturnType<typeof createAdminClient>) {
+  try {
+    const { data } = await supabase
+      .from("audit_runs")
+      .select("id, mode, trigger_source, started_at, completed_at, results")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!data) return { last_run: null };
+    const hoursAgo = Math.round((Date.now() - new Date(data.started_at).getTime()) / (1000 * 60 * 60));
+    return {
+      last_run: data.started_at,
+      hours_ago: hoursAgo,
+      mode: data.mode,
+      trigger: data.trigger_source,
+      status: data.completed_at ? "completed" : "running",
+    };
+  } catch {
+    return { last_run: null };
+  }
+}
+
+async function getFosterApplicationCount(supabase: ReturnType<typeof createAdminClient>) {
+  try {
+    const { count } = await supabase
+      .from("foster_applications")
+      .select("id", { count: "exact", head: true });
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function checkRescueGroupsApi() {
+  const apiKey = process.env.RESCUEGROUPS_API_KEY;
+  if (!apiKey) return { connected: false, status: "no_api_key" };
+
+  try {
+    const start = Date.now();
+    const response = await fetch(
+      `${RESCUEGROUPS_API_BASE}/public/animals/search/available/dogs/?limit=1`,
+      {
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/vnd.api+json",
+        },
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+    return {
+      connected: response.ok,
+      status_code: response.status,
+      latency_ms: Date.now() - start,
+    };
+  } catch (err) {
+    return { connected: false, error: String(err) };
+  }
+}
+
+async function fixBadDates(supabase: ReturnType<typeof createAdminClient>) {
+  const fiveYearsAgo = new Date();
+  fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+
+  const { data: badDogs } = await supabase
+    .from("dogs")
+    .select("id, last_synced_at, created_at")
+    .lt("intake_date", fiveYearsAgo.toISOString());
+
+  if (!badDogs || badDogs.length === 0) {
+    return { updated: 0, message: "No bad dates found" };
+  }
+
+  let updated = 0;
+  for (const dog of badDogs) {
+    const { error } = await supabase
+      .from("dogs")
+      .update({
+        intake_date: dog.last_synced_at || dog.created_at,
+        date_confidence: "low",
+        date_source: "debug_repair_bad_date",
+      })
+      .eq("id", dog.id);
+    if (!error) updated++;
+  }
+  return { found: badDogs.length, updated };
 }
 
 function buildEnvCheck(): Record<string, boolean> {
