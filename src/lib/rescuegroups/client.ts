@@ -158,6 +158,54 @@ export class RescueGroupsClient {
     const data = await response.json();
     return data.data?.[0] || data.data || null;
   }
+
+  /**
+   * Verify if an animal still exists and is available in RescueGroups.
+   * Returns a status indicating the verification result.
+   */
+  async verifyAnimal(id: string): Promise<{
+    status: "available" | "not_found" | "pending" | "api_error";
+    animal?: RGAnimal;
+    httpStatus?: number;
+  }> {
+    await this.rateLimit();
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/public/animals/${id}`,
+        {
+          headers: {
+            Authorization: this.apiKey,
+            "Content-Type": "application/vnd.api+json",
+          },
+        }
+      );
+
+      if (response.status === 404) {
+        return { status: "not_found", httpStatus: 404 };
+      }
+
+      if (!response.ok) {
+        return { status: "api_error", httpStatus: response.status };
+      }
+
+      const data = await response.json();
+      const animal = data.data?.[0] || data.data;
+
+      if (!animal) {
+        return { status: "not_found", httpStatus: 200 };
+      }
+
+      // Check if the animal is adoption pending
+      if (animal.attributes?.isAdoptionPending) {
+        return { status: "pending", animal, httpStatus: 200 };
+      }
+
+      return { status: "available", animal, httpStatus: 200 };
+    } catch {
+      return { status: "api_error" };
+    }
+  }
 }
 
 export function createRescueGroupsClient(): RescueGroupsClient {
