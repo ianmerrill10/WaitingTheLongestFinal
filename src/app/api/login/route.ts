@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
     return response;
-  } catch {
-    return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+  } catch (err) {
+    return NextResponse.json({ error: 'Bad request', detail: String(err) }, { status: 400 });
   }
 }
