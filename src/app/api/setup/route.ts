@@ -12,14 +12,66 @@ export async function GET(request: Request) {
   const results: string[] = [];
 
   try {
-    const client = new Client({
-      host: process.env.SUPABASE_DB_HOST || "aws-0-us-east-1.pooler.supabase.com",
-      port: parseInt(process.env.SUPABASE_DB_PORT || "6543"),
-      user: process.env.SUPABASE_DB_USER || "postgres.hpssqzqwtsczsxvdfktt",
-      password: process.env.SUPABASE_DB_PASSWORD || "WtL_Sup4b@se2026!",
-      database: "postgres",
-      ssl: { rejectUnauthorized: false },
-    });
+    // Try multiple connection methods
+    const connectionConfigs = [
+      {
+        name: "session_pooler",
+        host: "aws-0-us-east-1.pooler.supabase.com",
+        port: 5432,
+        user: "postgres.hpssqzqwtsczsxvdfktt",
+        password: "WtL_Sup4b@se2026!",
+        database: "postgres",
+        ssl: { rejectUnauthorized: false },
+      },
+      {
+        name: "transaction_pooler",
+        host: "aws-0-us-east-1.pooler.supabase.com",
+        port: 6543,
+        user: "postgres.hpssqzqwtsczsxvdfktt",
+        password: "WtL_Sup4b@se2026!",
+        database: "postgres",
+        ssl: { rejectUnauthorized: false },
+      },
+      {
+        name: "direct",
+        host: "db.hpssqzqwtsczsxvdfktt.supabase.co",
+        port: 5432,
+        user: "postgres",
+        password: "WtL_Sup4b@se2026!",
+        database: "postgres",
+        ssl: { rejectUnauthorized: false },
+      },
+    ];
+
+    let client: Client | null = null;
+    for (const config of connectionConfigs) {
+      try {
+        const c = new Client({
+          host: config.host,
+          port: config.port,
+          user: config.user,
+          password: config.password,
+          database: config.database,
+          ssl: config.ssl,
+          connectionTimeoutMillis: 10000,
+        });
+        await c.connect();
+        results.push(`Connected via ${config.name}`);
+        client = c;
+        break;
+      } catch (err) {
+        results.push(`${config.name} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    if (!client) {
+      return NextResponse.json({
+        success: false,
+        results,
+        error: "Could not connect to database with any method",
+        sql_to_run_manually: "See /api/debug?fix=run_migration for the SQL to paste into Supabase SQL Editor",
+      });
+    }
 
     await client.connect();
     results.push("Connected to database");
