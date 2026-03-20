@@ -119,8 +119,8 @@ export default function DogCard({
           </div>
         )}
 
-        {/* LED Wait Time Counter */}
-        {!showCountdown && dog.intake_date && (
+        {/* LED Wait Time Counter — always show if dog has intake_date and no countdown shown */}
+        {dog.intake_date && !(showCountdown && dog.euthanasia_date) && (
           <div className="mt-3">
             <LEDCounter intakeDate={dog.intake_date} compact />
           </div>
