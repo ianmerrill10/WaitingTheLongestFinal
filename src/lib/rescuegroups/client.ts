@@ -38,6 +38,9 @@ export interface RGAnimalAttributes {
   createdDate: string;
   updatedDate?: string;
   priority?: number;
+  birthDate?: string | null;
+  isBirthDateExact?: boolean | null;
+  isCourtesyListing?: boolean;
 }
 
 export interface RGAnimal {

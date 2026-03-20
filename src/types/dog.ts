@@ -49,6 +49,9 @@ export interface Dog {
   external_id: string | null;
   external_source: string | null;
   external_url: string | null;
+  birth_date: string | null;
+  is_birth_date_exact: boolean | null;
+  is_courtesy_listing: boolean;
   view_count: number;
   favorite_count: number;
   share_count: number;

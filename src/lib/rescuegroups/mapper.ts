@@ -32,6 +32,9 @@ export interface MappedDog {
   intake_date: string;
   date_confidence: DateConfidence;
   date_source: string;
+  birth_date: string | null;
+  is_birth_date_exact: boolean | null;
+  is_courtesy_listing: boolean;
   external_id: string;
   external_source: string;
   external_url: string | null;
@@ -160,6 +163,32 @@ function parseAgeText(text?: string | null): number | null {
   return found && totalMonths > 0 ? totalMonths : null;
 }
 
+/**
+ * Compute age_months using best available source.
+ * Priority: birthDate from API > ageString text > description text.
+ */
+function computeAgeMonthsFromSources(
+  attrs: RGAnimalAttributes,
+  description: string | null,
+): { ageMonths: number | null; birthDateStr: string | null } {
+  // Strategy 1: birthDate from RG API (gold standard)
+  if (attrs.birthDate) {
+    const birth = new Date(attrs.birthDate);
+    if (!isNaN(birth.getTime())) {
+      const now = new Date();
+      const months = (now.getFullYear() - birth.getFullYear()) * 12
+                   + (now.getMonth() - birth.getMonth());
+      if (months >= 0 && months < 360) { // 0 to 30 years
+        return { ageMonths: months, birthDateStr: attrs.birthDate };
+      }
+    }
+  }
+
+  // Strategy 2+3: Parse from ageString or description
+  const ageMonths = parseAgeMonths(attrs.ageString, description);
+  return { ageMonths, birthDateStr: attrs.birthDate || null };
+}
+
 export function mapRescueGroupsDog(
   externalId: string,
   attrs: RGAnimalAttributes,
@@ -177,8 +206,8 @@ export function mapRescueGroupsDog(
       .trim();
   }
 
-  const ageMonths = parseAgeMonths(attrs.ageString, description);
-  const intakeDateResult = computeIntakeDate(attrs, description, ageMonths);
+  const { ageMonths, birthDateStr } = computeAgeMonthsFromSources(attrs, description);
+  const intakeDateResult = computeIntakeDate(attrs, description, ageMonths, birthDateStr);
 
   return {
     name: attrs.name || "Unknown",
@@ -204,6 +233,9 @@ export function mapRescueGroupsDog(
     energy_level: (attrs.energyLevel && ENERGY_MAP[attrs.energyLevel]) || null,
     tags: attrs.qualities || [],
     ...intakeDateResult,
+    birth_date: birthDateStr,
+    is_birth_date_exact: attrs.isBirthDateExact ?? null,
+    is_courtesy_listing: attrs.isCourtesyListing ?? false,
     external_id: externalId,
     external_source: "rescuegroups",
     external_url: attrs.url || null,
@@ -215,18 +247,19 @@ export function mapRescueGroupsDog(
  * Compute intake_date with confidence scoring + age sanity check.
  * Priority order:
  *   1. Date parsed from description text (e.g. "Posted 2/18/18") — highest confidence
- *   2. RescueGroups updatedDate — medium confidence
- *   3. RescueGroups createdDate — lower confidence
+ *   2. RescueGroups createdDate — most likely close to actual intake
+ *   3. RescueGroups updatedDate — weaker signal (just means listing was edited)
  *   4. Current time — unknown confidence
  *
  * After computing, applies age sanity check:
  *   If wait time > dog's age, the intake_date is impossible and gets capped
- *   to the dog's estimated birth date (now - age_months).
+ *   to the dog's estimated birth date.
  */
 function computeIntakeDate(
   attrs: RGAnimalAttributes,
   description?: string | null,
   ageMonths?: number | null,
+  birthDateStr?: string | null,
 ): {
   intake_date: string;
   date_confidence: DateConfidence;
@@ -235,8 +268,6 @@ function computeIntakeDate(
   const now = new Date();
 
   // Strategy 1: Parse a real date from the description text
-  // Descriptions often contain "Posted 2/18/18", "Listed on 01/15/2020", etc.
-  // These are the REAL intake/posting dates and should always be preferred.
   const descDate = parseDateFromDescription(description ?? null);
   if (descDate) {
     const result = {
@@ -244,52 +275,16 @@ function computeIntakeDate(
       date_confidence: (descDate.confidence === "high" ? "verified" : "high") as DateConfidence,
       date_source: `description_parsed: ${descDate.source}`,
     };
-    return applyAgeSanityCheck(result, ageMonths, now);
+    return applyAgeSanityCheck(result, ageMonths, now, birthDateStr);
   }
 
-  const updatedDate = attrs.updatedDate ? new Date(attrs.updatedDate) : null;
   const createdDate = attrs.createdDate ? new Date(attrs.createdDate) : null;
+  const updatedDate = attrs.updatedDate ? new Date(attrs.updatedDate) : null;
 
-  // Strategy 2: updatedDate — it's when the shelter last touched the record
-  if (updatedDate && !isNaN(updatedDate.getTime())) {
-    const daysSince = (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24);
+  // Courtesy listings: dates reflect the courtesy post, not shelter intake
+  const isCourtesy = attrs.isCourtesyListing ?? false;
 
-    // Future date — clearly wrong
-    if (daysSince < 0) {
-      return applyAgeSanityCheck({
-        intake_date: now.toISOString(),
-        date_confidence: "low",
-        date_source: "rescuegroups_updated_date_future_corrected",
-      }, ageMonths, now);
-    }
-
-    // Within 6 months — high confidence
-    if (daysSince <= 180) {
-      return applyAgeSanityCheck({
-        intake_date: attrs.updatedDate!,
-        date_confidence: "high",
-        date_source: "rescuegroups_updated_date",
-      }, ageMonths, now);
-    }
-
-    // 6 months to 2 years — medium
-    if (daysSince <= 730) {
-      return applyAgeSanityCheck({
-        intake_date: attrs.updatedDate!,
-        date_confidence: "medium",
-        date_source: "rescuegroups_updated_date",
-      }, ageMonths, now);
-    }
-
-    // Over 2 years — low confidence, use it but flag it
-    return applyAgeSanityCheck({
-      intake_date: attrs.updatedDate!,
-      date_confidence: "low",
-      date_source: "rescuegroups_updated_date_stale",
-    }, ageMonths, now);
-  }
-
-  // Fallback to createdDate — even less reliable
+  // Strategy 2: createdDate — listing created when dog entered the system
   if (createdDate && !isNaN(createdDate.getTime())) {
     const daysSince = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
 
@@ -298,24 +293,52 @@ function computeIntakeDate(
         intake_date: now.toISOString(),
         date_confidence: "low",
         date_source: "rescuegroups_created_date_future_corrected",
-      }, ageMonths, now);
+      }, ageMonths, now, birthDateStr);
     }
 
-    // createdDate within 6 months — medium (not high, since it's listing creation not intake)
-    if (daysSince <= 180) {
+    if (isCourtesy) {
+      // Courtesy listing dates are unreliable as intake proxies
       return applyAgeSanityCheck({
         intake_date: attrs.createdDate!,
-        date_confidence: "medium",
-        date_source: "rescuegroups_created_date",
-      }, ageMonths, now);
+        date_confidence: "low",
+        date_source: "rescuegroups_courtesy_listing_created_date",
+      }, ageMonths, now, birthDateStr);
     }
 
-    // Over 6 months — low confidence
+    // Check if the listing is actively maintained (updated recently)
+    const isActive = updatedDate &&
+      (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24) < 180;
+
+    let confidence: DateConfidence;
+    if (daysSince <= 90) confidence = "high";
+    else if (daysSince <= 365) confidence = isActive ? "high" : "medium";
+    else if (daysSince <= 730) confidence = "medium";
+    else confidence = "low";
+
     return applyAgeSanityCheck({
       intake_date: attrs.createdDate!,
-      date_confidence: "low",
-      date_source: "rescuegroups_created_date_stale",
-    }, ageMonths, now);
+      date_confidence: confidence,
+      date_source: `rescuegroups_created_date${isActive ? "_active" : ""}`,
+    }, ageMonths, now, birthDateStr);
+  }
+
+  // Strategy 3: updatedDate only (no createdDate — shouldn't happen but handle gracefully)
+  if (updatedDate && !isNaN(updatedDate.getTime())) {
+    const daysSince = (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (daysSince < 0) {
+      return applyAgeSanityCheck({
+        intake_date: now.toISOString(),
+        date_confidence: "low",
+        date_source: "rescuegroups_updated_date_future_corrected",
+      }, ageMonths, now, birthDateStr);
+    }
+
+    return applyAgeSanityCheck({
+      intake_date: attrs.updatedDate!,
+      date_confidence: daysSince <= 180 ? "medium" : "low",
+      date_source: daysSince <= 180 ? "rescuegroups_updated_date_only" : "rescuegroups_updated_date_stale",
+    }, ageMonths, now, birthDateStr);
   }
 
   // No dates at all — use current time
@@ -323,34 +346,47 @@ function computeIntakeDate(
     intake_date: now.toISOString(),
     date_confidence: "unknown",
     date_source: "no_date_available",
-  }, ageMonths, now);
+  }, ageMonths, now, birthDateStr);
 }
 
 /**
  * Age sanity check: a dog cannot have been waiting longer than it's been alive.
- * If intake_date implies wait time > dog's age, cap to the dog's birth date.
+ * Uses birthDate from RG API if available (gold standard), else estimates from ageMonths.
+ * If intake_date is before birth, cap to birth date.
  */
 function applyAgeSanityCheck(
   result: { intake_date: string; date_confidence: DateConfidence; date_source: string },
   ageMonths: number | null | undefined,
   now: Date,
+  birthDateStr?: string | null,
 ): { intake_date: string; date_confidence: DateConfidence; date_source: string } {
-  if (!ageMonths || ageMonths <= 0) return result;
+  // Determine birth date: prefer API birthDate, fall back to ageMonths estimate
+  let birthDate: Date | null = null;
+  let birthSource = "estimated";
+
+  if (birthDateStr) {
+    const parsed = new Date(birthDateStr);
+    if (!isNaN(parsed.getTime()) && parsed < now) {
+      birthDate = parsed;
+      birthSource = "api";
+    }
+  }
+
+  if (!birthDate && ageMonths && ageMonths > 0) {
+    birthDate = new Date(now);
+    birthDate.setMonth(birthDate.getMonth() - ageMonths);
+  }
+
+  if (!birthDate) return result;
 
   const intakeDate = new Date(result.intake_date);
   if (isNaN(intakeDate.getTime())) return result;
 
-  // Estimate the dog's birth date
-  const birthDate = new Date(now);
-  birthDate.setMonth(birthDate.getMonth() - ageMonths);
-
-  // If intake_date is before the dog was born, it's impossible
-  // Cap to birth date (the absolute earliest the dog could have entered a shelter)
   if (intakeDate < birthDate) {
     return {
       intake_date: birthDate.toISOString(),
       date_confidence: "low",
-      date_source: `${result.date_source}|age_capped_from_${ageMonths}mo`,
+      date_source: `${result.date_source}|age_capped_${birthSource}`,
     };
   }
 

@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { syncDogsFromRescueGroups } from "@/lib/rescuegroups/sync";
 import { runAudit } from "@/lib/audit/engine";
 import { runVerification, getVerificationStats } from "@/lib/verification/engine";
+import { computeAndStoreDailyStats } from "@/lib/stats/compute-daily-stats";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
   const skipSync = url.searchParams.get("skip_sync") === "true";
   const skipVerify = url.searchParams.get("skip_verify") === "true";
   const skipAudit = url.searchParams.get("skip_audit") === "true";
-  const verifyBatch = Math.min(parseInt(url.searchParams.get("verify_batch") || "100", 10), 200);
+  const verifyBatch = Math.min(parseInt(url.searchParams.get("verify_batch") || "200", 10), 400);
 
   const startTime = Date.now();
   const pipeline: Record<string, unknown> = {
@@ -126,6 +127,27 @@ export async function GET(request: Request) {
           duration_ms: Date.now() - auditStart,
         });
       }
+    }
+
+    // ── Step 4: Compute daily stats snapshot ──
+    const statsStart = Date.now();
+    try {
+      const statsResult = await computeAndStoreDailyStats();
+      const step = {
+        step: "daily_stats",
+        status: "success",
+        duration_ms: Date.now() - statsStart,
+        ...statsResult,
+      };
+      (pipeline.steps as unknown[]).push(step);
+      pipeline.daily_stats = step;
+    } catch (err) {
+      (pipeline.steps as unknown[]).push({
+        step: "daily_stats",
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+        duration_ms: Date.now() - statsStart,
+      });
     }
 
     pipeline.completed_at = new Date().toISOString();

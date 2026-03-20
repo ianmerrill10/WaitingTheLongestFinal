@@ -5,7 +5,7 @@
  * available at their shelters. Uses two strategies:
  *
  * 1. RescueGroups API re-check — query the animal by external_id
- *    - If found: mark verified, update last_verified_at
+ *    - If found: mark verified, capture birthDate, update last_verified_at
  *    - If not found (404): dog was adopted/removed → mark not_found
  *    - If API error: skip, try again next run
  *
@@ -17,11 +17,11 @@
  * Dogs only failing one check get flagged for manual review.
  *
  * Prioritization: oldest dogs first, never-verified dogs first.
- * Rate limit: 2 req/sec to RescueGroups, ~100/min total.
+ * Throughput: parallel batches of 5, ~400 dogs/day across both crons.
  */
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createRescueGroupsClient } from "@/lib/rescuegroups/client";
+import { createRescueGroupsClient, type RGAnimalAttributes } from "@/lib/rescuegroups/client";
 
 export interface VerificationResult {
   checked: number;
@@ -30,12 +30,27 @@ export interface VerificationResult {
   deactivated: number;
   pending: number;
   errors: number;
+  birthDatesCaptured: number;
   duration: number;
 }
 
+interface DogToVerify {
+  id: string;
+  name: string;
+  external_id: string;
+  external_url: string | null;
+  intake_date: string;
+  verification_status: string | null;
+  last_verified_at: string | null;
+  age_months: number | null;
+  birth_date: string | null;
+}
+
+type VerifyOutcome = "verified" | "not_found" | "deactivated" | "pending" | "error";
+
 /**
  * Run verification on a batch of dogs.
- * @param batchSize How many dogs to verify in this run (respects rate limits)
+ * @param batchSize How many dogs to verify in this run
  * @param prioritize Which dogs to check first: 'oldest' | 'never_verified' | 'stale'
  */
 export async function runVerification(
@@ -52,11 +67,12 @@ export async function runVerification(
   let deactivated = 0;
   let pending = 0;
   let errors = 0;
+  let birthDatesCaptured = 0;
 
   // Fetch dogs to verify — prioritize based on strategy
   let query = supabase
     .from("dogs")
-    .select("id, name, external_id, external_url, intake_date, verification_status, last_verified_at")
+    .select("id, name, external_id, external_url, intake_date, verification_status, last_verified_at, age_months, birth_date")
     .eq("is_available", true)
     .eq("external_source", "rescuegroups")
     .not("external_id", "is", null)
@@ -64,102 +80,50 @@ export async function runVerification(
 
   switch (prioritize) {
     case "oldest":
-      // Check dogs with the oldest intake dates first (most likely to be gone)
       query = query.order("intake_date", { ascending: true });
       break;
     case "never_verified":
-      // Check dogs that have never been verified
       query = query
         .is("last_verified_at", null)
         .order("intake_date", { ascending: true });
       break;
-    case "stale":
-      // Check dogs not verified in the last 7 days
+    case "stale": {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       query = query
         .or(`last_verified_at.is.null,last_verified_at.lt.${sevenDaysAgo}`)
         .order("last_verified_at", { ascending: true, nullsFirst: true });
       break;
+    }
   }
 
   const { data: dogs, error: fetchError } = await query;
 
   if (fetchError || !dogs || dogs.length === 0) {
-    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, duration: Date.now() - startTime };
+    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, birthDatesCaptured: 0, duration: Date.now() - startTime };
   }
 
   const now = new Date().toISOString();
 
-  for (const dog of dogs) {
-    checked++;
-
-    // Strategy 1: RescueGroups API verification
-    const rgResult = await rgClient.verifyAnimal(dog.external_id);
-
-    if (rgResult.status === "available") {
-      // Dog confirmed still available
-      await supabase
-        .from("dogs")
-        .update({
-          verification_status: "verified",
-          last_verified_at: now,
-        })
-        .eq("id", dog.id);
-      verified++;
-      continue;
-    }
-
-    if (rgResult.status === "pending") {
-      // Dog is adoption pending
-      await supabase
-        .from("dogs")
-        .update({
-          verification_status: "pending",
-          last_verified_at: now,
-          status: "pending",
-        })
-        .eq("id", dog.id);
-      pending++;
-      continue;
-    }
-
-    if (rgResult.status === "api_error") {
-      // API error — don't make any changes, try again next run
-      errors++;
-      continue;
-    }
-
-    // Status is "not_found" — dog no longer in RescueGroups
-    // Strategy 2: Check if external URL is still live as corroboration
-    let urlAlive = false;
-    if (dog.external_url) {
-      urlAlive = await checkUrlAlive(dog.external_url);
-    }
-
-    if (!urlAlive) {
-      // Both RG API and URL confirm dog is gone → deactivate
-      await supabase
-        .from("dogs")
-        .update({
-          verification_status: "not_found",
-          last_verified_at: now,
-          is_available: false,
-          status: "adopted", // Assume adopted (most common reason for removal)
-        })
-        .eq("id", dog.id);
-      deactivated++;
-      notFound++;
-    } else {
-      // RG says not found but URL still loads — could be moved to different platform
-      // Mark as not_found but DON'T deactivate yet (needs manual review)
-      await supabase
-        .from("dogs")
-        .update({
-          verification_status: "not_found",
-          last_verified_at: now,
-        })
-        .eq("id", dog.id);
-      notFound++;
+  // Process in parallel batches of 5 for throughput
+  const PARALLEL_BATCH = 5;
+  for (let i = 0; i < dogs.length; i += PARALLEL_BATCH) {
+    const batch = dogs.slice(i, i + PARALLEL_BATCH);
+    const results = await Promise.allSettled(
+      batch.map(dog => verifyOneDog(dog as DogToVerify, rgClient, supabase, now))
+    );
+    for (const r of results) {
+      checked++;
+      if (r.status === "fulfilled") {
+        const { outcome, capturedBirthDate } = r.value;
+        if (outcome === "verified") verified++;
+        else if (outcome === "deactivated") { deactivated++; notFound++; }
+        else if (outcome === "not_found") notFound++;
+        else if (outcome === "pending") pending++;
+        else if (outcome === "error") errors++;
+        if (capturedBirthDate) birthDatesCaptured++;
+      } else {
+        errors++;
+      }
     }
   }
 
@@ -170,13 +134,117 @@ export async function runVerification(
     deactivated,
     pending,
     errors,
+    birthDatesCaptured,
     duration: Date.now() - startTime,
   };
 }
 
 /**
+ * Verify a single dog against RescueGroups API.
+ * Also opportunistically captures birthDate and isCourtesyListing.
+ */
+async function verifyOneDog(
+  dog: DogToVerify,
+  rgClient: ReturnType<typeof createRescueGroupsClient>,
+  supabase: ReturnType<typeof createAdminClient>,
+  now: string,
+): Promise<{ outcome: VerifyOutcome; capturedBirthDate: boolean }> {
+  const rgResult = await rgClient.verifyAnimal(dog.external_id);
+
+  if (rgResult.status === "available") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: Record<string, any> = {
+      verification_status: "verified",
+      last_verified_at: now,
+    };
+
+    let capturedBirthDate = false;
+
+    if (rgResult.animal) {
+      const attrs = rgResult.animal.attributes as RGAnimalAttributes;
+
+      // Opportunistically capture birthDate
+      if (attrs.birthDate && !dog.birth_date) {
+        const bd = new Date(attrs.birthDate);
+        if (!isNaN(bd.getTime())) {
+          updateData.birth_date = attrs.birthDate;
+          updateData.is_birth_date_exact = attrs.isBirthDateExact ?? null;
+          const nowDate = new Date();
+          const ageMonths = Math.max(0,
+            (nowDate.getFullYear() - bd.getFullYear()) * 12 +
+            (nowDate.getMonth() - bd.getMonth()));
+          if (dog.age_months === null || attrs.isBirthDateExact) {
+            updateData.age_months = ageMonths;
+          }
+          capturedBirthDate = true;
+
+          // Age sanity: if intake_date is before birth, cap it
+          const intakeDate = new Date(dog.intake_date);
+          if (intakeDate < bd) {
+            updateData.intake_date = bd.toISOString();
+            updateData.date_confidence = "low";
+            updateData.date_source = `age_capped_api_birth_date${attrs.isBirthDateExact ? "_exact" : ""}`;
+          }
+        }
+      }
+
+      // Capture courtesy listing flag
+      if (attrs.isCourtesyListing !== undefined) {
+        updateData.is_courtesy_listing = attrs.isCourtesyListing;
+      }
+    }
+
+    await supabase.from("dogs").update(updateData).eq("id", dog.id);
+    return { outcome: "verified", capturedBirthDate };
+  }
+
+  if (rgResult.status === "pending") {
+    await supabase
+      .from("dogs")
+      .update({
+        verification_status: "pending",
+        last_verified_at: now,
+        status: "pending",
+      })
+      .eq("id", dog.id);
+    return { outcome: "pending", capturedBirthDate: false };
+  }
+
+  if (rgResult.status === "api_error") {
+    return { outcome: "error", capturedBirthDate: false };
+  }
+
+  // Status is "not_found" — dog no longer in RescueGroups
+  let urlAlive = false;
+  if (dog.external_url) {
+    urlAlive = await checkUrlAlive(dog.external_url);
+  }
+
+  if (!urlAlive) {
+    await supabase
+      .from("dogs")
+      .update({
+        verification_status: "not_found",
+        last_verified_at: now,
+        is_available: false,
+        status: "adopted",
+      })
+      .eq("id", dog.id);
+    return { outcome: "deactivated", capturedBirthDate: false };
+  } else {
+    await supabase
+      .from("dogs")
+      .update({
+        verification_status: "not_found",
+        last_verified_at: now,
+      })
+      .eq("id", dog.id);
+    return { outcome: "not_found", capturedBirthDate: false };
+  }
+}
+
+/**
  * Check if a URL is still live (returns 200-399).
- * Uses HEAD request with a short timeout to be fast.
  */
 async function checkUrlAlive(url: string): Promise<boolean> {
   try {

@@ -182,19 +182,28 @@ export async function GET(request: Request) {
     dashboard.fix_result = await fixBadDates(supabase);
   }
 
+  if (fixParam === "seed_stats") {
+    const { computeAndStoreDailyStats } = await import("@/lib/stats/compute-daily-stats");
+    dashboard.fix_result = await computeAndStoreDailyStats();
+  }
+
+  if (fixParam === "run_migration") {
+    dashboard.fix_result = await runMigration010(supabase);
+  }
+
   dashboard.total_time_ms = Date.now() - startTime;
 
   // ── Automation Schedule ──
   dashboard.automation = {
     morning_agent: {
       schedule: "6:00 AM UTC daily",
-      tasks: ["Sync 50 pages from RescueGroups", "Verify 100 dogs (70 new + 30 re-check)", "Quick audit (dates, staleness, statuses)"],
+      tasks: ["Sync 50 pages from RescueGroups", "Verify 200 dogs (140 new + 60 re-check)", "Quick audit (dates, staleness, statuses)", "Compute daily stats"],
     },
     evening_agent: {
       schedule: "6:00 PM UTC daily",
-      tasks: ["Update urgency levels", "Verify 100 dogs (oldest)", "Parse description dates"],
+      tasks: ["Update urgency levels", "Verify 200 dogs (oldest)", "Parse description dates", "Age sanity check"],
     },
-    daily_verification_rate: "~200 dogs/day",
+    daily_verification_rate: "~400 dogs/day (parallel batches of 5)",
     endpoints: {
       sync: "/api/cron/sync-dogs",
       urgency: "/api/cron/update-urgency",
@@ -346,6 +355,66 @@ async function checkRescueGroupsApi() {
     };
   } catch (err) {
     return { connected: false, error: String(err) };
+  }
+}
+
+async function runMigration010(supabase: ReturnType<typeof createAdminClient>) {
+  const results: string[] = [];
+  try {
+    // Test if columns already exist by querying them
+    const { error: testErr } = await supabase
+      .from("dogs")
+      .select("birth_date")
+      .limit(1);
+
+    if (!testErr) {
+      results.push("birth_date column already exists");
+    } else {
+      results.push("birth_date column needs to be added via SQL editor");
+    }
+
+    // Test if daily_stats table exists
+    const { error: statsErr } = await supabase
+      .from("daily_stats")
+      .select("stat_date")
+      .limit(1);
+
+    if (!statsErr) {
+      results.push("daily_stats table already exists");
+    } else {
+      results.push("daily_stats table needs to be created via SQL editor");
+    }
+
+    return {
+      results,
+      sql_to_run: `
+-- Migration 010: Birth date, courtesy listing, and daily stats
+ALTER TABLE dogs ADD COLUMN IF NOT EXISTS birth_date TIMESTAMPTZ;
+ALTER TABLE dogs ADD COLUMN IF NOT EXISTS is_birth_date_exact BOOLEAN DEFAULT NULL;
+ALTER TABLE dogs ADD COLUMN IF NOT EXISTS is_courtesy_listing BOOLEAN DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_dogs_birth_date ON dogs(birth_date) WHERE birth_date IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS daily_stats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stat_date DATE NOT NULL UNIQUE,
+  total_available_dogs INTEGER NOT NULL DEFAULT 0,
+  high_confidence_dogs INTEGER NOT NULL DEFAULT 0,
+  avg_wait_days_all DECIMAL(10,2),
+  avg_wait_days_high_confidence DECIMAL(10,2),
+  median_wait_days DECIMAL(10,2),
+  max_wait_days INTEGER,
+  dogs_with_birth_date INTEGER DEFAULT 0,
+  verification_coverage_pct DECIMAL(5,2),
+  date_accuracy_pct DECIMAL(5,2),
+  dogs_added_today INTEGER DEFAULT 0,
+  dogs_adopted_today INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(stat_date DESC);
+      `,
+    };
+  } catch (err) {
+    return { results, error: String(err) };
   }
 }
 

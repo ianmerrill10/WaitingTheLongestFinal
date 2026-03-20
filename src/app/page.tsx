@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import DogGrid from "@/components/dogs/DogGrid";
+import NationalAvgCounter from "@/components/counters/NationalAvgCounter";
 
 export default async function HomePage() {
   let totalDogs = 0;
@@ -90,6 +91,11 @@ export default async function HomePage() {
                   Search
                 </button>
               </form>
+            </div>
+
+            {/* National Average Wait Time */}
+            <div className="max-w-xl mx-auto mb-8">
+              <NationalAvgCounter />
             </div>
 
             {/* Stats */}
