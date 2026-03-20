@@ -202,7 +202,6 @@ async function verifyOneDog(
     // Also check if the external URL is still alive
     if (dog.external_url) {
       const urlAlive = await checkUrlAlive(dog.external_url);
-      updateData.external_url_alive = urlAlive;
       if (!urlAlive) externalUrlDead = true;
     }
 
