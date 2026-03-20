@@ -31,6 +31,7 @@ export interface VerificationResult {
   pending: number;
   errors: number;
   birthDatesCaptured: number;
+  deadExternalUrls: number;
   duration: number;
 }
 
@@ -68,6 +69,7 @@ export async function runVerification(
   let pending = 0;
   let errors = 0;
   let birthDatesCaptured = 0;
+  let deadExternalUrls = 0;
 
   // Fetch dogs to verify — prioritize based on strategy
   let query = supabase
@@ -99,7 +101,7 @@ export async function runVerification(
   const { data: dogs, error: fetchError } = await query;
 
   if (fetchError || !dogs || dogs.length === 0) {
-    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, birthDatesCaptured: 0, duration: Date.now() - startTime };
+    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, birthDatesCaptured: 0, deadExternalUrls: 0, duration: Date.now() - startTime };
   }
 
   const now = new Date().toISOString();
@@ -114,13 +116,14 @@ export async function runVerification(
     for (const r of results) {
       checked++;
       if (r.status === "fulfilled") {
-        const { outcome, capturedBirthDate } = r.value;
+        const { outcome, capturedBirthDate, externalUrlDead } = r.value;
         if (outcome === "verified") verified++;
         else if (outcome === "deactivated") { deactivated++; notFound++; }
         else if (outcome === "not_found") notFound++;
         else if (outcome === "pending") pending++;
         else if (outcome === "error") errors++;
         if (capturedBirthDate) birthDatesCaptured++;
+        if (externalUrlDead) deadExternalUrls++;
       } else {
         errors++;
       }
@@ -135,6 +138,7 @@ export async function runVerification(
     pending,
     errors,
     birthDatesCaptured,
+    deadExternalUrls,
     duration: Date.now() - startTime,
   };
 }
@@ -148,7 +152,7 @@ async function verifyOneDog(
   rgClient: ReturnType<typeof createRescueGroupsClient>,
   supabase: ReturnType<typeof createAdminClient>,
   now: string,
-): Promise<{ outcome: VerifyOutcome; capturedBirthDate: boolean }> {
+): Promise<{ outcome: VerifyOutcome; capturedBirthDate: boolean; externalUrlDead: boolean }> {
   const rgResult = await rgClient.verifyAnimal(dog.external_id);
 
   if (rgResult.status === "available") {
@@ -159,6 +163,7 @@ async function verifyOneDog(
     };
 
     let capturedBirthDate = false;
+    let externalUrlDead = false;
 
     if (rgResult.animal) {
       const attrs = rgResult.animal.attributes as RGAnimalAttributes;
@@ -194,8 +199,15 @@ async function verifyOneDog(
       }
     }
 
+    // Also check if the external URL is still alive
+    if (dog.external_url) {
+      const urlAlive = await checkUrlAlive(dog.external_url);
+      updateData.external_url_alive = urlAlive;
+      if (!urlAlive) externalUrlDead = true;
+    }
+
     await supabase.from("dogs").update(updateData).eq("id", dog.id);
-    return { outcome: "verified", capturedBirthDate };
+    return { outcome: "verified", capturedBirthDate, externalUrlDead };
   }
 
   if (rgResult.status === "pending") {
@@ -207,11 +219,11 @@ async function verifyOneDog(
         status: "pending",
       })
       .eq("id", dog.id);
-    return { outcome: "pending", capturedBirthDate: false };
+    return { outcome: "pending", capturedBirthDate: false, externalUrlDead: false };
   }
 
   if (rgResult.status === "api_error") {
-    return { outcome: "error", capturedBirthDate: false };
+    return { outcome: "error", capturedBirthDate: false, externalUrlDead: false };
   }
 
   // Status is "not_found" — dog no longer in RescueGroups
@@ -230,7 +242,7 @@ async function verifyOneDog(
         status: "adopted",
       })
       .eq("id", dog.id);
-    return { outcome: "deactivated", capturedBirthDate: false };
+    return { outcome: "deactivated", capturedBirthDate: false, externalUrlDead: true };
   } else {
     await supabase
       .from("dogs")
@@ -239,7 +251,7 @@ async function verifyOneDog(
         last_verified_at: now,
       })
       .eq("id", dog.id);
-    return { outcome: "not_found", capturedBirthDate: false };
+    return { outcome: "not_found", capturedBirthDate: false, externalUrlDead: false };
   }
 }
 

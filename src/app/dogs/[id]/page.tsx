@@ -8,7 +8,9 @@ import CountdownTimer from "@/components/counters/CountdownTimer";
 import UrgencyBadge from "@/components/ui/UrgencyBadge";
 import InterestForm from "@/components/ui/InterestForm";
 import ShareButtons from "@/components/ui/ShareButtons";
+import PhotoLightbox from "@/components/ui/PhotoLightbox";
 import type { UrgencyLevel } from "@/lib/constants";
+import { generateDogJsonLd, generateBreadcrumbJsonLd } from "@/lib/utils/json-ld";
 
 export async function generateMetadata({
   params,
@@ -26,12 +28,20 @@ export async function generateMetadata({
 
     const name = dog?.name || "Dog Profile";
     const breed = dog?.breed_primary || "Adoptable Dog";
+    const dogUrl = `https://waitingthelongest.com/dogs/${id}`;
     return {
       title: `${name} - ${breed}`,
       description: `Meet ${name}, a ${breed} waiting for a forever home. View their full profile and find out how to adopt.`,
       openGraph: {
         title: `${name} | WaitingTheLongest.com`,
         description: `${name} is waiting for a loving home. See their full profile and find out how to help.`,
+        images: dog?.primary_photo_url ? [dog.primary_photo_url] : undefined,
+        url: dogUrl,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${name} - ${breed} | WaitingTheLongest.com`,
+        description: `Meet ${name}, a ${breed} waiting for a forever home. Help save a life today.`,
         images: dog?.primary_photo_url ? [dog.primary_photo_url] : undefined,
       },
     };
@@ -75,6 +85,17 @@ export default async function DogProfilePage({
       notFound();
     }
     dog = data;
+
+    // Fetch similar dogs (same primary breed, still available)
+    const { data: similarDogsData } = await supabase
+      .from("dogs")
+      .select("id, name, breed_primary, primary_photo_url, intake_date, age_category, size, gender, shelters!inner(name, city, state_code)")
+      .eq("is_available", true)
+      .neq("id", data.id)
+      .eq("breed_primary", data.breed_primary)
+      .limit(4);
+
+    dog._similarDogs = similarDogsData || [];
   } catch {
     notFound();
   }
@@ -94,11 +115,30 @@ export default async function DogProfilePage({
   } | null;
 
   const urgency = (dog.urgency_level || "normal") as UrgencyLevel;
+  const isUrgent = urgency === "critical" || urgency === "high";
   const photos: string[] = dog.photo_urls || [];
   const mainPhoto = dog.primary_photo_url || photos[0] || null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const similarDogs: any[] = dog._similarDogs || [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(generateDogJsonLd(dog, shelter)),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(generateBreadcrumbJsonLd([
+            { name: "Home", url: "https://waitingthelongest.com" },
+            { name: "Dogs", url: "https://waitingthelongest.com/dogs" },
+            { name: dog.name, url: `https://waitingthelongest.com/dogs/${dog.id}` },
+          ])),
+        }}
+      />
       {/* Breadcrumb */}
       <nav className="mb-6 text-sm text-gray-500" aria-label="Breadcrumb">
         <ol className="flex items-center gap-2">
@@ -114,16 +154,21 @@ export default async function DogProfilePage({
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
           {/* Main Photo */}
-          <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden relative">
+          <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden relative group">
             {mainPhoto ? (
-              <Image
-                src={mainPhoto}
-                alt={`${dog.name} - ${dog.breed_primary}`}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 66vw"
-                priority
-              />
+              <a href={mainPhoto} target="_blank" rel="noopener noreferrer" title="Click to enlarge">
+                <Image
+                  src={mainPhoto}
+                  alt={`${dog.name} - ${dog.breed_primary}`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                  priority
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100">
+                  <span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">Click to enlarge</span>
+                </div>
+              </a>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-200">
                 <svg className="w-24 h-24 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -136,13 +181,7 @@ export default async function DogProfilePage({
 
           {/* Photo Gallery */}
           {photos.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {photos.map((photo, i) => (
-                <div key={i} className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden relative bg-gray-100">
-                  <Image src={photo} alt={`${dog.name} photo ${i + 1}`} fill className="object-cover" sizes="80px" />
-                </div>
-              ))}
-            </div>
+            <PhotoLightbox photos={photos} dogName={dog.name} />
           )}
 
           {/* Wait Time Counter */}
@@ -188,6 +227,7 @@ export default async function DogProfilePage({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <DetailItem label="Breed" value={`${dog.breed_primary}${dog.breed_secondary ? ` / ${dog.breed_secondary}` : ""}${dog.breed_mixed ? " (Mix)" : ""}`} />
               <DetailItem label="Age" value={dog.age_months ? `${Math.floor(dog.age_months / 12)}y ${dog.age_months % 12}m` : cap(dog.age_category)} />
+              <DetailItem label="Age (Human Years)" value={humanYears(dog.age_months, dog.age_category)} />
               <DetailItem label="Size" value={cap(dog.size)} />
               <DetailItem label="Gender" value={cap(dog.gender)} />
               <DetailItem label="Weight" value={dog.weight_lbs ? `${dog.weight_lbs} lbs` : "Unknown"} />
@@ -219,6 +259,30 @@ export default async function DogProfilePage({
               </div>
             </div>
           )}
+
+          {/* Similar Dogs */}
+          {similarDogs && similarDogs.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Similar Dogs Available</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {similarDogs.map((sd: any) => (
+                  <Link key={sd.id} href={`/dogs/${sd.id}`} className="group">
+                    <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
+                      {sd.primary_photo_url ? (
+                        <Image src={sd.primary_photo_url} alt={sd.name} fill className="object-cover group-hover:scale-105 transition" sizes="150px" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <span className="text-gray-400 text-2xl">&#x1F415;</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 mt-1 truncate group-hover:text-blue-600">{sd.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{sd.breed_primary}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column */}
@@ -233,12 +297,16 @@ export default async function DogProfilePage({
               {dog.breed_primary}{dog.breed_secondary ? ` / ${dog.breed_secondary}` : ""}
             </p>
             {shelter && <p className="text-gray-500 text-sm">{shelter.city}, {shelter.state_code}</p>}
+            {dog.view_count > 0 && (
+              <p className="text-xs text-gray-400 mt-1">{dog.view_count.toLocaleString()} people have viewed this profile</p>
+            )}
 
             {/* Verification Status */}
             <div className="mt-3 pt-3 border-t border-gray-100">
               <VerificationBadge
                 status={dog.verification_status || "unverified"}
                 lastVerified={dog.last_verified_at}
+                intakeDate={dog.intake_date}
               />
             </div>
           </div>
@@ -277,13 +345,18 @@ export default async function DogProfilePage({
                   </div>
                 )}
               </div>
+              {isUrgent && shelter.phone && (
+                <a href={`tel:${shelter.phone}`} className="block w-full text-center py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition text-sm mt-3">
+                  Call Shelter NOW - {shelter.phone}
+                </a>
+              )}
             </div>
           )}
 
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <h3 className="font-bold text-gray-900 mb-2">Share {dog.name}&apos;s Profile</h3>
             <p className="text-sm text-gray-500 mb-4">Sharing saves lives. Help {dog.name} find a home.</p>
-            <ShareButtons dogName={dog.name} />
+            <ShareButtons dogName={dog.name} isUrgent={urgency === "critical" || urgency === "high"} euthanasiaDate={dog.euthanasia_date} />
           </div>
 
           <div className="bg-green-50 rounded-xl p-6 border border-green-200">
@@ -292,6 +365,18 @@ export default async function DogProfilePage({
             <Link href="/foster" className="inline-block w-full text-center py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition text-sm">
               Learn About Fostering
             </Link>
+          </div>
+
+          {/* Data Accuracy Disclaimer */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <p className="text-[11px] text-gray-500 leading-relaxed">
+              <strong className="text-gray-600">Important:</strong> Listing data comes from RescueGroups.org and is maintained by the shelter or rescue.
+              We cannot guarantee that any dog is still available for adoption. Always contact the shelter directly
+              to confirm availability before visiting.
+              {dog.external_url && (
+                <> View the <a href={dog.external_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">original listing</a>.</>
+              )}
+            </p>
           </div>
         </div>
       </div>
@@ -339,36 +424,83 @@ function MedItem({ label, note }: { label: string; note?: string | null }) {
   );
 }
 
-function VerificationBadge({ status, lastVerified }: { status: string; lastVerified: string | null }) {
+function humanYears(ageMonths: number | null, ageCategory: string): string {
+  if (!ageMonths) {
+    // Estimate from category if no age_months
+    const categoryMap: Record<string, number> = { puppy: 6, young: 24, adult: 60, senior: 108 };
+    const estimated = categoryMap[ageCategory?.toLowerCase()] || null;
+    if (!estimated) return "Unknown";
+    ageMonths = estimated;
+  }
+  let hy: number;
+  if (ageMonths <= 12) {
+    // Puppy (0-12 months)
+    hy = ageMonths * 2;
+  } else if (ageMonths <= 36) {
+    // Young (1-3 years)
+    hy = 15 + (ageMonths - 12) * 0.75;
+  } else if (ageMonths <= 84) {
+    // Adult (3-7 years)
+    hy = 28 + (ageMonths - 36) * 0.5;
+  } else {
+    // Senior (7+ years)
+    hy = 56 + (ageMonths - 84) * 0.4;
+  }
+  return `~${Math.round(hy)} human years`;
+}
+
+function VerificationBadge({ status, lastVerified, intakeDate }: { status: string; lastVerified: string | null; intakeDate: string | null }) {
   const verifiedAgo = lastVerified
-    ? Math.floor((Date.now() - new Date(lastVerified).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.floor((Date.now() - new Date(lastVerified).getTime()) / (1000 * 60 * 60 * 1000))
     : null;
+  const verifiedAgoDays = verifiedAgo !== null ? Math.floor(verifiedAgo / 24) : null;
+
+  // Flag listings older than 2 years as suspicious
+  const waitDays = intakeDate
+    ? Math.floor((Date.now() - new Date(intakeDate).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const isSuspiciouslyOld = waitDays > 730; // > 2 years
 
   switch (status) {
     case "verified":
       return (
-        <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-green-50 text-green-700 rounded-full font-medium border border-green-200">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Verified Available
-          </span>
-          {verifiedAgo !== null && (
-            <span className="text-xs text-gray-400">
-              {verifiedAgo === 0 ? "today" : `${verifiedAgo}d ago`}
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded-full font-medium border border-blue-200">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Listing Active
             </span>
+            {verifiedAgoDays !== null && (
+              <span className="text-xs text-gray-400">
+                checked {verifiedAgoDays === 0 ? "today" : `${verifiedAgoDays}d ago`}
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">
+            Source listing exists on RescueGroups.org. Contact the shelter directly to confirm availability.
+          </p>
+          {isSuspiciouslyOld && (
+            <p className="text-[10px] text-amber-600 mt-1 font-medium">
+              This listing is {Math.floor(waitDays / 365)}+ years old. We recommend calling the shelter to confirm this dog is still available.
+            </p>
           )}
         </div>
       );
     case "not_found":
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full font-medium border border-amber-200">
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          May No Longer Be Available
-        </span>
+        <div>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full font-medium border border-amber-200">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            May No Longer Be Available
+          </span>
+          <p className="text-[10px] text-amber-600 mt-1">
+            This listing was not found on RescueGroups.org. The dog may have been adopted or the listing removed.
+          </p>
+        </div>
       );
     case "pending":
       return (
@@ -378,9 +510,19 @@ function VerificationBadge({ status, lastVerified }: { status: string; lastVerif
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-50 text-gray-500 rounded-full font-medium border border-gray-200">
-          Not Yet Verified
-        </span>
+        <div>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-50 text-gray-500 rounded-full font-medium border border-gray-200">
+            Not Yet Verified
+          </span>
+          <p className="text-[10px] text-gray-400 mt-1">
+            This listing has not been checked against the source. Contact the shelter to confirm availability.
+          </p>
+          {isSuspiciouslyOld && (
+            <p className="text-[10px] text-amber-600 mt-1 font-medium">
+              This listing is {Math.floor(waitDays / 365)}+ years old. We recommend calling the shelter to confirm this dog is still available.
+            </p>
+          )}
+        </div>
       );
   }
 }

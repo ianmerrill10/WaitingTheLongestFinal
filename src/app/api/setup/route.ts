@@ -73,9 +73,6 @@ export async function GET(request: Request) {
       });
     }
 
-    await client.connect();
-    results.push("Connected to database");
-
     // Migration 008: foster_applications
     await client.query(`
       CREATE TABLE IF NOT EXISTS foster_applications (
@@ -111,7 +108,8 @@ export async function GET(request: Request) {
     await client.query("ALTER TABLE dogs ADD COLUMN IF NOT EXISTS is_birth_date_exact BOOLEAN DEFAULT NULL;");
     await client.query("ALTER TABLE dogs ADD COLUMN IF NOT EXISTS is_courtesy_listing BOOLEAN DEFAULT FALSE;");
     await client.query("CREATE INDEX IF NOT EXISTS idx_dogs_birth_date ON dogs(birth_date) WHERE birth_date IS NOT NULL;");
-    results.push("dogs birth_date columns: OK");
+    await client.query("ALTER TABLE dogs ADD COLUMN IF NOT EXISTS external_url_alive BOOLEAN DEFAULT NULL;");
+    results.push("dogs birth_date + external_url_alive columns: OK");
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_stats (

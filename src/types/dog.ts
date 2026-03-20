@@ -52,6 +52,9 @@ export interface Dog {
   birth_date: string | null;
   is_birth_date_exact: boolean | null;
   is_courtesy_listing: boolean;
+  external_url_alive: boolean | null;
+  verification_status: string | null;
+  last_verified_at: string | null;
   view_count: number;
   favorite_count: number;
   share_count: number;
