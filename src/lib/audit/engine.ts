@@ -5,6 +5,7 @@ import { AuditLogger } from "./logger";
 import {
   checkDates,
   checkDescriptionDates,
+  checkAgeSanity,
   checkStaleness,
   checkDuplicates,
   checkStatuses,
@@ -13,7 +14,7 @@ import {
   checkDataQuality,
 } from "./checks";
 
-export type AuditMode = "full" | "quick" | "dates_only" | "stale_only" | "repair_only" | "description_dates";
+export type AuditMode = "full" | "quick" | "dates_only" | "stale_only" | "repair_only" | "description_dates" | "age_sanity";
 
 export interface AuditResult {
   runId: string;
@@ -28,6 +29,7 @@ export interface AuditResult {
     shelters?: { checked: number; issues: number };
     data_quality?: { checked: number; issues: number; repaired: number };
     description_dates?: { checked: number; updated: number };
+    age_sanity?: { checked: number; fixed: number };
   };
   logStats: {
     info: number;
@@ -70,6 +72,12 @@ export async function runAudit(
       await logger.flush();
     }
 
+    // Age sanity check — wait time cannot exceed dog's age
+    if (mode === "full" || mode === "dates_only" || mode === "repair_only" || mode === "age_sanity") {
+      stats.age_sanity = await checkAgeSanity(logger);
+      await logger.flush();
+    }
+
     if (mode === "full" || mode === "quick" || mode === "stale_only") {
       stats.staleness = await checkStaleness(logger);
       await logger.flush();
@@ -96,6 +104,7 @@ export async function runAudit(
     const totalRepairs =
       (stats.dates?.repaired ?? 0) +
       (stats.description_dates?.updated ?? 0) +
+      (stats.age_sanity?.fixed ?? 0) +
       (stats.duplicates?.removed ?? 0) +
       (stats.statuses?.repaired ?? 0) +
       (stats.data_quality?.repaired ?? 0) +
@@ -108,7 +117,8 @@ export async function runAudit(
       (stats.statuses?.issues ?? 0) +
       (stats.photos?.missing ?? 0) +
       (stats.shelters?.issues ?? 0) +
-      (stats.data_quality?.issues ?? 0);
+      (stats.data_quality?.issues ?? 0) +
+      (stats.age_sanity?.fixed ?? 0);
 
     logger.log({
       audit_type: "system",

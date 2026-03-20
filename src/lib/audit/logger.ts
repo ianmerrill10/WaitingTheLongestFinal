@@ -11,6 +11,7 @@ export type AuditType =
   | "shelter_check"
   | "data_quality"
   | "description_date_parse"
+  | "age_sanity_check"
   | "repair"
   | "system";
 

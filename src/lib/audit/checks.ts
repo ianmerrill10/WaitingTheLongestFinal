@@ -4,6 +4,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AuditLogger } from "./logger";
 import { parseDateFromDescription } from "@/lib/utils/parse-description-date";
+import { parseAgeMonths } from "@/lib/rescuegroups/mapper";
 
 // ============================================================
 // 1. DATE VALIDATION — bulk classify and repair intake dates
@@ -609,4 +610,102 @@ export async function checkDescriptionDates(logger: AuditLogger): Promise<{
   });
 
   return { checked, updated };
+}
+
+// ============================================================
+// 9. AGE SANITY CHECK — wait time cannot exceed dog's age
+// ============================================================
+/**
+ * A dog cannot have been waiting in a shelter longer than it has been alive.
+ * This check parses age from ageString/description, compares to intake_date,
+ * and caps the intake_date to the dog's estimated birth date when impossible.
+ */
+export async function checkAgeSanity(logger: AuditLogger): Promise<{
+  checked: number;
+  fixed: number;
+}> {
+  const supabase = createAdminClient();
+  const now = new Date();
+  let fixed = 0;
+  let checked = 0;
+  let offset = 0;
+
+  while (true) {
+    const { data: dogs } = await supabase
+      .from("dogs")
+      .select("id, name, description, intake_date, age_months, age_category, date_confidence")
+      .eq("is_available", true)
+      .order("id")
+      .range(offset, offset + 499);
+
+    if (!dogs || dogs.length === 0) break;
+
+    for (const dog of dogs) {
+      checked++;
+
+      // Try to get age in months from: stored age_months, or parse from description
+      let ageMonths: number | null = dog.age_months;
+
+      if (!ageMonths && dog.description) {
+        ageMonths = parseAgeMonths(null, dog.description);
+      }
+
+      // Fallback: use age_category as rough estimate
+      if (!ageMonths && dog.age_category) {
+        const categoryMaxMonths: Record<string, number> = {
+          puppy: 12,
+          young: 36,
+          adult: 96,   // 8 years
+          senior: 180,  // 15 years
+        };
+        ageMonths = categoryMaxMonths[dog.age_category] || null;
+      }
+
+      if (!ageMonths || ageMonths <= 0) continue;
+
+      const intakeDate = new Date(dog.intake_date);
+      if (isNaN(intakeDate.getTime())) continue;
+
+      // Estimate birth date
+      const birthDate = new Date(now);
+      birthDate.setMonth(birthDate.getMonth() - ageMonths);
+
+      // If intake_date is before the dog was born, it's impossible
+      if (intakeDate < birthDate) {
+        const waitMonths = Math.round((now.getTime() - intakeDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+
+        await supabase
+          .from("dogs")
+          .update({
+            intake_date: birthDate.toISOString(),
+            age_months: ageMonths,
+            date_confidence: "low",
+            date_source: `age_sanity_capped|was_${waitMonths}mo_but_dog_is_${ageMonths}mo`,
+            last_audited_at: now.toISOString(),
+          })
+          .eq("id", dog.id);
+
+        fixed++;
+      } else if (dog.age_months === null && ageMonths) {
+        // Update age_months even if intake_date was ok
+        await supabase
+          .from("dogs")
+          .update({ age_months: ageMonths })
+          .eq("id", dog.id);
+      }
+    }
+
+    offset += dogs.length;
+    if (dogs.length < 500) break;
+  }
+
+  logger.log({
+    audit_type: "age_sanity_check",
+    entity_type: "dog",
+    severity: fixed > 0 ? "warning" : "info",
+    message: `Age sanity check: ${checked} dogs checked, ${fixed} had wait time exceeding their age — capped to birth date`,
+    action_taken: fixed > 0 ? `Fixed ${fixed} impossible intake dates` : undefined,
+  });
+
+  return { checked, fixed };
 }

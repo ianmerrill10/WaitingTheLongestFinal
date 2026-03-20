@@ -1,10 +1,11 @@
 /**
- * Evening Agent — Urgency Update + Verification
+ * Evening Agent — Urgency Update + Verification + Date Accuracy
  *
  * Runs at 6pm daily via Vercel cron:
  * 1. Recalculate urgency levels for all dogs with euthanasia dates
  * 2. Verify another batch of dogs against RG API (oldest first)
  * 3. Run description date parsing for any missed dogs
+ * 4. Age sanity check — cap intake_date when wait time > dog's age
  *
  * Combined with the 6am sync agent, this means verification runs
  * twice daily — ~200 dogs/day verified = all 33K dogs in ~165 days.
@@ -92,6 +93,27 @@ export async function GET(request: Request) {
         status: "error",
         error: err instanceof Error ? err.message : String(err),
         duration_ms: Date.now() - auditStart,
+      });
+    }
+
+    // ── Step 4: Age sanity check — wait time cannot exceed dog's age ──
+    const ageStart = Date.now();
+    try {
+      const ageResult = await runAudit("age_sanity", "evening_agent");
+      const step = {
+        step: "age_sanity",
+        status: "success",
+        duration_ms: Date.now() - ageStart,
+        stats: ageResult.stats.age_sanity,
+      };
+      (pipeline.steps as unknown[]).push(step);
+      pipeline.age_sanity = step;
+    } catch (err) {
+      (pipeline.steps as unknown[]).push({
+        step: "age_sanity",
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+        duration_ms: Date.now() - ageStart,
       });
     }
 

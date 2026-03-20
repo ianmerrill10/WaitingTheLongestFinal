@@ -123,6 +123,9 @@ export default function DogCard({
         {dog.intake_date && !(showCountdown && dog.euthanasia_date) && (
           <div className="mt-3">
             <LEDCounter intakeDate={dog.intake_date} compact />
+            {(dog.date_confidence === "low" || dog.date_confidence === "unknown") && (
+              <p className="text-[9px] text-gray-400 mt-0.5 italic">~ estimated wait time</p>
+            )}
           </div>
         )}
       </div>

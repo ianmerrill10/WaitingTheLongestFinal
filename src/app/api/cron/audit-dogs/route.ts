@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const mode = (url.searchParams.get("mode") || "quick") as AuditMode;
-  const validModes: AuditMode[] = ["full", "quick", "dates_only", "stale_only", "repair_only", "description_dates"];
+  const validModes: AuditMode[] = ["full", "quick", "dates_only", "stale_only", "repair_only", "description_dates", "age_sanity"];
 
   if (!validModes.includes(mode)) {
     return NextResponse.json(
