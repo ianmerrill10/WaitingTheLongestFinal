@@ -2,77 +2,126 @@
 
 Real-time dog rescue platform showing shelter dogs waiting for adoption. Every second matters.
 
+**Motto:** "Stop a Clock, Save a Life"
+
+**Live:** [waitingthelongest.com](https://waitingthelongest.com)
+
 ## Mission
 
-Save dogs from shelter euthanasia by showing real-time LED wait time counters, matching adopters to dogs via lifestyle quiz, removing barriers (transport, housing, fees), and amplifying reach via social media automation.
+Find all adoptable dogs in the United States from shelters, rescues, and non-profit agencies. Show real-time LED wait time counters and euthanasia countdown timers so visitors can help save dogs before time runs out. Every dog listed for free. Every shelter integration for free.
 
 ## Tech Stack
 
-- **Backend:** C++17 with [Drogon](https://github.com/drogonframework/drogon) web framework
-- **Database:** PostgreSQL 16 with libpqxx
-- **Cache:** Redis 7 (sessions, API caching)
-- **Real-time:** WebSocket for LED counter updates (YY:MM:DD:HH:MM:SS format)
-- **Frontend:** Static HTML/CSS/JS (no JS framework)
-- **Proxy:** Nginx with rate limiting and WebSocket support
-- **Deploy:** Docker Compose (app, postgres, redis, nginx, certbot)
+- **Framework:** Next.js 14 (App Router) with TypeScript
+- **Database:** Supabase (PostgreSQL + Realtime + Auth)
+- **Styling:** Tailwind CSS (mobile-first)
+- **Hosting:** Vercel
+- **Domain:** waitingthelongest.com (DNS via IONOS)
+- **Local Agents:** Node.js/tsx processes for 24/7 data management
 
 ## Quick Start
 
 ```bash
-# Clone and configure
-cp .env.example .env
-# Edit .env with your credentials
+# Install dependencies
+npm install
 
-# Start all services
-docker compose up -d
+# Start development server
+npm run dev
 
-# Check health
-curl http://localhost/health-check
+# Start local data agent (port 3847)
+npm run agent
+
+# Start improvement scanner (port 3848)
+npm run agent:improve
 ```
 
 ## Architecture
 
 ```
 src/
-  core/         - Controllers, services, models, auth, WebSocket, EventBus
-  modules/      - 8 intervention modules (foster, transport, housing, etc.)
-  content/      - TikTok, blog, social media, video/image generation
-  analytics/    - Event tracking, metrics, impact reporting
-  notifications/- Push (FCM), email (SendGrid), SMS (Twilio)
-  aggregators/  - RescueGroups.org API, direct shelter data sync
-  workers/      - Background job scheduler with cron parsing
-  clients/      - HTTP client, OAuth2, rate limiter
-  admin/        - Admin service, system config, audit log
+  app/              Next.js App Router pages + API routes
+    api/            REST API endpoints (crons, admin, v1 partner API)
+    admin/          Admin dashboards (data, revenue, social, outreach)
+    partners/       Partner/shelter portal
+    dogs/           Dog listing and detail pages
+    breeds/         Breed directory
+    shelters/       Shelter directory
+    states/         State-by-state browsing
+    urgent/         Urgent/euthanasia listings
+  components/       React components (counters, dogs, layout, UI)
+  lib/              Core business logic
+    rescuegroups/   RescueGroups API client, mapper, sync
+    verification/   Dog listing verification engine
+    audit/          Data quality audit system
+    shelter-api/    Partner API auth, CSV parser, webhooks
+    shelter-crm/    Shelter relationship management
+    outreach/       Email outreach and automation
+    social/         Social media content generation
+    monetization/   Affiliate tracking and recommendations
+    stats/          Daily statistics computation
+    supabase/       Database clients (admin, server, client)
+    utils/          Shared utilities
+  types/            TypeScript type definitions
+  data/             Seed data scripts
+
+agent/              Local autonomous agents
+  index.ts          Data agent (verification, sync, error correction)
+  dashboard.html    Real-time data agent dashboard
+  improve.ts        Code quality improvement scanner
+  improve-dashboard.html  Improvement agent GUI
+  backup.ts         Google Drive backup system
+
+supabase/
+  migrations/       Database schema (001-011)
+
+sql/                Additional SQL modules
 ```
 
 ## Key Features
 
-- **LED Wait Time Counters** - Real-time YY:MM:DD:HH:MM:SS display for every shelter dog
-- **Lifestyle Matching Quiz** - Match adopters to compatible dogs
-- **Urgency System** - NORMAL (>7d), MEDIUM (4-7d), HIGH (1-3d), CRITICAL (<24h)
-- **8 Intervention Modules** - Foster, transport, housing, breed advocacy, and more
-- **Social Media Automation** - TikTok, Instagram, Twitter, Facebook content generation
-- **Admin Dashboard** - Full management interface with analytics
+- **LED Wait Time Counters** — Real-time YY:MM:DD:HH:MM:SS display for every dog
+- **Euthanasia Countdown** — DD:HH:MM:SS countdown to scheduled euthanasia
+- **Urgency System** — CRITICAL (<24h), HIGH (<72h), MEDIUM (<7d), NORMAL (>7d)
+- **Verified Wait Times** — Cross-referenced with RescueGroups API for accuracy
+- **Real-time Verification Agent** — 24/7 dog slideshow showing live verification
+- **Error Auto-Correction** — Detects and fixes data inconsistencies automatically
+- **Partner API (v1)** — REST API with key auth for shelter integrations
+- **Shelter CRM** — Onboarding, contacts, communications, API keys
+- **Social Media Automation** — Multi-platform content generation
+- **Affiliate Monetization** — Amazon Associates product recommendations
+- **Admin Dashboards** — Data health, revenue, social analytics, outreach
+- **Google Drive Backup** — Scheduled redundant backups via rclone
 
 ## Data Sources
 
-- **RescueGroups.org API** - Primary external data source
-- **Direct Shelter Feeds** - Direct integrations with individual shelters
+- **RescueGroups.org API v5** — Primary source (search + individual animal endpoints)
+- **TheDogAPI** — Breed data enrichment
+- **Direct shelter feeds** — CSV/JSON imports via partner API
+- **44,947 organization database** — Shelter directory
 
-> **Note:** There is NO Petfinder API available. Their public API has been shut down.
+## Database
 
-## Environment Variables
+- 16 enterprise tables (dogs, shelters, states, breeds, daily_stats, audit_runs, etc.)
+- ~33,000+ dogs, 44,947 shelters, 50 states, 170 breeds
+- Migrations 001-011 in `supabase/migrations/`
 
-See [.env.example](.env.example) for all required configuration.
+## Local Agents
+
+See [agent/README.md](agent/README.md) for full documentation.
+
+| Agent | Port | Purpose |
+|-------|------|---------|
+| Data Agent | 3847 | Verify dogs, sync data, fix errors, run audits, backup |
+| Improvement Agent | 3848 | Scan code quality, find bugs, suggest improvements |
 
 ## Documentation
 
-- [LAUNCH_BLUEPRINT.md](LAUNCH_BLUEPRINT.md) - Step-by-step deployment plan
-- [BUILD_PLAN.md](BUILD_PLAN.md) - Complete feature specification
-- [CODING_STANDARDS.md](CODING_STANDARDS.md) - Code conventions
-- [INTEGRATION_CONTRACTS.md](INTEGRATION_CONTRACTS.md) - Interface contracts
-- [PROGRESS_REPORT.md](PROGRESS_REPORT.md) - Current status
+- [CLAUDE.md](CLAUDE.md) — Project rules and conventions
+- [agent/README.md](agent/README.md) — Agent system documentation
+- [SITE_WIKI.md](SITE_WIKI.md) — Site feature wiki
+- [CODING_STANDARDS.md](CODING_STANDARDS.md) — Code conventions
+- [VERIFIED_WAIT_TIME_AUDIT.md](VERIFIED_WAIT_TIME_AUDIT.md) — Wait time accuracy audit
 
 ## License
 
-All rights reserved. See [LICENSE](LICENSE) for details.
+All rights reserved.

@@ -48,4 +48,7 @@ Every dog listed for free. Every shelter integration for free.
 - `src/lib/` - Utilities, Supabase clients, API clients
 - `src/types/` - TypeScript type definitions
 - `src/data/` - Seed data scripts
-- `supabase/migrations/` - Database migrations
+- `supabase/migrations/` - Database migrations (001-011)
+- `agent/` - Local autonomous agents (data, improvement, backup)
+- `sql/` - Additional SQL modules (aggregator schema)
+- `backups/` - Local backup archives (auto-generated)

@@ -48,9 +48,31 @@ interface DogToVerify {
   last_verified_at: string | null;
   age_months: number | null;
   birth_date: string | null;
+  breed_primary?: string | null;
+  primary_photo_url?: string | null;
+  shelter_id?: string | null;
 }
 
-type VerifyOutcome = "verified" | "not_found" | "deactivated" | "pending" | "error";
+export type VerifyOutcome = "verified" | "not_found" | "deactivated" | "pending" | "error";
+
+export interface DogVerificationEvent {
+  dog: {
+    id: string;
+    name: string;
+    breed_primary: string | null;
+    primary_photo_url: string | null;
+    shelter_id: string | null;
+    external_id: string;
+    intake_date: string;
+  };
+  outcome: VerifyOutcome;
+  capturedBirthDate: boolean;
+  capturedAvailableDate: boolean;
+  capturedFoundDate: boolean;
+  capturedKillDate: boolean;
+  externalUrlDead: boolean;
+  error?: string;
+}
 
 /**
  * Run verification on a batch of dogs.
@@ -59,7 +81,8 @@ type VerifyOutcome = "verified" | "not_found" | "deactivated" | "pending" | "err
  */
 export async function runVerification(
   batchSize: number = 50,
-  prioritize: "oldest" | "never_verified" | "stale" = "never_verified"
+  prioritize: "oldest" | "never_verified" | "stale" = "never_verified",
+  onDogProcessed?: (event: DogVerificationEvent) => void,
 ): Promise<VerificationResult> {
   const startTime = Date.now();
   const supabase = createAdminClient();
@@ -80,7 +103,7 @@ export async function runVerification(
   // Fetch dogs to verify — prioritize based on strategy
   let query = supabase
     .from("dogs")
-    .select("id, name, external_id, external_url, intake_date, verification_status, last_verified_at, age_months, birth_date")
+    .select("id, name, external_id, external_url, intake_date, verification_status, last_verified_at, age_months, birth_date, breed_primary, primary_photo_url, shelter_id")
     .eq("is_available", true)
     .eq("external_source", "rescuegroups")
     .not("external_id", "is", null)
@@ -119,7 +142,9 @@ export async function runVerification(
     const results = await Promise.allSettled(
       batch.map(dog => verifyOneDog(dog as DogToVerify, rgClient, supabase, now))
     );
-    for (const r of results) {
+    for (let j = 0; j < results.length; j++) {
+      const r = results[j];
+      const dog = batch[j] as DogToVerify;
       checked++;
       if (r.status === "fulfilled") {
         const v = r.value;
@@ -133,8 +158,47 @@ export async function runVerification(
         if (v.capturedAvailableDate) availableDatesCaptured++;
         if (v.capturedFoundDate) foundDatesCaptured++;
         if (v.capturedKillDate) killDatesCaptured++;
+        if (onDogProcessed) {
+          onDogProcessed({
+            dog: {
+              id: dog.id,
+              name: dog.name,
+              breed_primary: dog.breed_primary ?? null,
+              primary_photo_url: dog.primary_photo_url ?? null,
+              shelter_id: dog.shelter_id ?? null,
+              external_id: dog.external_id,
+              intake_date: dog.intake_date,
+            },
+            outcome: v.outcome,
+            capturedBirthDate: v.capturedBirthDate,
+            capturedAvailableDate: v.capturedAvailableDate,
+            capturedFoundDate: v.capturedFoundDate,
+            capturedKillDate: v.capturedKillDate,
+            externalUrlDead: v.externalUrlDead,
+          });
+        }
       } else {
         errors++;
+        if (onDogProcessed) {
+          onDogProcessed({
+            dog: {
+              id: dog.id,
+              name: dog.name,
+              breed_primary: dog.breed_primary ?? null,
+              primary_photo_url: dog.primary_photo_url ?? null,
+              shelter_id: dog.shelter_id ?? null,
+              external_id: dog.external_id,
+              intake_date: dog.intake_date,
+            },
+            outcome: "error",
+            capturedBirthDate: false,
+            capturedAvailableDate: false,
+            capturedFoundDate: false,
+            capturedKillDate: false,
+            externalUrlDead: false,
+            error: r.reason?.message || "Unknown error",
+          });
+        }
       }
     }
   }

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WTL Improvement Agent</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 14px; }
+
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid #222; background: #111; }
+    .header h1 { font-size: 16px; color: #a78bfa; letter-spacing: 1px; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .btn { padding: 6px 16px; border-radius: 6px; border: 1px solid #333; background: #1a1a1a; color: #ccc; cursor: pointer; font-family: inherit; font-size: 12px; transition: all 0.15s; }
+    .btn:hover { background: #2a2a2a; border-color: #555; }
+    .btn-scan { border-color: #5b21b6; color: #c4b5fd; }
+    .btn-scan:hover { background: #2e1065; }
+    .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; }
+    .scan-status { font-size: 11px; color: #a78bfa; }
+
+    .main { padding: 16px 24px; max-width: 1600px; margin: 0 auto; }
+
+    /* Stats Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 14px; text-align: center; }
+    .stat-label { font-size: 9px; text-transform: uppercase; color: #666; letter-spacing: 1px; margin-bottom: 6px; }
+    .stat-value { font-size: 24px; font-weight: bold; }
+    .stat-value.purple { color: #a78bfa; }
+    .stat-value.red { color: #ef4444; }
+    .stat-value.amber { color: #f59e0b; }
+    .stat-value.green { color: #00ff41; }
+    .stat-value.blue { color: #60a5fa; }
+    .stat-value.gray { color: #666; }
+
+    /* Category breakdown */
+    .breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .panel { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 14px; }
+    .panel-title { font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: 1px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #2a2a2a; }
+
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+    .bar-label { width: 100px; text-align: right; color: #888; }
+    .bar-track { flex: 1; height: 16px; background: #222; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; min-width: 2px; }
+    .bar-count { width: 40px; font-weight: bold; font-size: 11px; }
+
+    .bar-bug { background: #ef4444; }
+    .bar-improvement { background: #60a5fa; }
+    .bar-performance { background: #f59e0b; }
+    .bar-security { background: #ef4444; }
+    .bar-style { background: #818cf8; }
+    .bar-docs { background: #34d399; }
+    .bar-debt { background: #9ca3af; }
+
+    .bar-critical { background: #ef4444; }
+    .bar-high { background: #f97316; }
+    .bar-medium { background: #f59e0b; }
+    .bar-low { background: #60a5fa; }
+    .bar-info { background: #6b7280; }
+
+    /* Filter bar */
+    .filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .filter-chip { padding: 4px 12px; border-radius: 20px; border: 1px solid #333; background: #1a1a1a; color: #aaa; cursor: pointer; font-size: 11px; font-family: inherit; transition: all 0.15s; }
+    .filter-chip:hover { background: #2a2a2a; border-color: #555; }
+    .filter-chip.active { background: #2e1065; border-color: #7c3aed; color: #c4b5fd; }
+
+    /* Findings list */
+    .findings-list { background: #111; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden; }
+    .findings-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid #222; background: #151515; }
+    .findings-header span { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .findings-count { font-size: 11px; color: #a78bfa; }
+    .findings-container { max-height: 500px; overflow-y: auto; }
+
+    .finding-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #1a1a1a; font-size: 12px; transition: background 0.15s; }
+    .finding-item:hover { background: #1a1a1a; }
+
+    .sev-badge { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .sev-critical { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+    .sev-high { background: #f97316; box-shadow: 0 0 4px #f97316; }
+    .sev-medium { background: #f59e0b; }
+    .sev-low { background: #60a5fa; }
+    .sev-info { background: #6b7280; }
+
+    .finding-content { flex: 1; min-width: 0; }
+    .finding-title { font-weight: bold; color: #e0e0e0; margin-bottom: 2px; }
+    .finding-meta { font-size: 10px; color: #666; }
+    .finding-file { color: #a78bfa; }
+    .finding-suggestion { font-size: 10px; color: #34d399; margin-top: 3px; font-style: italic; }
+
+    .finding-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .action-btn { padding: 2px 8px; border-radius: 4px; border: 1px solid #333; background: transparent; color: #888; cursor: pointer; font-size: 9px; font-family: inherit; }
+    .action-btn:hover { background: #2a2a2a; color: #fff; }
+    .action-btn.fix { border-color: #166534; color: #86efac; }
+    .action-btn.dismiss { border-color: #92400e; color: #fcd34d; }
+
+    .cat-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; }
+    .cat-bug { background: #450a0a; color: #fca5a5; }
+    .cat-improvement { background: #172554; color: #93c5fd; }
+    .cat-performance { background: #422006; color: #fcd34d; }
+    .cat-security { background: #450a0a; color: #fca5a5; }
+    .cat-style { background: #1e1b4b; color: #c4b5fd; }
+    .cat-docs { background: #052e16; color: #86efac; }
+    .cat-debt { background: #1f2937; color: #d1d5db; }
+
+    /* Log section */
+    .log-section { margin-top: 16px; background: #111; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden; }
+    .log-header { padding: 8px 16px; border-bottom: 1px solid #222; background: #151515; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .log-container { max-height: 200px; overflow-y: auto; padding: 4px 0; }
+    .log-line { padding: 1px 16px; font-size: 11px; color: #777; }
+    .log-line.error { color: #ef4444; }
+    .log-line.success { color: #00ff41; }
+    .log-time { color: #444; margin-right: 6px; }
+
+    @media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .breakdown { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>IMPROVEMENT AGENT</h1>
+    <div class="header-right">
+      <span class="scan-status" id="scan-status">Idle</span>
+      <button type="button" class="btn btn-scan" id="scan-btn" onclick="triggerScan()">Run Full Scan</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Open Findings</div>
+        <div class="stat-value purple" id="stat-open">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Critical</div>
+        <div class="stat-value red" id="stat-critical">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">High</div>
+        <div class="stat-value amber" id="stat-high">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Fixed</div>
+        <div class="stat-value green" id="stat-fixed">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Scans</div>
+        <div class="stat-value blue" id="stat-scans">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Last Scan</div>
+        <div class="stat-value gray" id="stat-last" style="font-size:14px">--</div>
+      </div>
+    </div>
+
+    <!-- Category + Severity Breakdown -->
+    <div class="breakdown">
+      <div class="panel">
+        <div class="panel-title">By Category</div>
+        <div id="category-bars"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">By Severity</div>
+        <div id="severity-bars"></div>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <span style="font-size:10px;color:#555;margin-right:4px">FILTER:</span>
+      <button type="button" class="filter-chip active" onclick="setFilter('all', this)" data-filter="all">All</button>
+      <button type="button" class="filter-chip" onclick="setFilter('bug', this)">Bugs</button>
+      <button type="button" class="filter-chip" onclick="setFilter('security', this)">Security</button>
+      <button type="button" class="filter-chip" onclick="setFilter('performance', this)">Performance</button>
+      <button type="button" class="filter-chip" onclick="setFilter('improvement', this)">Improvements</button>
+      <button type="button" class="filter-chip" onclick="setFilter('style', this)">Style</button>
+      <button type="button" class="filter-chip" onclick="setFilter('debt', this)">Tech Debt</button>
+      <button type="button" class="filter-chip" onclick="setFilter('docs', this)">Docs</button>
+      <span style="margin-left:auto"></span>
+      <button type="button" class="filter-chip" onclick="setStatusFilter('open', this)" id="sf-open">Open</button>
+      <button type="button" class="filter-chip" onclick="setStatusFilter('fixed', this)" id="sf-fixed">Fixed</button>
+      <button type="button" class="filter-chip" onclick="setStatusFilter('dismissed', this)" id="sf-dismissed">Dismissed</button>
+    </div>
+
+    <!-- Findings List -->
+    <div class="findings-list">
+      <div class="findings-header">
+        <span>Findings</span>
+        <span class="findings-count" id="findings-count">0 items</span>
+      </div>
+      <div class="findings-container" id="findings-container">
+        <div style="padding:20px;text-align:center;color:#555">Loading findings...</div>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="log-section">
+      <div class="log-header">Agent Log</div>
+      <div class="log-container" id="log-container"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentCategory = "all";
+    let currentStatus = "open";
+
+    // ── Fetch Stats ──
+    async function fetchStats() {
+      try {
+        const res = await fetch("/api/stats");
+        const data = await res.json();
+
+        document.getElementById("stat-open").textContent = data.stats.totalOpen;
+        document.getElementById("stat-critical").textContent = data.bySeverity.critical || 0;
+        document.getElementById("stat-high").textContent = data.bySeverity.high || 0;
+        document.getElementById("stat-fixed").textContent = data.stats.totalFixed;
+        document.getElementById("stat-scans").textContent = data.totalScans;
+
+        if (data.lastFullScan) {
+          const ago = Math.round((Date.now() - new Date(data.lastFullScan).getTime()) / 60000);
+          document.getElementById("stat-last").textContent = ago < 60 ? ago + "m ago" : Math.round(ago / 60) + "h ago";
+        }
+
+        // Scan status
+        const scanBtn = document.getElementById("scan-btn");
+        const scanStatus = document.getElementById("scan-status");
+        if (data.isScanning) {
+          scanBtn.disabled = true;
+          scanBtn.textContent = "Scanning...";
+          scanStatus.textContent = `${data.scanProgress.current}/${data.scanProgress.total}: ${data.scanProgress.checker}`;
+        } else {
+          scanBtn.disabled = false;
+          scanBtn.textContent = "Run Full Scan";
+          scanStatus.textContent = "Idle";
+        }
+
+        // Category bars
+        renderBars("category-bars", data.byCategory, {
+          bug: "bar-bug", improvement: "bar-improvement", performance: "bar-performance",
+          security: "bar-security", style: "bar-style", docs: "bar-docs", debt: "bar-debt",
+        });
+
+        // Severity bars
+        renderBars("severity-bars", data.bySeverity, {
+          critical: "bar-critical", high: "bar-high", medium: "bar-medium",
+          low: "bar-low", info: "bar-info",
+        });
+
+        // Logs
+        if (data.logs) {
+          const logContainer = document.getElementById("log-container");
+          logContainer.innerHTML = data.logs.slice(-50).map(l => {
+            const time = new Date(l.time).toLocaleTimeString();
+            const cls = l.level === "error" ? " error" : l.level === "success" ? " success" : "";
+            return '<div class="log-line' + cls + '"><span class="log-time">' + time + '</span>' + escHtml(l.message) + '</div>';
+          }).join("");
+          logContainer.scrollTop = logContainer.scrollHeight;
+        }
+      } catch {}
+    }
+
+    function renderBars(containerId, data, classMap) {
+      const container = document.getElementById(containerId);
+      const max = Math.max(1, ...Object.values(data).map(v => Number(v)));
+      container.innerHTML = Object.entries(data).sort((a, b) => Number(b[1]) - Number(a[1])).map(([key, val]) => {
+        const pct = Math.round((Number(val) / max) * 100);
+        const cls = classMap[key] || "bar-info";
+        return '<div class="bar-row">' +
+          '<span class="bar-label">' + key + '</span>' +
+          '<div class="bar-track"><div class="bar-fill ' + cls + '" style="width:' + pct + '%"></div></div>' +
+          '<span class="bar-count">' + val + '</span></div>';
+      }).join("");
+    }
+
+    // ── Fetch Findings ──
+    async function fetchFindings() {
+      const params = new URLSearchParams({ status: currentStatus });
+      if (currentCategory !== "all") params.set("category", currentCategory);
+
+      try {
+        const res = await fetch("/api/findings?" + params);
+        const data = await res.json();
+
+        document.getElementById("findings-count").textContent = data.total + " items";
+
+        const container = document.getElementById("findings-container");
+        if (data.findings.length === 0) {
+          container.innerHTML = '<div style="padding:20px;text-align:center;color:#555">No findings match this filter</div>';
+          return;
+        }
+
+        // Sort by severity
+        const sevOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+        data.findings.sort((a, b) => (sevOrder[a.severity] || 5) - (sevOrder[b.severity] || 5));
+
+        container.innerHTML = data.findings.slice(0, 100).map(f => {
+          const actions = f.status === "open"
+            ? '<button type="button" class="action-btn fix" onclick="updateFinding(\'' + f.id + '\', \'fixed\')">Fixed</button>' +
+              '<button type="button" class="action-btn dismiss" onclick="updateFinding(\'' + f.id + '\', \'dismissed\')">Dismiss</button>'
+            : '<button type="button" class="action-btn" onclick="updateFinding(\'' + f.id + '\', \'open\')">Reopen</button>';
+
+          const suggestion = f.suggestion ? '<div class="finding-suggestion">' + escHtml(f.suggestion) + '</div>' : '';
+          const lineRef = f.line ? ':' + f.line : '';
+
+          return '<div class="finding-item">' +
+            '<span class="sev-badge sev-' + f.severity + '"></span>' +
+            '<div class="finding-content">' +
+              '<div class="finding-title"><span class="cat-tag cat-' + f.category + '">' + f.category + '</span> ' + escHtml(f.title) + '</div>' +
+              '<div class="finding-meta"><span class="finding-file">' + escHtml(f.file) + lineRef + '</span> · ' + f.checker + ' · ' + f.severity + '</div>' +
+              suggestion +
+            '</div>' +
+            '<div class="finding-actions">' + actions + '</div>' +
+          '</div>';
+        }).join("");
+      } catch {
+        document.getElementById("findings-container").innerHTML = '<div style="padding:20px;color:#ef4444">Failed to load findings</div>';
+      }
+    }
+
+    function escHtml(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+    // ── Controls ──
+    function setFilter(category, el) {
+      currentCategory = category;
+      document.querySelectorAll(".filter-chip[onclick^='setFilter']").forEach(c => c.classList.remove("active"));
+      el.classList.add("active");
+      fetchFindings();
+    }
+
+    function setStatusFilter(status, el) {
+      currentStatus = status;
+      document.querySelectorAll(".filter-chip[onclick^='setStatus']").forEach(c => c.classList.remove("active"));
+      el.classList.add("active");
+      fetchFindings();
+    }
+
+    async function updateFinding(id, status) {
+      await fetch("/api/findings/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      fetchFindings();
+      fetchStats();
+    }
+
+    async function triggerScan() {
+      await fetch("/api/scan", { method: "POST" });
+      document.getElementById("scan-btn").disabled = true;
+      document.getElementById("scan-btn").textContent = "Scanning...";
+    }
+
+    // ── Init ──
+    // Mark "open" as active by default
+    document.getElementById("sf-open").classList.add("active");
+
+    fetchStats();
+    fetchFindings();
+    setInterval(fetchStats, 5000);
+    setInterval(fetchFindings, 10000);
+  </script>
+</body>
+</html>

@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "npx tsx src/data/seed.ts"
+    "seed": "npx tsx src/data/seed.ts",
+    "agent": "npx tsx --tsconfig tsconfig.json agent/index.ts",
+    "agent:improve": "npx tsx --tsconfig tsconfig.json agent/improve.ts",
+    "agent:backup": "npx tsx --tsconfig tsconfig.json agent/backup.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
