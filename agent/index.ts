@@ -387,7 +387,7 @@ function getMetrics(): AgentMetrics {
 // ─────────────────────────────────────────────
 
 let syncPage = 1;
-const SYNC_PAGES = 10;
+const SYNC_PAGES = 20;
 const MAX_RG_PAGES = 350;
 
 async function taskSync() {
@@ -434,8 +434,8 @@ async function taskSync() {
 }
 
 async function taskVerify() {
-  const TOTAL = 150;
-  const MICRO = 15;
+  const TOTAL = 750;
+  const MICRO = 50;
   let processed = 0;
   let verified = 0;
   let deactivated = 0;
@@ -449,7 +449,7 @@ async function taskVerify() {
 
   for (let i = 0; i < TOTAL; i += MICRO) {
     const batchSize = Math.min(MICRO, TOTAL - i);
-    const priority = i < 100 ? "never_verified" as const : "stale" as const;
+    const priority = i < 600 ? "never_verified" as const : "stale" as const;
     const batchNum = Math.floor(i / MICRO) + 1;
     const totalBatches = Math.ceil(TOTAL / MICRO);
 
@@ -944,7 +944,7 @@ const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
 
 const tasks: TaskDef[] = [
-  { name: "verify", description: "Verify dog listings against RescueGroups API", fn: taskVerify, intervalMs: 30 * MIN, lastRun: null, nextRun: Date.now() + 5000, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
+  { name: "verify", description: "Verify dog listings against RescueGroups API", fn: taskVerify, intervalMs: 15 * MIN, lastRun: null, nextRun: Date.now() + 5000, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
   { name: "sync", description: "Sync new dogs from RescueGroups search API", fn: taskSync, intervalMs: 60 * MIN, lastRun: null, nextRun: Date.now() + 2 * MIN, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
   { name: "errorFix", description: "Detect and auto-correct data inconsistencies", fn: taskErrorCorrection, intervalMs: 3 * HOUR, lastRun: null, nextRun: Date.now() + 5 * MIN, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
   { name: "urgency", description: "Update euthanasia urgency countdowns", fn: taskUrgency, intervalMs: 2 * HOUR, lastRun: null, nextRun: Date.now() + 10 * MIN, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
