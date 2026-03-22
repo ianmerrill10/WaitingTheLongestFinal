@@ -37,6 +37,11 @@ export interface RGAnimalAttributes {
   url: string | null;
   createdDate: string;
   updatedDate?: string;
+  availableDate?: string | null;
+  foundDate?: string | null;
+  adoptedDate?: string | null;
+  killDate?: string | null;
+  killReason?: string | null;
   priority?: number;
   birthDate?: string | null;
   isBirthDateExact?: boolean | null;

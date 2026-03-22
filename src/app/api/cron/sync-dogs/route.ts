@@ -81,6 +81,9 @@ export async function GET(request: Request) {
           deactivated: neverResult.deactivated + staleResult.deactivated,
           pending: neverResult.pending + staleResult.pending,
           errors: neverResult.errors + staleResult.errors,
+          availableDatesCaptured: neverResult.availableDatesCaptured + staleResult.availableDatesCaptured,
+          foundDatesCaptured: neverResult.foundDatesCaptured + staleResult.foundDatesCaptured,
+          killDatesCaptured: neverResult.killDatesCaptured + staleResult.killDatesCaptured,
         };
 
         const stats = await getVerificationStats();

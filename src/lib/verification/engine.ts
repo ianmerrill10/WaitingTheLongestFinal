@@ -32,6 +32,9 @@ export interface VerificationResult {
   errors: number;
   birthDatesCaptured: number;
   deadExternalUrls: number;
+  availableDatesCaptured: number;
+  foundDatesCaptured: number;
+  killDatesCaptured: number;
   duration: number;
 }
 
@@ -70,6 +73,9 @@ export async function runVerification(
   let errors = 0;
   let birthDatesCaptured = 0;
   let deadExternalUrls = 0;
+  let availableDatesCaptured = 0;
+  let foundDatesCaptured = 0;
+  let killDatesCaptured = 0;
 
   // Fetch dogs to verify — prioritize based on strategy
   let query = supabase
@@ -101,7 +107,7 @@ export async function runVerification(
   const { data: dogs, error: fetchError } = await query;
 
   if (fetchError || !dogs || dogs.length === 0) {
-    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, birthDatesCaptured: 0, deadExternalUrls: 0, duration: Date.now() - startTime };
+    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, birthDatesCaptured: 0, deadExternalUrls: 0, availableDatesCaptured: 0, foundDatesCaptured: 0, killDatesCaptured: 0, duration: Date.now() - startTime };
   }
 
   const now = new Date().toISOString();
@@ -116,14 +122,17 @@ export async function runVerification(
     for (const r of results) {
       checked++;
       if (r.status === "fulfilled") {
-        const { outcome, capturedBirthDate, externalUrlDead } = r.value;
-        if (outcome === "verified") verified++;
-        else if (outcome === "deactivated") { deactivated++; notFound++; }
-        else if (outcome === "not_found") notFound++;
-        else if (outcome === "pending") pending++;
-        else if (outcome === "error") errors++;
-        if (capturedBirthDate) birthDatesCaptured++;
-        if (externalUrlDead) deadExternalUrls++;
+        const v = r.value;
+        if (v.outcome === "verified") verified++;
+        else if (v.outcome === "deactivated") { deactivated++; notFound++; }
+        else if (v.outcome === "not_found") notFound++;
+        else if (v.outcome === "pending") pending++;
+        else if (v.outcome === "error") errors++;
+        if (v.capturedBirthDate) birthDatesCaptured++;
+        if (v.externalUrlDead) deadExternalUrls++;
+        if (v.capturedAvailableDate) availableDatesCaptured++;
+        if (v.capturedFoundDate) foundDatesCaptured++;
+        if (v.capturedKillDate) killDatesCaptured++;
       } else {
         errors++;
       }
@@ -139,6 +148,9 @@ export async function runVerification(
     errors,
     birthDatesCaptured,
     deadExternalUrls,
+    availableDatesCaptured,
+    foundDatesCaptured,
+    killDatesCaptured,
     duration: Date.now() - startTime,
   };
 }
@@ -152,8 +164,9 @@ async function verifyOneDog(
   rgClient: ReturnType<typeof createRescueGroupsClient>,
   supabase: ReturnType<typeof createAdminClient>,
   now: string,
-): Promise<{ outcome: VerifyOutcome; capturedBirthDate: boolean; externalUrlDead: boolean }> {
+): Promise<{ outcome: VerifyOutcome; capturedBirthDate: boolean; externalUrlDead: boolean; capturedAvailableDate: boolean; capturedFoundDate: boolean; capturedKillDate: boolean }> {
   const rgResult = await rgClient.verifyAnimal(dog.external_id);
+  const noCapture = { capturedAvailableDate: false, capturedFoundDate: false, capturedKillDate: false };
 
   if (rgResult.status === "available") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,11 +177,60 @@ async function verifyOneDog(
 
     let capturedBirthDate = false;
     let externalUrlDead = false;
+    let capturedAvailableDate = false;
+    let capturedFoundDate = false;
+    let capturedKillDate = false;
 
     if (rgResult.animal) {
       const attrs = rgResult.animal.attributes as RGAnimalAttributes;
 
-      // Opportunistically capture birthDate
+      // ─── RETURNED DOG CHECK ───
+      // If adoptedDate < updatedDate, dog was adopted and returned.
+      // Wait time starts from the return (updatedDate).
+      const adoptedDate = attrs.adoptedDate ? new Date(attrs.adoptedDate) : null;
+      const rgUpdatedDate = attrs.updatedDate ? new Date(attrs.updatedDate) : null;
+      if (adoptedDate && rgUpdatedDate && !isNaN(adoptedDate.getTime()) && !isNaN(rgUpdatedDate.getTime()) && rgUpdatedDate > adoptedDate) {
+        updateData.intake_date = attrs.updatedDate;
+        updateData.date_confidence = "high";
+        updateData.date_source = "rescuegroups_returned_after_adoption";
+        capturedAvailableDate = true; // count as a date capture
+      }
+
+      // ─── Capture availableDate (GOLD STANDARD for wait time) ───
+      if (!updateData.date_source && attrs.availableDate) {
+        const ad = new Date(attrs.availableDate);
+        const nowDate2 = new Date();
+        if (!isNaN(ad.getTime()) && ad <= nowDate2) {
+          updateData.intake_date = attrs.availableDate;
+          updateData.date_confidence = "verified";
+          updateData.date_source = "rescuegroups_available_date";
+          capturedAvailableDate = true;
+        }
+      }
+
+      // ─── Capture foundDate (intake date for strays) ───
+      if (!updateData.date_source && attrs.foundDate) {
+        const fd = new Date(attrs.foundDate);
+        const nowDate = new Date();
+        if (!isNaN(fd.getTime()) && fd <= nowDate) {
+          updateData.intake_date = attrs.foundDate;
+          updateData.date_confidence = "verified";
+          updateData.date_source = "rescuegroups_found_date";
+          capturedFoundDate = true;
+        }
+      }
+
+      // ─── Capture killDate → euthanasia_date ───
+      if (attrs.killDate) {
+        const kd = new Date(attrs.killDate);
+        if (!isNaN(kd.getTime())) {
+          updateData.euthanasia_date = attrs.killDate;
+          updateData.is_on_euthanasia_list = true;
+          capturedKillDate = true;
+        }
+      }
+
+      // ─── Capture birthDate ───
       if (attrs.birthDate && !dog.birth_date) {
         const bd = new Date(attrs.birthDate);
         if (!isNaN(bd.getTime())) {
@@ -184,11 +246,14 @@ async function verifyOneDog(
           capturedBirthDate = true;
 
           // Age sanity: if intake_date is before birth, cap it
-          const intakeDate = new Date(dog.intake_date);
-          if (intakeDate < bd) {
-            updateData.intake_date = bd.toISOString();
-            updateData.date_confidence = "low";
-            updateData.date_source = `age_capped_api_birth_date${attrs.isBirthDateExact ? "_exact" : ""}`;
+          // (only if we didn't already set a verified date above)
+          if (!updateData.date_confidence || updateData.date_confidence !== "verified") {
+            const intakeDate = new Date(updateData.intake_date || dog.intake_date);
+            if (intakeDate < bd) {
+              updateData.intake_date = bd.toISOString();
+              updateData.date_confidence = "low";
+              updateData.date_source = `age_capped_api_birth_date${attrs.isBirthDateExact ? "_exact" : ""}`;
+            }
           }
         }
       }
@@ -206,7 +271,7 @@ async function verifyOneDog(
     }
 
     await supabase.from("dogs").update(updateData).eq("id", dog.id);
-    return { outcome: "verified", capturedBirthDate, externalUrlDead };
+    return { outcome: "verified", capturedBirthDate, externalUrlDead, capturedAvailableDate, capturedFoundDate, capturedKillDate };
   }
 
   if (rgResult.status === "pending") {
@@ -218,11 +283,11 @@ async function verifyOneDog(
         status: "pending",
       })
       .eq("id", dog.id);
-    return { outcome: "pending", capturedBirthDate: false, externalUrlDead: false };
+    return { outcome: "pending", capturedBirthDate: false, externalUrlDead: false, ...noCapture };
   }
 
   if (rgResult.status === "api_error") {
-    return { outcome: "error", capturedBirthDate: false, externalUrlDead: false };
+    return { outcome: "error", capturedBirthDate: false, externalUrlDead: false, ...noCapture };
   }
 
   // Status is "not_found" — dog no longer in RescueGroups
@@ -241,7 +306,7 @@ async function verifyOneDog(
         status: "adopted",
       })
       .eq("id", dog.id);
-    return { outcome: "deactivated", capturedBirthDate: false, externalUrlDead: true };
+    return { outcome: "deactivated", capturedBirthDate: false, externalUrlDead: true, ...noCapture };
   } else {
     await supabase
       .from("dogs")
@@ -250,7 +315,7 @@ async function verifyOneDog(
         last_verified_at: now,
       })
       .eq("id", dog.id);
-    return { outcome: "not_found", capturedBirthDate: false, externalUrlDead: false };
+    return { outcome: "not_found", capturedBirthDate: false, externalUrlDead: false, ...noCapture };
   }
 }
 

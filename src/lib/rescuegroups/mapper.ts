@@ -35,6 +35,8 @@ export interface MappedDog {
   birth_date: string | null;
   is_birth_date_exact: boolean | null;
   is_courtesy_listing: boolean;
+  euthanasia_date: string | null;
+  is_on_euthanasia_list: boolean;
   external_id: string;
   external_source: string;
   external_url: string | null;
@@ -209,6 +211,17 @@ export function mapRescueGroupsDog(
   const { ageMonths, birthDateStr } = computeAgeMonthsFromSources(attrs, description);
   const intakeDateResult = computeIntakeDate(attrs, description, ageMonths, birthDateStr);
 
+  // Capture euthanasia data from killDate
+  let euthanasia_date: string | null = null;
+  let is_on_euthanasia_list = false;
+  if (attrs.killDate) {
+    const kd = new Date(attrs.killDate);
+    if (!isNaN(kd.getTime())) {
+      euthanasia_date = attrs.killDate;
+      is_on_euthanasia_list = true;
+    }
+  }
+
   return {
     name: attrs.name || "Unknown",
     breed_primary: attrs.breedPrimary || "Mixed Breed",
@@ -236,6 +249,8 @@ export function mapRescueGroupsDog(
     birth_date: birthDateStr,
     is_birth_date_exact: attrs.isBirthDateExact ?? null,
     is_courtesy_listing: attrs.isCourtesyListing ?? false,
+    euthanasia_date,
+    is_on_euthanasia_list,
     external_id: externalId,
     external_source: "rescuegroups",
     external_url: attrs.url || null,
@@ -245,11 +260,14 @@ export function mapRescueGroupsDog(
 
 /**
  * Compute intake_date with confidence scoring + age sanity check.
- * Priority order:
- *   1. Date parsed from description text (e.g. "Posted 2/18/18") — highest confidence
- *   2. RescueGroups createdDate — most likely close to actual intake
- *   3. RescueGroups updatedDate — weaker signal (just means listing was edited)
- *   4. Current time — unknown confidence
+ *
+ * PRIORITY ORDER (verified > API-provided > inferred):
+ *   1. RescueGroups availableDate — shelter-set "available for adoption" date (GOLD STANDARD)
+ *   2. RescueGroups foundDate — when stray was found (= intake for strays)
+ *   3. Date parsed from description text (e.g. "Posted 2/18/18")
+ *   4. RescueGroups createdDate — when listing was created on RG platform
+ *   5. RescueGroups updatedDate — fallback (listing last edited)
+ *   6. Current time — unknown confidence
  *
  * After computing, applies age sanity check:
  *   If wait time > dog's age, the intake_date is impossible and gets capped
@@ -267,37 +285,68 @@ function computeIntakeDate(
 } {
   const now = new Date();
 
-  // Strategy 1: Parse a real date from the description text
-  const descDate = parseDateFromDescription(description ?? null);
-  if (descDate) {
-    const result = {
-      intake_date: descDate.date.toISOString(),
-      date_confidence: (descDate.confidence === "high" ? "verified" : "high") as DateConfidence,
-      date_source: `description_parsed: ${descDate.source}`,
-    };
-    return applyAgeSanityCheck(result, ageMonths, now, birthDateStr);
+  // Helper: validate a date string is real and not in the future
+  function validDate(dateStr?: string | null): Date | null {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    if (d > now) return null; // future dates invalid
+    return d;
   }
-
-  const createdDate = attrs.createdDate ? new Date(attrs.createdDate) : null;
-  const updatedDate = attrs.updatedDate ? new Date(attrs.updatedDate) : null;
 
   // Courtesy listings: dates reflect the courtesy post, not shelter intake
   const isCourtesy = attrs.isCourtesyListing ?? false;
 
-  // Strategy 2: createdDate — listing created when dog entered the system
-  if (createdDate && !isNaN(createdDate.getTime())) {
+  // ─── RETURNED DOG CHECK ───
+  // If adoptedDate exists AND is before updatedDate, this dog was adopted and returned.
+  // The real "waiting since" is when they came back, not when they were first listed.
+  const adoptedDate = validDate(attrs.adoptedDate);
+  const returnedCheckDate = validDate(attrs.updatedDate);
+  if (adoptedDate && returnedCheckDate && returnedCheckDate > adoptedDate && !isCourtesy) {
+    // Dog was adopted then returned — wait time starts from the update after adoption
+    return applyAgeSanityCheck({
+      intake_date: attrs.updatedDate!,
+      date_confidence: "high",
+      date_source: "rescuegroups_returned_after_adoption",
+    }, ageMonths, now, birthDateStr);
+  }
+
+  // ─── STRATEGY 1: availableDate (shelter-provided "available for adoption" date) ───
+  const availDate = validDate(attrs.availableDate);
+  if (availDate && !isCourtesy) {
+    return applyAgeSanityCheck({
+      intake_date: attrs.availableDate!,
+      date_confidence: "verified",
+      date_source: "rescuegroups_available_date",
+    }, ageMonths, now, birthDateStr);
+  }
+
+  // ─── STRATEGY 2: foundDate (when stray was found = intake date for strays) ───
+  const foundDate = validDate(attrs.foundDate);
+  if (foundDate && !isCourtesy) {
+    return applyAgeSanityCheck({
+      intake_date: attrs.foundDate!,
+      date_confidence: "verified",
+      date_source: "rescuegroups_found_date",
+    }, ageMonths, now, birthDateStr);
+  }
+
+  // ─── STRATEGY 3: Parse a real date from the description text ───
+  const descDate = parseDateFromDescription(description ?? null);
+  if (descDate) {
+    return applyAgeSanityCheck({
+      intake_date: descDate.date.toISOString(),
+      date_confidence: (descDate.confidence === "high" ? "verified" : "high") as DateConfidence,
+      date_source: `description_parsed: ${descDate.source}`,
+    }, ageMonths, now, birthDateStr);
+  }
+
+  // ─── STRATEGY 4: createdDate (listing creation on RescueGroups) ───
+  const createdDate = validDate(attrs.createdDate);
+  if (createdDate) {
     const daysSince = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
 
-    if (daysSince < 0) {
-      return applyAgeSanityCheck({
-        intake_date: now.toISOString(),
-        date_confidence: "low",
-        date_source: "rescuegroups_created_date_future_corrected",
-      }, ageMonths, now, birthDateStr);
-    }
-
     if (isCourtesy) {
-      // Courtesy listing dates are unreliable as intake proxies
       return applyAgeSanityCheck({
         intake_date: attrs.createdDate!,
         date_confidence: "low",
@@ -306,6 +355,7 @@ function computeIntakeDate(
     }
 
     // Check if the listing is actively maintained (updated recently)
+    const updatedDate = validDate(attrs.updatedDate);
     const isActive = updatedDate &&
       (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24) < 180;
 
@@ -322,18 +372,10 @@ function computeIntakeDate(
     }, ageMonths, now, birthDateStr);
   }
 
-  // Strategy 3: updatedDate only (no createdDate — shouldn't happen but handle gracefully)
-  if (updatedDate && !isNaN(updatedDate.getTime())) {
+  // ─── STRATEGY 5: updatedDate only ───
+  const updatedDate = validDate(attrs.updatedDate);
+  if (updatedDate) {
     const daysSince = (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24);
-
-    if (daysSince < 0) {
-      return applyAgeSanityCheck({
-        intake_date: now.toISOString(),
-        date_confidence: "low",
-        date_source: "rescuegroups_updated_date_future_corrected",
-      }, ageMonths, now, birthDateStr);
-    }
-
     return applyAgeSanityCheck({
       intake_date: attrs.updatedDate!,
       date_confidence: daysSince <= 180 ? "medium" : "low",
@@ -341,7 +383,7 @@ function computeIntakeDate(
     }, ageMonths, now, birthDateStr);
   }
 
-  // No dates at all — use current time
+  // ─── STRATEGY 6: No dates at all ───
   return applyAgeSanityCheck({
     intake_date: now.toISOString(),
     date_confidence: "unknown",
