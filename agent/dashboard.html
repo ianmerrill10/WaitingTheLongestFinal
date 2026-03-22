@@ -275,6 +275,7 @@
           <button class="trigger-btn" onclick="trigger('errorFix')">Fix Errors</button>
           <button class="trigger-btn" onclick="trigger('audit')">Audit</button>
           <button class="trigger-btn" onclick="trigger('urgency')">Urgency</button>
+          <button class="trigger-btn" onclick="trigger('nycAcc')">NYC ACC</button>
           <button class="trigger-btn" onclick="trigger('stats')">Stats</button>
         </div>
       </div>
@@ -648,9 +649,9 @@
           document.getElementById("progress-task").textContent = "";
         } else {
           ps.style.display = "none";
-          // Fade slideshow when idle
+          // Only fade slideshow if we've never shown a dog
           const slideshow = document.getElementById("slideshow");
-          if (!m.currentTask) slideshow.classList.add("idle");
+          if (!m.currentTask && !m.currentDog && slideCount === 0) slideshow.classList.add("idle");
         }
 
         // Task queue
@@ -680,7 +681,17 @@
             healthRow("Never Checked", formatNum(db.neverChecked), db.neverChecked > 1000 ? "warn" : "good") +
             healthRow("Days to 100%", db.daysToFullCoverage + " days", db.daysToFullCoverage > 10 ? "warn" : "good") +
             healthRow("Critical", formatNum(db.criticalDogs), db.criticalDogs > 0 ? "bad" : "good") +
-            healthRow("High Urgency", formatNum(db.highUrgencyDogs), db.highUrgencyDogs > 0 ? "warn" : "good");
+            healthRow("High Urgency", formatNum(db.highUrgencyDogs), db.highUrgencyDogs > 0 ? "warn" : "good") +
+            healthRow("Rejected (Breeders)", formatNum(db.rejectedBreeders), db.rejectedBreeders > 0 ? "warn" : "good");
+        }
+
+        // Hydrate slideshow from metrics if we haven't received an SSE dog event yet
+        if (m.currentDog && slideCount === 0) {
+          updateSlideshow({
+            dog: m.currentDog,
+            outcome: "verified",
+            details: "Last verified dog",
+          });
         }
 
         // Recent errors

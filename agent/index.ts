@@ -120,6 +120,7 @@ interface AgentMetrics {
     highUrgencyDogs: number;
     neverChecked: number;
     daysToFullCoverage: number;
+    rejectedBreeders: number;
   } | null;
   recentErrors: Array<{ time: string; task: string; message: string }>;
   errorFixHistory: ErrorFixEvent[];
@@ -248,20 +249,39 @@ let currentDog: DogEvent["dog"] | null = null;
 
 // Track recent verification speed
 const verifyTimestamps: number[] = [];
+let lastKnownVerifySpeed = 0; // Persist last speed so it doesn't drop to 0 between runs
 function recordVerify() {
   const now = Date.now();
   verifyTimestamps.push(now);
-  // Keep only last 60 seconds of timestamps
-  const cutoff = now - 60000;
+  // Keep only last 5 minutes of timestamps for better averaging
+  const cutoff = now - 300000;
   while (verifyTimestamps.length > 0 && verifyTimestamps[0] < cutoff) {
     verifyTimestamps.shift();
   }
+  // Update speed every time we record a verify
+  lastKnownVerifySpeed = computeVerifySpeed();
+}
+function computeVerifySpeed(): number {
+  if (verifyTimestamps.length < 2) return verifyTimestamps.length;
+  const now = Date.now();
+  const cutoff60 = now - 60000;
+  const recent60 = verifyTimestamps.filter(t => t >= cutoff60);
+  if (recent60.length >= 2) return recent60.length; // dogs per minute (last 60s)
+  // Fallback: compute from all timestamps in the window
+  const oldest = verifyTimestamps[0];
+  const newest = verifyTimestamps[verifyTimestamps.length - 1];
+  const spanMinutes = (newest - oldest) / 60000;
+  if (spanMinutes > 0) return Math.round(verifyTimestamps.length / spanMinutes);
+  return verifyTimestamps.length;
 }
 function getVerifySpeed(): number {
   const now = Date.now();
-  const cutoff = now - 60000;
-  const recent = verifyTimestamps.filter(t => t >= cutoff);
-  return recent.length; // dogs per minute
+  // If we have recent data (within 5 min), compute live speed
+  if (verifyTimestamps.length > 0 && now - verifyTimestamps[verifyTimestamps.length - 1] < 300000) {
+    return computeVerifySpeed();
+  }
+  // Otherwise return last known speed so dashboard doesn't show 0
+  return lastKnownVerifySpeed;
 }
 
 // Track recent errors for display
@@ -284,7 +304,7 @@ async function refreshDbStats() {
     const supabase = createAdminClient();
     const vStats = await getVerificationStats();
 
-    const [verifiedConf, highConf, criticalRes, highRes] = await Promise.all([
+    const [verifiedConf, highConf, criticalRes, highRes, rejectedRes] = await Promise.all([
       supabase.from("dogs").select("id", { count: "exact", head: true })
         .eq("is_available", true).eq("date_confidence", "verified"),
       supabase.from("dogs").select("id", { count: "exact", head: true })
@@ -293,6 +313,8 @@ async function refreshDbStats() {
         .eq("is_available", true).eq("urgency_level", "critical"),
       supabase.from("dogs").select("id", { count: "exact", head: true })
         .eq("is_available", true).eq("urgency_level", "high"),
+      supabase.from("dogs").select("id", { count: "exact", head: true })
+        .eq("status", "rejected_breeder"),
     ]);
 
     const total = vStats.total;
@@ -315,6 +337,7 @@ async function refreshDbStats() {
       highUrgencyDogs: highRes.count ?? 0,
       neverChecked: vStats.neverChecked,
       daysToFullCoverage: daysToFull,
+      rejectedBreeders: rejectedRes.count ?? 0,
     };
   } catch (err) {
     bus.log("error", "system", `Failed to refresh DB stats: ${err}`);
@@ -522,7 +545,8 @@ async function taskVerify() {
   totalVerified += verified;
   totalDeactivated += deactivated;
   totalErrors += errors;
-  currentDog = null;
+  // Don't clear currentDog — keep showing the last verified dog in the slideshow
+  // currentDog = null;
 
   const speed = getVerifySpeed();
   bus.log("success", "verify",
@@ -777,6 +801,7 @@ async function taskAudit() {
       (sum: number, s: Record<string, unknown>) => sum + ((s as { checked?: number }).checked || 0), 0
     );
 
+    if (repaired > 0) totalErrorsFixed += repaired;
     bus.log("success", "audit", `Audit complete: ${issues} checked, ${repaired} repaired (${Math.round(result.duration / 1000)}s)`, {
       runId: result.runId,
       logStats: result.logStats,
@@ -799,6 +824,7 @@ async function taskFullAudit() {
     const result = await runAudit("full", "local_agent");
     const repaired = result.logStats?.repairs ?? 0;
 
+    if (repaired > 0) totalErrorsFixed += repaired;
     bus.log("success", "audit", `Full audit complete: ${repaired} repairs (${Math.round(result.duration / 1000)}s)`, {
       runId: result.runId,
       logStats: result.logStats,
@@ -973,7 +999,7 @@ async function schedulerTick() {
     isRunningTask = false;
     currentTask = null;
     currentProgress = null;
-    currentDog = null;
+    // Don't clear currentDog — keep showing last verified dog in slideshow
   }
 }
 
@@ -1218,11 +1244,22 @@ async function main() {
     }
   }
 
+  // Run urgency update on startup to populate urgency stats immediately
+  try {
+    bus.log("info", "system", "Running initial urgency update...");
+    const urgResult = await updateUrgencyLevels();
+    bus.log("success", "system", `Initial urgency update: ${urgResult.updated} dogs updated`);
+    // Refresh stats again after urgency update
+    await refreshDbStats();
+  } catch (err) {
+    bus.log("warn", "system", `Initial urgency update failed: ${err}`);
+  }
+
   // Scheduler tick every 5 seconds
   setInterval(schedulerTick, 5000);
 
-  // Refresh DB stats every 5 minutes
-  setInterval(refreshDbStats, 5 * 60 * 1000);
+  // Refresh DB stats every 2 minutes for more responsive dashboard
+  setInterval(refreshDbStats, 2 * 60 * 1000);
 }
 
 main().catch(err => {
