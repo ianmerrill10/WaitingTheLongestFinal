@@ -824,15 +824,16 @@ export async function checkDescriptionUrgency(logger: AuditLogger): Promise<{
         else if (hoursRemaining < 168) updates.urgency_level = "medium";
         else updates.urgency_level = "normal";
       } else if (signal.type === "euthanasia_date" || signal.type === "at_risk") {
-        // No date but strong signal — mark as at-risk with high urgency
+        // No date but strong signal — mark as at-risk but only bump to medium
+        // Without an actual date, we can't justify "high" urgency (too many false positives)
         updates.is_on_euthanasia_list = true;
         updates.euthanasia_list_added_at = now.toISOString();
-        if (dog.urgency_level === "normal" || dog.urgency_level === "medium") {
-          updates.urgency_level = "high";
+        if (dog.urgency_level === "normal") {
+          updates.urgency_level = "medium";
         }
       } else if (signal.type === "urgent" && dog.urgency_level === "normal") {
-        // Weak signal — bump from normal to medium
-        updates.urgency_level = "medium";
+        // Weak signal — leave as normal, just note it
+        // Don't bump urgency without strong evidence
       }
 
       await supabase.from("dogs").update(updates).eq("id", dog.id);

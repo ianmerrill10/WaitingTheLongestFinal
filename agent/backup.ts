@@ -107,35 +107,40 @@ function createLocalBackup(): { path: string; size: string } {
   const tempListFile = path.join(BACKUP_DIR, "_backup_filelist.txt");
 
   try {
-    // Get all files excluding patterns, using PowerShell
-    const psCommand = `
-      $root = '${PROJECT_ROOT.replace(/\\/g, "\\\\")}'
-      $excludeDirs = @(${excludeList})
-      $files = Get-ChildItem -Path $root -Recurse -File | Where-Object {
-        $rel = $_.FullName.Substring($root.Length + 1)
-        $skip = $false
-        foreach ($ex in $excludeDirs) {
-          if ($rel -like "$ex*" -or $rel -like "*\\\\$ex*" -or $rel -like "$ex") {
-            $skip = $true
-            break
-          }
-        }
-        -not $skip
-      }
-      $files.FullName | Out-File -FilePath '${tempListFile.replace(/\\/g, "\\\\")}' -Encoding UTF8
-    `.trim().replace(/\n/g, " ");
+    // Write PowerShell script to a temp .ps1 file to avoid cmd.exe argument parsing issues
+    const psScriptPath = path.join(BACKUP_DIR, "_backup_script.ps1");
+    const psScript = `
+$root = '${PROJECT_ROOT.replace(/'/g, "''")}'
+$excludeDirs = @(${excludeList})
+$outFile = '${tempListFile.replace(/'/g, "''")}'
+$zipDest = '${zipPath.replace(/'/g, "''")}'
 
-    execSync(`powershell -Command "${psCommand}"`, {
-      cwd: PROJECT_ROOT,
-      stdio: "pipe",
-      timeout: 120000,
-    });
+$files = Get-ChildItem -Path $root -Recurse -File | Where-Object {
+  $rel = $_.FullName.Substring($root.Length + 1)
+  $skip = $false
+  foreach ($ex in $excludeDirs) {
+    if ($rel -like "$ex*" -or $rel -like "*\\$ex*" -or $rel -like "$ex") {
+      $skip = $true
+      break
+    }
+  }
+  -not $skip
+}
 
-    // Now create the zip
+$files.FullName | Out-File -FilePath $outFile -Encoding UTF8
+
+# Create zip from the file list
+Compress-Archive -Path (Get-Content $outFile) -DestinationPath $zipDest -Force
+`;
+    fs.writeFileSync(psScriptPath, psScript, "utf8");
+
     execSync(
-      `powershell -Command "Compress-Archive -Path (Get-Content '${tempListFile.replace(/\\/g, "\\\\")}') -DestinationPath '${zipPath.replace(/\\/g, "\\\\")}' -Force"`,
+      `powershell -ExecutionPolicy Bypass -File "${psScriptPath}"`,
       { cwd: PROJECT_ROOT, stdio: "pipe", timeout: 300000 }
     );
+
+    // Clean up temp script
+    if (fs.existsSync(psScriptPath)) fs.unlinkSync(psScriptPath);
 
     // Clean up temp file
     if (fs.existsSync(tempListFile)) fs.unlinkSync(tempListFile);
@@ -145,8 +150,10 @@ function createLocalBackup(): { path: string; size: string } {
 
     return { path: zipPath, size: `${sizeMB} MB` };
   } catch (err) {
-    // Clean up temp file on error
+    // Clean up temp files on error
     if (fs.existsSync(tempListFile)) fs.unlinkSync(tempListFile);
+    const psScriptPath = path.join(BACKUP_DIR, "_backup_script.ps1");
+    if (fs.existsSync(psScriptPath)) fs.unlinkSync(psScriptPath);
 
     // Fallback: use tar if available (Git Bash on Windows includes it)
     try {

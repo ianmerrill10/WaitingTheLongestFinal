@@ -2,13 +2,14 @@
  * Description Urgency Parser
  *
  * Scans dog descriptions for euthanasia/urgency signals and extracts deadline dates.
- * Common patterns in shelter descriptions:
+ * PRECISION-FIRST: Only flag dogs that are ACTUALLY at risk right now.
+ * Past-tense references, backstories, and org boilerplate are filtered out.
+ *
+ * Common REAL patterns:
  *   "Will be euthanized by 3/25/2026"
  *   "URGENT - must leave by Friday"
- *   "On the euth list"
  *   "Scheduled for euthanasia on March 28"
  *   "CODE RED - at risk of being put down"
- *   "Rescue only - will be killed if not pulled by 3/30"
  *   "TBD (to be destroyed) 3/26"
  *   "Last day 3/25"
  */
@@ -20,7 +21,7 @@ export interface UrgencySignal {
   matchedText: string;
 }
 
-// ── Date extraction helpers (reused from parse-description-date.ts pattern) ──
+// ── Date extraction helpers ──
 
 const MONTH_MAP: Record<string, number> = {
   january: 1, jan: 1,
@@ -54,13 +55,11 @@ function parseFutureDate(year: number, month: number, day: number): Date | null 
   const date = new Date(year, month - 1, day);
   if (isNaN(date.getTime())) return null;
 
-  // For urgency dates, we want FUTURE dates (opposite of intake date parsing)
-  // But also accept dates within the last 7 days (recently expired deadlines)
+  // Accept dates within last 7 days (recently expired) and up to 90 days out
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   if (date < sevenDaysAgo) return null;
 
-  // Don't accept dates more than 90 days in the future
   const ninetyDaysOut = new Date();
   ninetyDaysOut.setDate(ninetyDaysOut.getDate() + 90);
   if (date > ninetyDaysOut) return null;
@@ -69,11 +68,13 @@ function parseFutureDate(year: number, month: number, day: number): Date | null 
 }
 
 function extractDateAfterPhrase(text: string): Date | null {
-  // MM/DD/YYYY or M/D/YYYY
-  let m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  let m;
+
+  // MM/DD/YYYY
+  m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (m) return parseFutureDate(parseInt(m[3]), parseInt(m[1]), parseInt(m[2]));
 
-  // MM/DD/YY or M/D/YY
+  // MM/DD/YY
   m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})\b/);
   if (m) {
     let year = parseInt(m[3]);
@@ -85,7 +86,7 @@ function extractDateAfterPhrase(text: string): Date | null {
   m = text.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
   if (m) return parseFutureDate(parseInt(m[3]), parseInt(m[1]), parseInt(m[2]));
 
-  // "January 5, 2026" or "Jan 5, 2026"
+  // "January 5, 2026"
   m = text.match(/([A-Z][a-z]{2,8})\s+(\d{1,2}),?\s+(\d{4})/);
   if (m) {
     const month = MONTH_MAP[m[1].toLowerCase()];
@@ -99,49 +100,40 @@ function extractDateAfterPhrase(text: string): Date | null {
     if (month) return parseFutureDate(parseInt(m[3]), month, parseInt(m[1]));
   }
 
-  // "March 25" (no year - assume current year, or next year if date passed)
+  // "March 25" (no year)
   m = text.match(/([A-Z][a-z]{2,8})\s+(\d{1,2})(?:\s|,|\.|\b)/);
   if (m) {
     const month = MONTH_MAP[m[1].toLowerCase()];
     if (month) {
       const now = new Date();
-      let year = now.getFullYear();
-      let date = parseFutureDate(year, month, parseInt(m[2]));
-      if (!date) {
-        date = parseFutureDate(year + 1, month, parseInt(m[2]));
-      }
-      return date;
+      return parseFutureDate(now.getFullYear(), month, parseInt(m[2]))
+        || parseFutureDate(now.getFullYear() + 1, month, parseInt(m[2]));
     }
   }
 
-  // MM/DD (no year) - assume current/next occurrence
+  // MM/DD (no year)
   m = text.match(/(\d{1,2})\/(\d{1,2})(?:\s|,|\.|\b)/);
   if (m) {
     const month = parseInt(m[1]);
     const day = parseInt(m[2]);
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
       const now = new Date();
-      let year = now.getFullYear();
-      let date = parseFutureDate(year, month, day);
-      if (!date) {
-        date = parseFutureDate(year + 1, month, day);
-      }
-      return date;
+      return parseFutureDate(now.getFullYear(), month, day)
+        || parseFutureDate(now.getFullYear() + 1, month, day);
     }
   }
 
-  // Day of week: "by Friday", "by Monday"
+  // Day of week: "by Friday"
   m = text.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i);
   if (m) {
     const targetDay = DAY_MAP[m[1].toLowerCase()];
     if (targetDay !== undefined) {
       const now = new Date();
-      const currentDay = now.getDay();
-      let daysUntil = targetDay - currentDay;
+      let daysUntil = targetDay - now.getDay();
       if (daysUntil <= 0) daysUntil += 7;
       const date = new Date(now);
       date.setDate(date.getDate() + daysUntil);
-      date.setHours(17, 0, 0, 0); // Assume 5pm deadline
+      date.setHours(17, 0, 0, 0);
       return date;
     }
   }
@@ -149,44 +141,85 @@ function extractDateAfterPhrase(text: string): Date | null {
   return null;
 }
 
-// ── Urgency pattern matchers ──
+// ── False positive filters ──
 
-// HIGH confidence: explicit euthanasia date mentioned
-const EUTHANASIA_DATE_PATTERNS = [
-  /(?:euthan(?:ize|ized|asia|ised)|put (?:down|to sleep)|PTS)\s*(?:by|on|date|scheduled|set for|before)?\s*:?\s*/i,
-  /(?:scheduled|slated|set|planned)\s+(?:for|to be)\s+(?:euthan(?:ize|ized|asia)|put (?:down|to sleep)|PTS)\s*(?:on|by)?\s*:?\s*/i,
-  /(?:will be|to be|going to be|gonna be)\s+(?:euthan(?:ize|ized|asia)|put (?:down|to sleep)|killed|destroyed|PTS)\s*(?:on|by|if not)?\s*:?\s*/i,
-  /(?:euth|euthanasia)\s*(?:date|deadline)\s*:?\s*/i,
-  /(?:last day|final day|deadline)\s*(?:is|:)?\s*/i,
-  /TBD\s*\(?\s*to be destroyed\s*\)?\s*(?:on|by)?\s*:?\s*/i,
-  /(?:must leave|must be out|must be pulled|needs? rescue)\s+(?:by|before)\s*/i,
+// Past tense / backstory patterns that should NOT trigger urgency
+const PAST_TENSE_NEGATIVES = [
+  /(?:was|were|been|got|being)\s+(?:euthanize|euthanised|put down|put to sleep|killed|destroyed)/i,
+  /(?:saved|rescued|pulled)\s+(?:from|off)\s+(?:the\s+)?(?:euthanasia|euth|kill|death)\s*(?:list|row)?/i,
+  /(?:came|taken|removed|got)\s+(?:from|off)\s+(?:the\s+)?(?:euthanasia|euth|kill|death)\s*(?:list|row)?/i,
+  /(?:former|previous|ex)[- ]?(?:death row|euth list|kill list)/i,
+  /(?:survived|avoided|escaped|spared)\s+(?:euthanasia|being put down|being killed)/i,
+  /(?:no longer|not)\s+(?:on|at)\s+(?:the\s+)?(?:euthanasia|euth|kill|death)\s*(?:list|row)/i,
 ];
 
-// MEDIUM confidence: at-risk / kill list indicators (no date)
+// Org boilerplate — same text across many dogs from same org
+const ORG_BOILERPLATE_PATTERNS = [
+  /(?:our|we|this)\s+(?:mission|goal|focus|purpose)\s+is\s+(?:to\s+)?(?:rescue|save|pull)\s+(?:dogs|animals|pets)\s+(?:from|off)\s+(?:the\s+)?(?:euthanasia|euth|kill|death)/i,
+  /rescuing\s+(?:dogs|animals|pets)\s+from\s+(?:the\s+)?(?:euthanasia|euth|kill|high[- ]?kill)/i,
+  /(?:high[- ]?kill|kill)\s+(?:shelters?|facilities?|pounds?)/i,
+  /(?:save|rescue)\s+(?:dogs|animals|pets)\s+(?:from|before)\s+(?:euthanasia|being put down|being killed)/i,
+];
+
+// ── Urgency pattern matchers ──
+
+// HIGH confidence: explicit future-tense euthanasia deadline for THIS dog
+const EUTHANASIA_DATE_PATTERNS = [
+  // "will be euthanized/put down/killed by/on [date]" — MUST be future tense
+  /(?:will be|is going to be|is scheduled to be|is set to be)\s+(?:euthan(?:ize|ized|asia)|put (?:down|to sleep)|killed|destroyed|PTS)\s*(?:on|by|if not)?\s*:?\s*/i,
+  // "scheduled/slated for euthanasia on/by [date]"
+  /(?:scheduled|slated|set|planned)\s+(?:for|to be)\s+(?:euthan(?:ize|ized|asia)|put (?:down|to sleep)|PTS)\s*(?:on|by)?\s*:?\s*/i,
+  // "euth date: [date]"
+  /(?:euth|euthanasia)\s*(?:date|deadline)\s*:?\s*/i,
+  // "TBD (to be destroyed) [date]"
+  /TBD\s*\(?\s*to be destroyed\s*\)?\s*(?:on|by)?\s*:?\s*/i,
+  // "must leave/be out/be pulled by [date]"
+  /(?:must leave|must be out|must be pulled)\s+(?:by|before)\s*/i,
+  // "last day is [date]" / "final day [date]"
+  /(?:last day|final day)\s*(?:is|:)\s*/i,
+];
+
+// MEDIUM confidence: at-risk indicators — only match when clearly about THIS dog NOW
 const AT_RISK_PATTERNS = [
-  /\b(?:CODE RED|code red)\b/i,
-  /\b(?:URGENT|EMERGENCY)\s*[-:!]/i,
-  /\bon\s+(?:the\s+)?(?:euth(?:anasia)?|kill|death|destroy|at[- ]?risk)\s+list\b/i,
-  /\b(?:at[- ]?risk|death row|kill list|destroy list|euth list)\b/i,
-  /\b(?:rescue only|rescue needed|needs? rescue|rescue pull)\b/i,
+  /\b(?:CODE RED)\b/,  // All caps CODE RED is very specific
+  /\bURGENT\s*[-:!]\s*(?:will be|scheduled|euth|euthanasia|put down)/i,
+  /\bon\s+(?:the\s+)?(?:euth(?:anasia)?|kill|death|destroy)\s+list\b/i,
+  /\b(?:death row)\b/i,
   /\bscheduled for euthanasia\b/i,
   /\bwill be (?:put down|killed|euthanized|destroyed)\b/i,
 ];
 
-// LOW confidence: general urgency language
+// LOW confidence: general urgency — only return these if very clearly about this dog
 const URGENT_PATTERNS = [
-  /\bURGENT\b/,
-  /\bSAVE ME\b/i,
-  /\bNEEDS? (?:OUT|HELP|RESCUE|HOME)\s+(?:NOW|ASAP|IMMEDIATELY|TODAY|URGENT)\b/i,
+  /\bNEEDS? (?:OUT|RESCUE|HOME)\s+(?:NOW|ASAP|IMMEDIATELY|TODAY|URGENT)\b/i,
   /\btime is running out\b/i,
   /\bout of time\b/i,
-  /\bno time left\b/i,
   /\bwill die\b/i,
-  /\bhelp (?:me|this dog) (?:before|now)\b/i,
   /\blast chance\b/i,
-  /\bfinal plea\b/i,
   /\b(?:emergency|critical)\s+(?:foster|placement|adoption)\b/i,
 ];
+
+/**
+ * Check if the matched text is a false positive (past tense, boilerplate, etc.)
+ */
+function isFalsePositive(description: string, matchIndex: number): boolean {
+  // Get context around the match (200 chars before and after)
+  const contextStart = Math.max(0, matchIndex - 200);
+  const contextEnd = Math.min(description.length, matchIndex + 200);
+  const context = description.slice(contextStart, contextEnd);
+
+  // Check past tense / backstory
+  for (const pattern of PAST_TENSE_NEGATIVES) {
+    if (pattern.test(context)) return true;
+  }
+
+  // Check org boilerplate
+  for (const pattern of ORG_BOILERPLATE_PATTERNS) {
+    if (pattern.test(context)) return true;
+  }
+
+  return false;
+}
 
 export function parseUrgencyFromDescription(
   description: string | null
@@ -200,6 +233,9 @@ export function parseUrgencyFromDescription(
     const match = pattern.exec(text);
     if (!match) continue;
 
+    // Check for false positives
+    if (isFalsePositive(text, match.index)) continue;
+
     const afterMatch = text.slice(match.index + match[0].length, match.index + match[0].length + 80);
     const date = extractDateAfterPhrase(afterMatch);
 
@@ -212,13 +248,21 @@ export function parseUrgencyFromDescription(
       };
     }
 
-    // Even without a parseable date, the phrase itself is valuable
-    return {
-      type: "euthanasia_date",
-      date: null,
-      confidence: "medium",
-      matchedText: match[0].trim(),
-    };
+    // Without a parseable date, only return if the phrase is VERY specific
+    // "euth date:", "last day is", "TBD" are specific enough
+    // Generic "will be euthanized" without a date is not actionable
+    if (/(?:euth|euthanasia)\s*(?:date|deadline)\s*:/i.test(match[0]) ||
+        /(?:last day|final day)\s*(?:is|:)/i.test(match[0]) ||
+        /TBD/i.test(match[0])) {
+      return {
+        type: "euthanasia_date",
+        date: null,
+        confidence: "medium",
+        matchedText: match[0].trim(),
+      };
+    }
+
+    // Skip dateless matches for generic patterns — too many false positives
   }
 
   // Strategy 2: At-risk / kill list indicators
@@ -226,7 +270,10 @@ export function parseUrgencyFromDescription(
     const match = pattern.exec(text);
     if (!match) continue;
 
-    // Try to extract a date from nearby context (±100 chars)
+    // Check for false positives
+    if (isFalsePositive(text, match.index)) continue;
+
+    // Try to extract a date from nearby context
     const start = Math.max(0, match.index - 50);
     const end = Math.min(text.length, match.index + match[0].length + 100);
     const context = text.slice(start, end);
@@ -240,10 +287,12 @@ export function parseUrgencyFromDescription(
     };
   }
 
-  // Strategy 3: General urgency language
+  // Strategy 3: General urgency language (LOW confidence — only used for "medium" bump)
   for (const pattern of URGENT_PATTERNS) {
     const match = pattern.exec(text);
     if (!match) continue;
+
+    if (isFalsePositive(text, match.index)) continue;
 
     return {
       type: "urgent",

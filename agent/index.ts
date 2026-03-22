@@ -510,6 +510,12 @@ async function taskVerify() {
       killDates += result.killDatesCaptured;
       totalApiCalls += result.checked;
 
+      // Update global counters in real-time so dashboard reflects progress immediately
+      totalDogsProcessed += result.checked;
+      totalVerified += result.verified;
+      totalDeactivated += result.deactivated;
+      totalErrors += result.errors;
+
       // Reset consecutive error counter on success
       if (result.errors === 0) consecutiveApiErrors = 0;
       else consecutiveApiErrors += result.errors;
@@ -541,12 +547,8 @@ async function taskVerify() {
     }
   }
 
-  totalDogsProcessed += processed;
-  totalVerified += verified;
-  totalDeactivated += deactivated;
-  totalErrors += errors;
+  // Counters already updated in real-time inside the loop above
   // Don't clear currentDog — keep showing the last verified dog in the slideshow
-  // currentDog = null;
 
   const speed = getVerifySpeed();
   bus.log("success", "verify",
