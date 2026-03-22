@@ -116,7 +116,41 @@
     .error-msg { color: #ccc; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .error-time { color: #555; font-size: 9px; }
 
-    /* Log section */
+    /* Debug Log section */
+    .debug-section { background: #0d0d0d; border: 2px solid #1a1a1a; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+    .debug-header { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #222; background: #111; cursor: pointer; user-select: none; }
+    .debug-header:hover { background: #161616; }
+    .debug-title { font-size: 12px; color: #00ff41; font-weight: bold; letter-spacing: 1px; }
+    .debug-toggle { color: #555; font-size: 14px; margin-right: 6px; transition: transform 0.2s; }
+    .debug-toggle.open { transform: rotate(90deg); }
+    .debug-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #00ff41; animation: pulse-dot 1.5s ease-in-out infinite; margin-left: 4px; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .debug-rate { font-size: 10px; color: #555; margin-left: auto; }
+    .debug-controls { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid #1a1a1a; background: #0f0f0f; }
+    .debug-controls label { font-size: 10px; color: #555; }
+    .debug-controls select, .debug-controls input { background: #1a1a1a; border: 1px solid #2a2a2a; color: #ccc; padding: 3px 6px; border-radius: 4px; font-family: inherit; font-size: 10px; }
+    .debug-controls input[type="text"] { width: 160px; }
+    .debug-body { height: 320px; overflow-y: auto; padding: 2px 0; font-size: 11px; }
+    .debug-body.collapsed { display: none; }
+    .debug-line { padding: 1px 14px; line-height: 1.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #0f0f0f; }
+    .debug-line:hover { background: #151515; white-space: normal; word-break: break-all; }
+    .debug-line .dt { color: #333; font-size: 10px; margin-right: 4px; }
+    .debug-line .dlvl { display: inline-block; width: 44px; text-align: center; font-size: 8px; font-weight: bold; border-radius: 3px; padding: 1px 0; margin-right: 4px; letter-spacing: 0.5px; }
+    .debug-line .dlvl-info { background: #1a1a1a; color: #555; }
+    .debug-line .dlvl-warn { background: #422006; color: #f59e0b; }
+    .debug-line .dlvl-error { background: #450a0a; color: #ef4444; }
+    .debug-line .dlvl-success { background: #052e16; color: #00ff41; }
+    .debug-line .dcat { color: #818cf8; font-size: 10px; margin-right: 4px; }
+    .debug-line .dmsg { color: #aaa; }
+    .debug-line .dmsg-warn { color: #f59e0b; }
+    .debug-line .dmsg-error { color: #ef4444; }
+    .debug-line .dmsg-success { color: #00ff41; }
+    .debug-line .ddetail { color: #444; font-size: 10px; margin-left: 8px; }
+    .debug-stats { display: flex; gap: 16px; padding: 6px 14px; border-top: 1px solid #1a1a1a; background: #0f0f0f; font-size: 10px; color: #444; }
+    .debug-stats span { display: flex; align-items: center; gap: 4px; }
+    .debug-stats .ds-val { color: #00ff41; font-weight: bold; }
+
+    /* Log section (compact) */
     .log-section { background: #111; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden; }
     .log-controls { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #222; background: #151515; }
     .log-controls label { font-size: 10px; color: #666; }
@@ -125,7 +159,7 @@
     .autoscroll-on { background: #052e16; color: #00ff41; }
     .autoscroll-off { background: #422006; color: #f59e0b; }
 
-    .log-container { height: 380px; overflow-y: auto; padding: 2px 0; }
+    .log-container { height: 250px; overflow-y: auto; padding: 2px 0; }
     .log-entry { padding: 1px 14px; font-size: 11px; line-height: 1.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .log-entry:hover { background: #1a1a1a; white-space: normal; }
     .log-info { color: #777; }
@@ -307,7 +341,51 @@
       </div>
     </div>
 
-    <!-- Log Section -->
+    <!-- ═══ REAL-TIME DEBUG LOG ═══ -->
+    <div class="debug-section" id="debug-section">
+      <div class="debug-header" onclick="toggleDebug()">
+        <span class="debug-toggle open" id="debug-toggle">&#9654;</span>
+        <span class="debug-title">REAL-TIME DEBUG LOG</span>
+        <span class="debug-live-dot" id="debug-live-dot"></span>
+        <span class="debug-rate" id="debug-rate">0 events/s</span>
+      </div>
+      <div class="debug-controls" id="debug-controls">
+        <label>Category:</label>
+        <select id="debug-cat-filter" onchange="filterDebug()">
+          <option value="all">All</option>
+          <option value="verify">Verify</option>
+          <option value="sync">Sync</option>
+          <option value="audit">Audit</option>
+          <option value="errors">Error Fix</option>
+          <option value="urgency">Urgency</option>
+          <option value="stats">Stats</option>
+          <option value="system">System</option>
+          <option value="scheduler">Scheduler</option>
+        </select>
+        <label>Level:</label>
+        <select id="debug-lvl-filter" onchange="filterDebug()">
+          <option value="all">All</option>
+          <option value="error">Errors Only</option>
+          <option value="warn">Warnings+</option>
+          <option value="success">Success</option>
+        </select>
+        <label>Search:</label>
+        <input type="text" id="debug-search" placeholder="Filter messages..." oninput="filterDebug()">
+        <button class="btn" onclick="clearDebug()" style="margin-left:auto;font-size:10px;padding:3px 10px">Clear</button>
+        <button class="btn" onclick="exportDebug()" style="font-size:10px;padding:3px 10px">Export</button>
+      </div>
+      <div class="debug-body" id="debug-body"></div>
+      <div class="debug-stats">
+        <span>Total: <span class="ds-val" id="ds-total">0</span></span>
+        <span>Errors: <span class="ds-val" id="ds-errors" style="color:#ef4444">0</span></span>
+        <span>Warnings: <span class="ds-val" id="ds-warns" style="color:#f59e0b">0</span></span>
+        <span>Success: <span class="ds-val" id="ds-success">0</span></span>
+        <span>Dogs: <span class="ds-val" id="ds-dogs" style="color:#60a5fa">0</span></span>
+        <span>Fixes: <span class="ds-val" id="ds-fixes" style="color:#a78bfa">0</span></span>
+      </div>
+    </div>
+
+    <!-- Log Section (legacy compact) -->
     <div class="log-section">
       <div class="log-controls">
         <label>Filter:</label>
@@ -348,6 +426,126 @@
     let slideCount = 0;
     let dogHistory = []; // last N dogs for display
 
+    // Debug panel state
+    let debugOpen = true;
+    let debugAutoScroll = true;
+    let debugEntries = []; // raw entries for export
+    let debugStats = { total: 0, errors: 0, warns: 0, success: 0, dogs: 0, fixes: 0 };
+    let debugEventsPerSec = 0;
+    let debugEventCounter = 0;
+    setInterval(() => {
+      debugEventsPerSec = debugEventCounter;
+      debugEventCounter = 0;
+      const rateEl = document.getElementById("debug-rate");
+      if (rateEl) rateEl.textContent = debugEventsPerSec + " events/s";
+    }, 1000);
+
+    // ═══════════════════════════════════════
+    // Debug Panel
+    // ═══════════════════════════════════════
+    function toggleDebug() {
+      debugOpen = !debugOpen;
+      document.getElementById("debug-toggle").classList.toggle("open", debugOpen);
+      document.getElementById("debug-body").classList.toggle("collapsed", !debugOpen);
+      document.getElementById("debug-controls").style.display = debugOpen ? "" : "none";
+    }
+
+    function addDebugEntry(type, level, category, message, extra) {
+      debugEventCounter++;
+      debugStats.total++;
+      if (level === "error") debugStats.errors++;
+      if (level === "warn") debugStats.warns++;
+      if (level === "success") debugStats.success++;
+      if (type === "dog") debugStats.dogs++;
+      if (type === "fix") debugStats.fixes++;
+
+      // Update stat counters
+      document.getElementById("ds-total").textContent = debugStats.total;
+      document.getElementById("ds-errors").textContent = debugStats.errors;
+      document.getElementById("ds-warns").textContent = debugStats.warns;
+      document.getElementById("ds-success").textContent = debugStats.success;
+      document.getElementById("ds-dogs").textContent = debugStats.dogs;
+      document.getElementById("ds-fixes").textContent = debugStats.fixes;
+
+      // Pulse the live dot
+      const dot = document.getElementById("debug-live-dot");
+      dot.style.background = level === "error" ? "#ef4444" : level === "warn" ? "#f59e0b" : "#00ff41";
+      setTimeout(() => { dot.style.background = "#00ff41"; }, 300);
+
+      const entry = { time: new Date().toISOString(), type, level, category, message, extra };
+      debugEntries.push(entry);
+      if (debugEntries.length > 5000) debugEntries = debugEntries.slice(-4000);
+
+      const container = document.getElementById("debug-body");
+      const div = document.createElement("div");
+      div.className = "debug-line";
+      div.dataset.category = category || "system";
+      div.dataset.level = level;
+      div.dataset.msg = (message || "").toLowerCase();
+
+      const time = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3 });
+      const msgClass = level === "error" ? "dmsg-error" : level === "warn" ? "dmsg-warn" : level === "success" ? "dmsg-success" : "";
+
+      let html = '<span class="dt">' + time + '</span>' +
+        '<span class="dlvl dlvl-' + level + '">' + level.toUpperCase() + '</span>' +
+        '<span class="dcat">[' + (category || type) + ']</span>' +
+        '<span class="dmsg ' + msgClass + '">' + escHtml(message) + '</span>';
+      if (extra) html += '<span class="ddetail">' + escHtml(extra) + '</span>';
+
+      div.innerHTML = html;
+
+      // Apply current filters
+      if (!matchesDebugFilter(div)) div.style.display = "none";
+
+      container.appendChild(div);
+      while (container.children.length > 3000) container.removeChild(container.firstChild);
+      if (debugAutoScroll) container.scrollTop = container.scrollHeight;
+    }
+
+    function matchesDebugFilter(el) {
+      const catF = document.getElementById("debug-cat-filter").value;
+      const lvlF = document.getElementById("debug-lvl-filter").value;
+      const search = (document.getElementById("debug-search").value || "").toLowerCase();
+
+      if (catF !== "all" && el.dataset.category !== catF) return false;
+      if (lvlF === "error" && el.dataset.level !== "error") return false;
+      if (lvlF === "warn" && el.dataset.level !== "error" && el.dataset.level !== "warn") return false;
+      if (lvlF === "success" && el.dataset.level !== "success") return false;
+      if (search && !el.dataset.msg.includes(search)) return false;
+      return true;
+    }
+
+    function filterDebug() {
+      const entries = document.querySelectorAll("#debug-body .debug-line");
+      entries.forEach(el => {
+        el.style.display = matchesDebugFilter(el) ? "" : "none";
+      });
+    }
+
+    function clearDebug() {
+      document.getElementById("debug-body").innerHTML = "";
+      debugEntries = [];
+      debugStats = { total: 0, errors: 0, warns: 0, success: 0, dogs: 0, fixes: 0 };
+      ["ds-total", "ds-errors", "ds-warns", "ds-success", "ds-dogs", "ds-fixes"].forEach(id => {
+        document.getElementById(id).textContent = "0";
+      });
+    }
+
+    function exportDebug() {
+      const blob = new Blob([JSON.stringify(debugEntries, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "wtl-debug-" + new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19) + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Auto-scroll detection for debug panel
+    document.getElementById("debug-body").addEventListener("scroll", function() {
+      debugAutoScroll = this.scrollHeight - this.scrollTop - this.clientHeight < 50;
+    });
+
     // ═══════════════════════════════════════
     // SSE Connection
     // ═══════════════════════════════════════
@@ -366,6 +564,7 @@
         try {
           const entry = JSON.parse(e.data);
           appendLog(entry);
+          addDebugEntry("log", entry.level, entry.category, entry.message, entry.details ? JSON.stringify(entry.details) : "");
         } catch {}
       });
 
@@ -374,6 +573,10 @@
         try {
           const event = JSON.parse(e.data);
           updateSlideshow(event);
+          const d = event.dog;
+          addDebugEntry("dog", event.outcome === "deactivated" ? "warn" : "success", "verify",
+            d.name + " — " + event.outcome.toUpperCase() + (event.details ? " — " + event.details : ""),
+            d.shelter_name + ", " + d.shelter_state + " | " + d.wait_days + "d wait");
         } catch {}
       });
 
@@ -382,6 +585,9 @@
         try {
           const event = JSON.parse(e.data);
           addErrorFix(event);
+          addDebugEntry("fix", "warn", "errors",
+            "FIX: " + event.fixType.replace(/_/g, " ") + " — " + event.dogName,
+            event.before + " -> " + event.after);
         } catch {}
       });
 
@@ -390,6 +596,7 @@
         try {
           const entry = JSON.parse(e.data);
           appendLog(entry);
+          addDebugEntry("log", entry.level || "info", entry.category || "system", entry.message, "");
         } catch {}
       };
 
