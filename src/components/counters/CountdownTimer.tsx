@@ -13,12 +13,14 @@ interface CountdownTimerProps {
   euthanasiaDate: string;
   compact?: boolean;
   className?: string;
+  urgencyLevel?: string;
 }
 
 export default function CountdownTimer({
   euthanasiaDate,
   compact = false,
   className = "",
+  urgencyLevel,
 }: CountdownTimerProps) {
   const [countdown, setCountdown] = useState<CountdownComponents | null>(null);
 
@@ -54,10 +56,11 @@ export default function CountdownTimer({
 
   const sizeClass = compact ? "led-counter-sm" : "";
   const criticalClass = countdown.is_critical ? "critical" : "";
+  const urgencyClass = urgencyLevel === "high" || urgencyLevel === "medium" ? "urgent-high" : "";
 
   return (
     <div
-      className={`led-counter countdown ${criticalClass} ${sizeClass} ${className}`}
+      className={`led-counter countdown ${criticalClass} ${urgencyClass} ${sizeClass} ${className}`}
       aria-label={`${countdown.days} days, ${countdown.hours} hours remaining`}
     >
       <div className="led-counter-container">

@@ -51,6 +51,12 @@ export default function Header() {
               By State
             </Link>
             <Link
+              href="/breeds"
+              className="text-gray-300 hover:text-white transition"
+            >
+              Breeds
+            </Link>
+            <Link
               href="/shelters"
               className="text-gray-300 hover:text-white transition"
             >
@@ -61,6 +67,15 @@ export default function Header() {
               className="text-gray-300 hover:text-white transition"
             >
               Foster
+            </Link>
+            <Link
+              href="/saved"
+              className="text-gray-300 hover:text-white transition flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              Saved
             </Link>
           </nav>
 
@@ -129,6 +144,13 @@ export default function Header() {
               By State
             </Link>
             <Link
+              href="/breeds"
+              className="block px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Breeds
+            </Link>
+            <Link
               href="/shelters"
               className="block px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700"
               onClick={() => setMobileMenuOpen(false)}
@@ -141,6 +163,13 @@ export default function Header() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Foster a Dog
+            </Link>
+            <Link
+              href="/saved"
+              className="block px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Saved Dogs
             </Link>
           </div>
         </div>

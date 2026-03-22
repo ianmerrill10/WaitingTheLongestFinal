@@ -56,7 +56,10 @@ export default function NationalAvgCounter() {
         </p>
 
         {/* LED Display */}
-        <div className="led-counter wait-time inline-flex justify-center">
+        <div
+          className="led-counter wait-time inline-flex justify-center"
+          aria-label={`National average wait time: ${months} months, ${days} days, ${hours} hours`}
+        >
           <div className="led-counter-container">
             {values.map((item, i) => {
               const padded = String(item.val).padStart(2, "0");

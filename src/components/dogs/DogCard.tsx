@@ -5,6 +5,7 @@ import Image from "next/image";
 import LEDCounter from "@/components/counters/LEDCounter";
 import CountdownTimer from "@/components/counters/CountdownTimer";
 import UrgencyBadge from "@/components/ui/UrgencyBadge";
+import SaveButton from "@/components/ui/SaveButton";
 import type { Dog } from "@/types/dog";
 import type { UrgencyLevel } from "@/lib/constants";
 
@@ -40,7 +41,7 @@ export default function DogCard({
   return (
     <Link
       href={`/dogs/${dog.id}`}
-      className={`group bg-white rounded-lg shadow-sm border ${borderClass} overflow-hidden hover:shadow-md transition-all block`}
+      className={`group bg-white rounded-lg shadow-sm border ${borderClass} overflow-hidden hover:shadow-md transition-all block focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2`}
     >
       {/* Photo */}
       <div className="aspect-square bg-gray-100 relative overflow-hidden">
@@ -81,6 +82,10 @@ export default function DogCard({
             FEE WAIVED
           </div>
         )}
+        {/* Save button */}
+        <div className="absolute bottom-2 right-2">
+          <SaveButton dogId={dog.id} dogName={dog.name} breed={dog.breed_primary} photo={dog.primary_photo_url} />
+        </div>
       </div>
 
       {/* Card Content */}

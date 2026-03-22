@@ -71,6 +71,13 @@ export default function DogListings() {
       if (urgency) params.set("urgency", urgency);
       if (search) params.set("q", search);
 
+      // Pass through compatibility & quick filters
+      const passthrough = ["good_with_kids", "good_with_dogs", "good_with_cats", "house_trained", "new_today", "fee_waived"];
+      for (const key of passthrough) {
+        const val = searchParams.get(key);
+        if (val) params.set(key, val);
+      }
+
       const res = await fetch(`/api/dogs?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch dogs");
       const data: DogsResponse = await res.json();
@@ -82,7 +89,7 @@ export default function DogListings() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sort, breed, size, age, gender, state, urgency, search]);
+  }, [currentPage, sort, breed, size, age, gender, state, urgency, search, searchParams]);
 
   useEffect(() => {
     fetchDogs();
@@ -110,7 +117,10 @@ export default function DogListings() {
     router.push(`/dogs?${params.toString()}`);
   }
 
-  const hasFilters = breed || size || age || gender || state || urgency || search;
+  const hasFilters = breed || size || age || gender || state || urgency || search ||
+    searchParams.get("good_with_kids") || searchParams.get("good_with_dogs") ||
+    searchParams.get("good_with_cats") || searchParams.get("house_trained") ||
+    searchParams.get("new_today") || searchParams.get("fee_waived");
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -274,6 +284,54 @@ export default function DogListings() {
               <option value="medium">At Risk (&lt;7d)</option>
               <option value="normal">Available</option>
             </select>
+          </div>
+
+          {/* Compatibility Filters */}
+          <div className="mb-5">
+            <p className="block text-sm font-semibold text-gray-700 mb-2">Compatibility</p>
+            <div className="space-y-2">
+              {[
+                { key: "good_with_kids", label: "Good with Kids" },
+                { key: "good_with_dogs", label: "Good with Dogs" },
+                { key: "good_with_cats", label: "Good with Cats" },
+                { key: "house_trained", label: "House Trained" },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={searchParams.get(key) === "true"}
+                    onChange={(e) => updateFilter(key, e.target.checked ? "true" : "")}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Filters */}
+          <div className="mb-5">
+            <p className="block text-sm font-semibold text-gray-700 mb-2">Quick Filters</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={searchParams.get("new_today") === "true"}
+                  onChange={(e) => updateFilter("new_today", e.target.checked ? "true" : "")}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                New Today
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={searchParams.get("fee_waived") === "true"}
+                  onChange={(e) => updateFilter("fee_waived", e.target.checked ? "true" : "")}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Fee Waived
+              </label>
+            </div>
           </div>
         </div>
       </aside>

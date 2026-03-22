@@ -1,0 +1,22 @@
+{
+  "name": "WaitingTheLongest - Save Shelter Dogs",
+  "short_name": "WaitingTheLongest",
+  "description": "Find adoptable dogs from shelters across America. Real-time countdown timers for dogs on euthanasia lists.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00ff41",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

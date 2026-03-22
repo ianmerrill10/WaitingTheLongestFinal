@@ -282,42 +282,114 @@ export default async function ShelterProfilePage({
                 </div>
               )}
             </div>
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+              {shelter.latitude && shelter.longitude && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${shelter.latitude},${shelter.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Get Directions
+                </a>
+              )}
+              {shelter.website && (
+                <a
+                  href={shelter.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 rounded-full hover:bg-gray-100 transition"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Visit Website
+                </a>
+              )}
+              {shelter.email && (
+                <a
+                  href={`mailto:${shelter.email}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 rounded-full hover:bg-gray-100 transition"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Email
+                </a>
+              )}
+              {shelter.phone && (
+                <a
+                  href={`tel:${shelter.phone}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 rounded-full hover:bg-gray-100 transition"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  Call
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Location */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h3 className="font-bold text-gray-900 mb-3">Location</h3>
-            <div className="aspect-[4/3] bg-gray-200 rounded-lg flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <svg
-                  className="mx-auto w-10 h-10 mb-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+          {shelter.latitude && shelter.longitude ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <h3 className="font-bold text-gray-900 p-6 pb-3">Location</h3>
+              <iframe
+                title={`Map of ${shelter.name}`}
+                width="100%"
+                height="300"
+                style={{ border: 0 }}
+                loading="lazy"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${shelter.longitude - 0.02}%2C${shelter.latitude - 0.015}%2C${shelter.longitude + 0.02}%2C${shelter.latitude + 0.015}&layer=mapnik&marker=${shelter.latitude}%2C${shelter.longitude}`}
+              />
+              <div className="p-3 text-center space-y-2">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${shelter.latitude},${shelter.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <p className="text-xs">Map will display here</p>
+                  Get Directions
+                </a>
+                <Link
+                  href={`/states/${shelter.state_code.toLowerCase()}`}
+                  className="block text-sm text-blue-600 hover:underline"
+                >
+                  View all shelters in {shelter.state_code}
+                </Link>
               </div>
             </div>
-            <Link
-              href={`/states/${shelter.state_code.toLowerCase()}`}
-              className="block mt-3 text-center text-sm text-blue-600 hover:underline"
-            >
-              View all shelters in {shelter.state_code}
-            </Link>
-          </div>
+          ) : shelter.city && shelter.state_code ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <h3 className="font-bold text-gray-900 p-6 pb-3">Location</h3>
+              <iframe
+                title={`Map of ${shelter.city}, ${shelter.state_code}`}
+                width="100%"
+                height="300"
+                style={{ border: 0 }}
+                loading="lazy"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=-180%2C-90%2C180%2C90&layer=mapnik`}
+              />
+              <div className="p-3 text-center space-y-2">
+                <p className="text-sm text-gray-500">
+                  {shelter.city}, {shelter.state_code}
+                </p>
+                <Link
+                  href={`/states/${shelter.state_code.toLowerCase()}`}
+                  className="block text-sm text-blue-600 hover:underline"
+                >
+                  View all shelters in {shelter.state_code}
+                </Link>
+              </div>
+            </div>
+          ) : null}
 
           {/* Actions */}
           <div className="bg-green-50 rounded-xl p-6 border border-green-200">

@@ -1,8 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import BottomTabs from "@/components/layout/BottomTabs";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import UrgentTicker from "@/components/ui/UrgentTicker";
+import { generateOrganizationJsonLd } from "@/lib/utils/json-ld";
 
 export const metadata: Metadata = {
   title: {
@@ -39,6 +42,11 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#00ff41",
 };
 
 export default function RootLayout({
@@ -49,8 +57,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:font-medium">
+          Skip to content
+        </a>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(generateOrganizationJsonLd()),
+          }}
+        />
         <Header />
-        <main className="flex-1 pb-16 md:pb-0">{children}</main>
+        <UrgentTicker />
+        <main id="main-content" className="flex-1 pb-16 md:pb-0">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
         <Footer />
         <BottomTabs />
       </body>

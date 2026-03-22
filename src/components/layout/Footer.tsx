@@ -50,8 +50,18 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/breeds" className="hover:text-white transition">
+                  Browse by Breed
+                </Link>
+              </li>
+              <li>
                 <Link href="/shelters" className="hover:text-white transition">
                   Shelter Directory
+                </Link>
+              </li>
+              <li>
+                <Link href="/saved" className="hover:text-white transition">
+                  Saved Dogs
                 </Link>
               </li>
             </ul>

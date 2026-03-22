@@ -91,6 +91,11 @@ export default async function HomePage() {
                   Search
                 </button>
               </form>
+              <div className="flex justify-center gap-4 mt-4">
+                <Link href="/dogs?sort=random" className="text-sm text-gray-400 hover:text-led-green transition">
+                  Show me a random dog
+                </Link>
+              </div>
             </div>
 
             {/* National Average Wait Time */}

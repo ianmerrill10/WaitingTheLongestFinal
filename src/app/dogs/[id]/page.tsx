@@ -9,6 +9,7 @@ import UrgencyBadge from "@/components/ui/UrgencyBadge";
 import InterestForm from "@/components/ui/InterestForm";
 import ShareButtons from "@/components/ui/ShareButtons";
 import PhotoLightbox from "@/components/ui/PhotoLightbox";
+import ProductRecommendations from "@/components/monetization/ProductRecommendations";
 import type { UrgencyLevel } from "@/lib/constants";
 import { generateDogJsonLd, generateBreadcrumbJsonLd } from "@/lib/utils/json-ld";
 
@@ -366,6 +367,16 @@ export default async function DogProfilePage({
               Learn About Fostering
             </Link>
           </div>
+
+          {/* Product Recommendations (hidden for urgent dogs) */}
+          <ProductRecommendations
+            dogId={dog.id}
+            dogName={dog.name}
+            breed={dog.breed_primary}
+            size={dog.size}
+            ageText={dog.age_category}
+            urgencyLevel={urgency}
+          />
 
           {/* Data Accuracy Disclaimer */}
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">

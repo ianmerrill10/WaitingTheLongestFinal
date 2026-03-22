@@ -5,12 +5,16 @@ import { useState } from "react";
 interface ShareButtonsProps {
   dogName: string;
   url?: string;
+  isUrgent?: boolean;
+  euthanasiaDate?: string | null;
 }
 
-export default function ShareButtons({ dogName, url }: ShareButtonsProps) {
+export default function ShareButtons({ dogName, url, isUrgent, euthanasiaDate }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
   const shareUrl = url || (typeof window !== "undefined" ? window.location.href : "");
-  const shareText = `${dogName} is waiting for a forever home! Help save a life.`;
+  const shareText = isUrgent && euthanasiaDate
+    ? `URGENT: ${dogName} may be euthanized by ${new Date(euthanasiaDate).toLocaleDateString()}! Please help save this dog.`
+    : `${dogName} is waiting for a forever home! Help save a life.`;
 
   async function copyLink() {
     try {

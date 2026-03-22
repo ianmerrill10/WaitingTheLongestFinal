@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import FosterForm from "@/components/foster/FosterForm";
+import FosterChecklist from "@/components/foster/FosterChecklist";
 
 export const metadata: Metadata = {
   title: "Become a Foster - Save a Life",
@@ -191,6 +192,16 @@ export default function FosterPage() {
               question="I already have pets. Can I still foster?"
               answer="Yes! Many foster dogs are good with other animals. Shelters will help match you with a compatible dog and provide guidance on introductions."
             />
+          </div>
+        </section>
+
+        {/* Foster Readiness Checklist */}
+        <section className="mb-16">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-8 text-center">
+            Get Ready to Foster
+          </h2>
+          <div className="max-w-2xl mx-auto">
+            <FosterChecklist />
           </div>
         </section>
 
