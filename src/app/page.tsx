@@ -39,10 +39,13 @@ export default async function HomePage() {
     urgentDogs = urgentRes.data || [];
 
     // Fetch longest waiting dogs (top 6)
+    // Only show dogs with credible date confidence — "low" and "unknown"
+    // dates are often stale RescueGroups listings from years ago, not real wait times
     const waitingRes = await supabase
       .from("dogs")
       .select("*, shelters!inner(name, city, state_code)")
       .eq("is_available", true)
+      .in("date_confidence", ["verified", "high", "medium"])
       .order("intake_date", { ascending: true })
       .limit(6);
     longestWaiting = waitingRes.data || [];

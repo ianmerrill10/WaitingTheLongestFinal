@@ -107,6 +107,32 @@ const INVALID_NAME_PATTERNS = [
   /^(?:no\s+name|unnamed|none|n\/a|tbd|unknown dog|dog)$/i,
 ];
 
+// ─── Non-dog listing patterns (informational/org pages on RescueGroups) ───
+// These are listings that shelters/rescues create that aren't individual adoptable dogs.
+
+const NON_DOG_NAME_PATTERNS = [
+  /^fosters?\s+needed$/i,
+  /^foster\s+(?:dog\s+)?blog$/i,
+  /^(?:pre-?approval|pre-?approve|application)$/i,
+  /^sponsor\b/i,
+  /\bsponsorship\b/i,
+  /^donate\b/i,
+  /^donation/i,
+  /^volunteer/i,
+  /^about\s+(?:us|our)/i,
+  /^how\s+to\s+(?:adopt|foster|help)/i,
+  /^(?:wish\s*list|wish-?list)$/i,
+  /^(?:supplies|items)\s+needed$/i,
+  /^(?:info|information|faq|contact)/i,
+  /^(?:event|fundraiser|gala|auction)/i,
+  /^(?:memorial|in\s+memory|rainbow\s+bridge)/i,
+  /^(?:happy\s+tail|success\s+stor)/i,
+  /^(?:adoption\s+(?:process|info|application|fee))/i,
+  /^(?:our\s+(?:dogs|mission|story|team))/i,
+  /^(?:foster\s+(?:info|application|program|home))/i,
+  /^(?:transport|courtesy\s+(?:post|listing))/i,
+];
+
 // ─── Size normalization ───
 
 function normalizeSize(
@@ -326,6 +352,23 @@ export function validateListing(options: {
 
   // 2. Validate required fields
   const name = cleanName(options.name);
+
+  // Check for non-dog listings (info pages, sponsorship pages, etc.)
+  for (const pattern of NON_DOG_NAME_PATTERNS) {
+    if (pattern.test(name)) {
+      return {
+        isValid: false,
+        classification: {
+          classification: "unknown" as SourceClass,
+          confidence: 0.9,
+          reason: `Non-dog listing: "${name}"`,
+          shouldReject: true,
+        },
+        issues: [`REJECTED: non-dog listing "${name}"`],
+        normalizedData: null,
+      };
+    }
+  }
 
   // Check for invalid names
   for (const pattern of INVALID_NAME_PATTERNS) {

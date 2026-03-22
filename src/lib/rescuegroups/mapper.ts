@@ -211,16 +211,12 @@ export function mapRescueGroupsDog(
   const { ageMonths, birthDateStr } = computeAgeMonthsFromSources(attrs, description);
   const intakeDateResult = computeIntakeDate(attrs, description, ageMonths, birthDateStr);
 
-  // Capture euthanasia data from killDate
-  let euthanasia_date: string | null = null;
-  let is_on_euthanasia_list = false;
-  if (attrs.killDate) {
-    const kd = new Date(attrs.killDate);
-    if (!isNaN(kd.getTime())) {
-      euthanasia_date = attrs.killDate;
-      is_on_euthanasia_list = true;
-    }
-  }
+  // NOTE: RescueGroups killDate is NOT used for euthanasia countdowns.
+  // The field is unverifiable — it could mean a review date, a stale default,
+  // or something other than actual euthanasia. We only show euthanasia
+  // countdowns from verified sources (scraped at-risk pages, direct shelter feeds).
+  const euthanasia_date: string | null = null;
+  const is_on_euthanasia_list = false;
 
   return {
     name: attrs.name || "Unknown",
@@ -391,10 +387,26 @@ function computeIntakeDate(
   }, ageMonths, now, birthDateStr);
 }
 
+// ─── Maximum reasonable wait time caps (in days) by confidence level ───
+// No shelter dog realistically waits longer than these thresholds.
+// Even the longest-waiting dogs on record are ~5-7 years.
+// Stale RescueGroups listings from 2007-2016 are NOT real wait times.
+const MAX_WAIT_DAYS: Record<DateConfidence, number> = {
+  verified: 4380, // 12 years — some sanctuary/long-term foster dogs genuinely wait this long
+  high: 4380,     // 12 years
+  medium: 2555,   // 7 years
+  low: 730,       // 2 years
+  unknown: 365,   // 1 year
+};
+
 /**
- * Age sanity check: a dog cannot have been waiting longer than it's been alive.
- * Uses birthDate from RG API if available (gold standard), else estimates from ageMonths.
- * If intake_date is before birth, cap to birth date.
+ * Age sanity check + max wait time cap.
+ *
+ * Two checks:
+ * 1. A dog cannot have been waiting longer than it's been alive.
+ * 2. No wait time can exceed the max threshold for its confidence level.
+ *    Even "verified" dates get capped — a listing active since 2009 is
+ *    almost certainly a stale/orphaned listing, not a real 16-year wait.
  */
 function applyAgeSanityCheck(
   result: { intake_date: string; date_confidence: DateConfidence; date_source: string },
@@ -419,16 +431,29 @@ function applyAgeSanityCheck(
     birthDate.setMonth(birthDate.getMonth() - ageMonths);
   }
 
-  if (!birthDate) return result;
-
   const intakeDate = new Date(result.intake_date);
   if (isNaN(intakeDate.getTime())) return result;
 
-  if (intakeDate < birthDate) {
-    return {
+  // Check 1: Can't wait longer than you've been alive
+  if (birthDate && intakeDate < birthDate) {
+    result = {
       intake_date: birthDate.toISOString(),
       date_confidence: "low",
       date_source: `${result.date_source}|age_capped_${birthSource}`,
+    };
+  }
+
+  // Check 2: Max wait time cap by confidence level
+  const waitDays = (now.getTime() - new Date(result.intake_date).getTime()) / (1000 * 60 * 60 * 24);
+  const maxDays = MAX_WAIT_DAYS[result.date_confidence] || MAX_WAIT_DAYS.unknown;
+
+  if (waitDays > maxDays) {
+    const cappedDate = new Date(now);
+    cappedDate.setDate(cappedDate.getDate() - maxDays);
+    return {
+      intake_date: cappedDate.toISOString(),
+      date_confidence: result.date_confidence === "verified" ? "medium" : "low",
+      date_source: `${result.date_source}|wait_capped_${maxDays}d`,
     };
   }
 

@@ -177,16 +177,8 @@ export async function GET(request: Request) {
         }
       }
 
-      // ── KILL DATE → euthanasia_date ──
-      if (attrs.killDate) {
-        const kd = new Date(attrs.killDate);
-        if (!isNaN(kd.getTime())) {
-          updateData.euthanasia_date = attrs.killDate;
-          updateData.is_on_euthanasia_list = true;
-          killDates++;
-          didUpgrade = true;
-        }
-      }
+      // NOTE: RescueGroups killDate is NOT used — unverifiable.
+      // Euthanasia dates should only come from verified sources.
 
       // ── BIRTH DATE capture ──
       if (attrs.birthDate && !dog.birth_date) {

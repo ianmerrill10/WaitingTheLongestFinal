@@ -220,16 +220,20 @@ export async function syncDogsFromRescueGroups(
           const existing = existingMap.get(animal.id);
 
           if (existing) {
-            // Protect verified/high-quality dates from being overwritten by sync
-            // The search endpoint doesn't return availableDate/foundDate, so
-            // the mapper will fall through to createdDate/updatedDate.
-            // If verification already set a better date, preserve it.
-            const PROTECTED_SOURCES = [
-              "rescuegroups_available_date",
-              "rescuegroups_found_date",
-              "rescuegroups_returned_after_adoption",
-            ];
-            const isProtected = PROTECTED_SOURCES.includes(existing.date_source || "");
+            // Never downgrade date quality on sync.
+            // The search endpoint doesn't return availableDate/foundDate,
+            // so the mapper falls through to createdDate/updatedDate.
+            // If the existing dog already has equal or better confidence,
+            // preserve its date fields.
+            const CONFIDENCE_RANK: Record<string, number> = {
+              verified: 5,
+              high: 4,
+              medium: 3,
+              low: 2,
+              unknown: 1,
+            };
+            const existingRank = CONFIDENCE_RANK[existing.date_confidence || "unknown"] || 0;
+            const newRank = CONFIDENCE_RANK[mapped.date_confidence] || 0;
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const updateData: Record<string, any> = {
@@ -238,9 +242,8 @@ export async function syncDogsFromRescueGroups(
               last_synced_at: new Date().toISOString(),
             };
 
-            // If existing dog has a verified date from verification engine,
-            // don't overwrite intake_date, date_confidence, or date_source
-            if (isProtected) {
+            // If existing date is equal or better quality, don't overwrite
+            if (existingRank >= newRank) {
               delete updateData.intake_date;
               delete updateData.date_confidence;
               delete updateData.date_source;
