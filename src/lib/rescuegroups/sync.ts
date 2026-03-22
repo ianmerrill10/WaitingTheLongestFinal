@@ -315,22 +315,29 @@ export async function syncDogsFromRescueGroups(
 
 /**
  * Update urgency levels for all dogs based on euthanasia_date.
+ *
+ * HARD RULE: Only dogs with a real euthanasia_date can be high/critical.
+ * Any dog found at high/critical WITHOUT a date gets reset to normal.
+ * This prevents false positives from ever showing on the /urgent page.
  */
 export async function updateUrgencyLevels(): Promise<{
   updated: number;
   errors: number;
+  guardrailResets: number;
 }> {
   const supabase = createAdminClient();
   let updated = 0;
   let errors = 0;
+  let guardrailResets = 0;
 
+  // Step 1: Update urgency for dogs WITH euthanasia dates
   const { data: dogs, error } = await supabase
     .from("dogs")
-    .select("id, euthanasia_date")
+    .select("id, euthanasia_date, urgency_level")
     .eq("is_available", true)
     .not("euthanasia_date", "is", null);
 
-  if (error || !dogs) return { updated: 0, errors: 1 };
+  if (error || !dogs) return { updated: 0, errors: 1, guardrailResets: 0 };
 
   const now = new Date();
 
@@ -340,19 +347,54 @@ export async function updateUrgencyLevels(): Promise<{
       (euthDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     let urgencyLevel: string;
-    if (hoursRemaining < 24) urgencyLevel = "critical";
-    else if (hoursRemaining < 72) urgencyLevel = "high";
-    else if (hoursRemaining < 168) urgencyLevel = "medium";
-    else urgencyLevel = "normal";
+    if (hoursRemaining <= 0) {
+      // Euthanasia date has passed — mark as expired, reset to normal
+      urgencyLevel = "normal";
+    } else if (hoursRemaining < 24) {
+      urgencyLevel = "critical";
+    } else if (hoursRemaining < 72) {
+      urgencyLevel = "high";
+    } else if (hoursRemaining < 168) {
+      urgencyLevel = "medium";
+    } else {
+      urgencyLevel = "normal";
+    }
 
-    const { error: updateError } = await supabase
-      .from("dogs")
-      .update({ urgency_level: urgencyLevel })
-      .eq("id", dog.id);
+    // Only update if level actually changed
+    if (dog.urgency_level !== urgencyLevel) {
+      const { error: updateError } = await supabase
+        .from("dogs")
+        .update({ urgency_level: urgencyLevel })
+        .eq("id", dog.id);
 
-    if (updateError) errors++;
-    else updated++;
+      if (updateError) errors++;
+      else updated++;
+    }
   }
 
-  return { updated, errors };
+  // Step 2: GUARDRAIL — Reset any high/critical dogs that have NO euthanasia_date
+  // This catches false positives from description parsing or stale data
+  const { data: falsePosHigh } = await supabase
+    .from("dogs")
+    .select("id")
+    .in("urgency_level", ["high", "critical"])
+    .is("euthanasia_date", null);
+
+  if (falsePosHigh && falsePosHigh.length > 0) {
+    const ids = falsePosHigh.map((d) => d.id);
+    const { error: resetError } = await supabase
+      .from("dogs")
+      .update({
+        urgency_level: "normal",
+        is_on_euthanasia_list: false,
+        euthanasia_list_added_at: null,
+      })
+      .in("id", ids);
+
+    if (!resetError) {
+      guardrailResets = ids.length;
+    }
+  }
+
+  return { updated, errors, guardrailResets };
 }

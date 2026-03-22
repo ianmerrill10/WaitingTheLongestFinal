@@ -847,7 +847,7 @@ async function taskUrgency() {
 
   try {
     const result = await updateUrgencyLevels();
-    bus.log("success", "urgency", `Urgency update: ${result.updated} dogs updated, ${result.errors} errors`);
+    bus.log("success", "urgency", `Urgency update: ${result.updated} dogs updated, ${result.errors} errors, ${result.guardrailResets} false positives reset`);
     if (result.errors > 0) {
       recordError("urgency", `${result.errors} errors during urgency update`);
     }
@@ -1267,7 +1267,7 @@ async function main() {
   try {
     bus.log("info", "system", "Running initial urgency update...");
     const urgResult = await updateUrgencyLevels();
-    bus.log("success", "system", `Initial urgency update: ${urgResult.updated} dogs updated`);
+    bus.log("success", "system", `Initial urgency update: ${urgResult.updated} dogs updated, ${urgResult.guardrailResets} false positives reset`);
     // Refresh stats again after urgency update
     await refreshDbStats();
   } catch (err) {

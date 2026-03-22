@@ -53,15 +53,23 @@ export default async function UrgentPage() {
     const supabase = await createClient();
 
     const results = await Promise.all(
-      URGENCY_SECTIONS.map((section) =>
-        supabase
+      URGENCY_SECTIONS.map((section) => {
+        let query = supabase
           .from("dogs")
           .select("*, shelters!inner(name, city, state_code)")
           .eq("is_available", true)
-          .eq("urgency_level", section.level)
+          .eq("urgency_level", section.level);
+
+        // HARD RULE: critical/high dogs MUST have an euthanasia_date.
+        // Never show a dog as "72 hours from death" without actual proof.
+        if (section.level === "critical" || section.level === "high") {
+          query = query.not("euthanasia_date", "is", null);
+        }
+
+        return query
           .order("euthanasia_date", { ascending: true, nullsFirst: false })
-          .limit(12)
-      )
+          .limit(12);
+      })
     );
 
     sectionData = URGENCY_SECTIONS.map((section, i) => ({
