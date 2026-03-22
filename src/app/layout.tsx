@@ -5,6 +5,7 @@ import Footer from "@/components/layout/Footer";
 import BottomTabs from "@/components/layout/BottomTabs";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import UrgentTicker from "@/components/ui/UrgentTicker";
+import { ToastProvider } from "@/components/ui/Toast";
 import { generateOrganizationJsonLd } from "@/lib/utils/json-ld";
 
 export const metadata: Metadata = {
@@ -66,13 +67,15 @@ export default function RootLayout({
             __html: JSON.stringify(generateOrganizationJsonLd()),
           }}
         />
-        <Header />
-        <UrgentTicker />
-        <main id="main-content" className="flex-1 pb-16 md:pb-0">
-          <ErrorBoundary>{children}</ErrorBoundary>
-        </main>
-        <Footer />
-        <BottomTabs />
+        <ToastProvider>
+          <Header />
+          <UrgentTicker />
+          <main id="main-content" className="flex-1 pb-16 md:pb-0">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </main>
+          <Footer />
+          <BottomTabs />
+        </ToastProvider>
       </body>
     </html>
   );

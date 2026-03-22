@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 
 interface ApiKeyDisplay {
   id: string;
@@ -19,18 +20,83 @@ interface ApiKeyDisplay {
 export default function DashboardKeysPage() {
   const [keys, setKeys] = useState<ApiKeyDisplay[]>([]);
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const loadKeys = useCallback(async () => {
+    try {
+      const shelterId = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("wtl_shelter_id="))
+        ?.split("=")[1];
+      if (!shelterId) return;
+      const res = await fetch(`/api/admin/partner?shelter_id=${shelterId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.keys) setKeys(data.keys);
+      }
+    } catch {
+      toast("Failed to load API keys", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    const shelterId = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("wtl_shelter_id="))
-      ?.split("=")[1];
-    if (!shelterId) return;
-    fetch(`/api/admin/partner?shelter_id=${shelterId}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.keys) setKeys(data.keys); })
-      .catch(() => {});
-  }, []);
+    loadKeys();
+  }, [loadKeys]);
+
+  const handleGenerate = async () => {
+    const label = prompt("Key label (e.g., 'Production API'):");
+    if (!label) return;
+
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/partners/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label,
+          environment: "production",
+          scopes: ["dogs:read", "dogs:write"],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setNewKey(data.api_key);
+        toast("API key generated successfully", "success");
+        loadKeys();
+      } else {
+        const err = await res.json();
+        toast(err.error || "Failed to generate key", "error");
+      }
+    } catch {
+      toast("Failed to generate API key", "error");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleRevoke = async (keyId: string) => {
+    if (!confirm("Are you sure you want to revoke this API key? This cannot be undone.")) return;
+
+    try {
+      const res = await fetch(`/api/partners/keys?id=${keyId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast("API key revoked", "success");
+        loadKeys();
+      } else {
+        toast("Failed to revoke key", "error");
+      }
+    } catch {
+      toast("Failed to revoke key", "error");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -48,8 +114,13 @@ export default function DashboardKeysPage() {
               Manage API keys for programmatic access to your dog listings.
             </p>
           </div>
-          <button className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm hover:bg-green-800">
-            Generate New Key
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating}
+            className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm hover:bg-green-800 disabled:opacity-50"
+          >
+            {generating ? "Generating..." : "Generate New Key"}
           </button>
         </div>
 
@@ -66,8 +137,10 @@ export default function DashboardKeysPage() {
               {newKey}
             </code>
             <button
+              type="button"
               onClick={() => {
                 navigator.clipboard.writeText(newKey);
+                toast("Copied to clipboard", "success");
               }}
               className="mt-3 px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm hover:bg-yellow-200"
             >
@@ -78,7 +151,9 @@ export default function DashboardKeysPage() {
 
         {/* Keys Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {keys.length === 0 ? (
+          {loading ? (
+            <div className="p-12 text-center text-gray-400">Loading...</div>
+          ) : keys.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <p className="text-lg mb-2">No API keys yet</p>
               <p className="text-sm">
@@ -92,7 +167,6 @@ export default function DashboardKeysPage() {
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Key</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Label</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Env</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Scopes</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Usage Today</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Last Used</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Actions</th>
@@ -101,8 +175,8 @@ export default function DashboardKeysPage() {
               <tbody className="divide-y divide-gray-100">
                 {keys.map((key) => (
                   <tr key={key.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-sm">{key.key_prefix}...</td>
-                    <td className="px-4 py-3">{key.label}</td>
+                    <td className="px-4 py-3 font-mono text-sm">{key.key_prefix}</td>
+                    <td className="px-4 py-3 text-sm">{key.label}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         key.environment === "production"
@@ -112,9 +186,6 @@ export default function DashboardKeysPage() {
                         {key.environment}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {key.scopes.join(", ")}
-                    </td>
                     <td className="px-4 py-3 text-sm">{key.usage_count_today}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {key.last_used_at
@@ -122,10 +193,11 @@ export default function DashboardKeysPage() {
                         : "Never"}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button className="text-sm text-blue-600 hover:underline mr-3">
-                        Rotate
-                      </button>
-                      <button className="text-sm text-red-600 hover:underline">
+                      <button
+                        type="button"
+                        onClick={() => handleRevoke(key.id)}
+                        className="text-sm text-red-600 hover:underline"
+                      >
                         Revoke
                       </button>
                     </td>

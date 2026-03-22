@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/utils/rate-limit";
 import { createHash, randomBytes } from "crypto";
 
 export const runtime = "nodejs";
@@ -10,8 +11,19 @@ const KEY_PREFIX = "wtl_sk_";
 /**
  * POST /api/partners/login — Shelter partner authentication
  * Accepts either email + API key, or email for magic link
+ * Rate limited: 10 attempts per minute per IP
  */
 export async function POST(request: Request) {
+  // Rate limit login attempts (10/min per IP)
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = rateLimit(ip, 10, 60000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many login attempts. Please try again in a minute." },
+      { status: 429 }
+    );
+  }
+
   let body;
   try {
     body = await request.json();

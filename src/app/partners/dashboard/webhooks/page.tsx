@@ -1,31 +1,101 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
+
+interface WebhookEndpoint {
+  id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  total_deliveries: number;
+  total_successes: number;
+  total_failures: number;
+  last_delivery_at: string | null;
+}
+
+const AVAILABLE_EVENTS = [
+  "dog.created", "dog.updated", "dog.adopted", "dog.urgent",
+  "dog.viewed", "dog.inquiry_received", "dog.shared", "account.updated",
+];
 
 export default function DashboardWebhooksPage() {
-  const [endpoints, setEndpoints] = useState<Array<{
-    id: string;
-    url: string;
-    events: string[];
-    is_active: boolean;
-    total_deliveries: number;
-    total_successes: number;
-    total_failures: number;
-    last_delivery_at: string | null;
-  }>>([]);
+  const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const loadWebhooks = useCallback(async () => {
+    try {
+      const shelterId = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("wtl_shelter_id="))
+        ?.split("=")[1];
+      if (!shelterId) return;
+      const res = await fetch(`/api/admin/partner?shelter_id=${shelterId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.webhooks) setEndpoints(data.webhooks);
+      }
+    } catch {
+      toast("Failed to load webhooks", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    const shelterId = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("wtl_shelter_id="))
-      ?.split("=")[1];
-    if (!shelterId) return;
-    fetch(`/api/admin/partner?shelter_id=${shelterId}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.webhooks) setEndpoints(data.webhooks); })
-      .catch(() => {});
-  }, []);
+    loadWebhooks();
+  }, [loadWebhooks]);
+
+  const handleAdd = async () => {
+    const url = prompt("Webhook URL (must start with https://):");
+    if (!url) return;
+
+    setAdding(true);
+    try {
+      const res = await fetch("/api/partners/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, events: AVAILABLE_EVENTS }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setWebhookSecret(data.secret);
+        toast("Webhook endpoint created", "success");
+        loadWebhooks();
+      } else {
+        const err = await res.json();
+        toast(err.error || "Failed to create webhook", "error");
+      }
+    } catch {
+      toast("Failed to create webhook", "error");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDelete = async (webhookId: string) => {
+    if (!confirm("Delete this webhook endpoint?")) return;
+
+    try {
+      const res = await fetch(`/api/partners/webhooks?id=${webhookId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast("Webhook deleted", "success");
+        loadWebhooks();
+      } else {
+        toast("Failed to delete webhook", "error");
+      }
+    } catch {
+      toast("Failed to delete webhook", "error");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -43,19 +113,46 @@ export default function DashboardWebhooksPage() {
               Register endpoints to receive real-time notifications about your dogs.
             </p>
           </div>
-          <button className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm hover:bg-green-800">
-            Add Endpoint
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={adding}
+            className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm hover:bg-green-800 disabled:opacity-50"
+          >
+            {adding ? "Adding..." : "Add Endpoint"}
           </button>
         </div>
+
+        {/* Webhook Secret Alert */}
+        {webhookSecret && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <h3 className="font-bold text-yellow-800 mb-2">
+              Save Your Webhook Secret
+            </h3>
+            <p className="text-sm text-yellow-700 mb-3">
+              Use this secret to verify webhook signatures. It will not be shown again.
+            </p>
+            <code className="block bg-white border border-yellow-300 rounded p-3 font-mono text-sm break-all">
+              {webhookSecret}
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(webhookSecret);
+                toast("Copied to clipboard", "success");
+              }}
+              className="mt-3 px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm hover:bg-yellow-200"
+            >
+              Copy to Clipboard
+            </button>
+          </div>
+        )}
 
         {/* Available Events */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <h3 className="font-semibold text-sm mb-2">Available Events</h3>
           <div className="flex flex-wrap gap-2">
-            {[
-              "dog.created", "dog.updated", "dog.adopted", "dog.urgent",
-              "dog.viewed", "dog.inquiry_received", "dog.shared", "account.updated",
-            ].map((event) => (
+            {AVAILABLE_EVENTS.map((event) => (
               <span
                 key={event}
                 className="px-2 py-1 bg-gray-100 rounded text-xs font-mono"
@@ -68,7 +165,11 @@ export default function DashboardWebhooksPage() {
 
         {/* Endpoints */}
         <div className="space-y-4">
-          {endpoints.length === 0 ? (
+          {loading ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-400">
+              Loading...
+            </div>
+          ) : endpoints.length === 0 ? (
             <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
               <p className="text-lg mb-2">No webhook endpoints registered</p>
               <p className="text-sm">
@@ -91,25 +192,23 @@ export default function DashboardWebhooksPage() {
                     />
                     <code className="text-sm font-mono">{ep.url}</code>
                   </div>
-                  <div className="flex gap-2">
-                    <button className="text-sm text-blue-600 hover:underline">
-                      Test
-                    </button>
-                    <button className="text-sm text-red-600 hover:underline">
-                      Delete
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(ep.id)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Delete
+                  </button>
                 </div>
                 <div className="flex gap-4 text-xs text-gray-500">
                   <span>
                     {ep.total_deliveries} deliveries ({ep.total_successes}{" "}
                     OK, {ep.total_failures} failed)
                   </span>
-                  <span>Events: {ep.events.join(", ")}</span>
+                  <span>Events: {ep.events?.join(", ") || "all"}</span>
                   {ep.last_delivery_at && (
                     <span>
-                      Last delivery:{" "}
-                      {new Date(ep.last_delivery_at).toLocaleString()}
+                      Last: {new Date(ep.last_delivery_at).toLocaleString()}
                     </span>
                   )}
                 </div>

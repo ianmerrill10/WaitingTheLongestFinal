@@ -3,8 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow API routes (crons, webhooks, etc.) through without auth
-  if (pathname.startsWith('/api/')) {
+  // Allow static assets and Next.js internals
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/favicon') ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/manifest.json'
+  ) {
     return NextResponse.next();
   }
 
@@ -13,13 +19,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow static assets and Next.js internals
-  if (
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon') ||
-    pathname === '/robots.txt' ||
-    pathname === '/sitemap.xml'
-  ) {
+  // Allow public API routes (crons, webhooks, v1 partner API, etc.)
+  // But BLOCK /api/admin/* unless authenticated
+  if (pathname.startsWith('/api/')) {
+    if (pathname.startsWith('/api/admin/')) {
+      const authCookie = request.cookies.get('site_auth');
+      if (authCookie?.value !== 'authenticated') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
     return NextResponse.next();
   }
 
@@ -29,9 +37,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Redirect to login
+  // Redirect to login — sanitize the redirect path to prevent open redirects
   const loginUrl = new URL('/login', request.url);
-  loginUrl.searchParams.set('from', pathname);
+  // Only set 'from' if it's a safe relative path (no protocol, no host)
+  if (pathname.startsWith('/') && !pathname.includes('://') && !pathname.startsWith('//')) {
+    loginUrl.searchParams.set('from', pathname);
+  }
   return NextResponse.redirect(loginUrl);
 }
 

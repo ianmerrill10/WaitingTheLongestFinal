@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 
 interface DashboardData {
   shelter: {
@@ -24,9 +25,11 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadDashboard = async () => {
@@ -43,9 +46,12 @@ export default function DashboardPage() {
       if (res.ok) {
         const json = await res.json();
         setData({ shelter: json.shelter, stats: json.stats });
+      } else if (res.status === 401) {
+        toast("Session expired. Please log in again.", "error");
+        window.location.href = "/partners/login";
       }
     } catch {
-      // Handle error
+      toast("Failed to load dashboard data", "error");
     } finally {
       setLoading(false);
     }
