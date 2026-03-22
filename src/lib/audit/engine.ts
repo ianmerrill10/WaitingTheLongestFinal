@@ -5,6 +5,7 @@ import { AuditLogger } from "./logger";
 import {
   checkDates,
   checkDescriptionDates,
+  checkDescriptionUrgency,
   checkAgeSanity,
   checkStaleness,
   checkDuplicates,
@@ -14,7 +15,7 @@ import {
   checkDataQuality,
 } from "./checks";
 
-export type AuditMode = "full" | "quick" | "dates_only" | "stale_only" | "repair_only" | "description_dates" | "age_sanity";
+export type AuditMode = "full" | "quick" | "dates_only" | "stale_only" | "repair_only" | "description_dates" | "age_sanity" | "urgency_parse";
 
 export interface AuditResult {
   runId: string;
@@ -29,6 +30,7 @@ export interface AuditResult {
     shelters?: { checked: number; issues: number };
     data_quality?: { checked: number; issues: number; repaired: number };
     description_dates?: { checked: number; updated: number };
+    urgency_parse?: { checked: number; flagged: number; datesSet: number };
     age_sanity?: { checked: number; fixed: number };
   };
   logStats: {
@@ -72,6 +74,12 @@ export async function runAudit(
       await logger.flush();
     }
 
+    // Description urgency parsing — extract euthanasia signals from descriptions
+    if (mode === "full" || mode === "repair_only" || mode === "urgency_parse") {
+      stats.urgency_parse = await checkDescriptionUrgency(logger);
+      await logger.flush();
+    }
+
     // Age sanity check — wait time cannot exceed dog's age
     if (mode === "full" || mode === "dates_only" || mode === "repair_only" || mode === "age_sanity") {
       stats.age_sanity = await checkAgeSanity(logger);
@@ -104,6 +112,7 @@ export async function runAudit(
     const totalRepairs =
       (stats.dates?.repaired ?? 0) +
       (stats.description_dates?.updated ?? 0) +
+      (stats.urgency_parse?.datesSet ?? 0) +
       (stats.age_sanity?.fixed ?? 0) +
       (stats.duplicates?.removed ?? 0) +
       (stats.statuses?.repaired ?? 0) +
@@ -118,6 +127,7 @@ export async function runAudit(
       (stats.photos?.missing ?? 0) +
       (stats.shelters?.issues ?? 0) +
       (stats.data_quality?.issues ?? 0) +
+      (stats.urgency_parse?.flagged ?? 0) +
       (stats.age_sanity?.fixed ?? 0);
 
     logger.log({

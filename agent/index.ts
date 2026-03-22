@@ -26,6 +26,7 @@ import { runAudit } from "../src/lib/audit/engine";
 import { computeAndStoreDailyStats } from "../src/lib/stats/compute-daily-stats";
 import { createAdminClient } from "../src/lib/supabase/admin";
 import { runBackup, getBackupStatus } from "./backup";
+import { runNycAccScrape } from "../src/lib/scrapers/nyc-acc";
 
 // ─────────────────────────────────────────────
 // SECTION 1: Types
@@ -875,6 +876,40 @@ async function taskBackup() {
   }
 }
 
+async function taskNycAccScrape() {
+  bus.log("info", "nyc-acc", "Scraping NYC ACC priority placement list...");
+  currentProgress = { current: 0, total: 1, label: "Scraping NYC ACC" };
+
+  try {
+    const result = await runNycAccScrape({
+      fetchDetails: true,
+      maxDetailFetches: 10,
+      delayMs: 3000,
+    });
+
+    if (result.totalDogs > 0) {
+      bus.log("success", "nyc-acc",
+        `NYC ACC: ${result.totalDogs} dogs found, ${result.inserted} new, ${result.updated} updated, ${result.detailsFetched} details fetched`
+      );
+    } else {
+      bus.log("warn", "nyc-acc", "NYC ACC: no dogs found on priority placement page");
+    }
+
+    if (result.errors.length > 0) {
+      for (const err of result.errors.slice(0, 3)) {
+        recordError("nyc-acc", err);
+      }
+    }
+  } catch (err) {
+    totalErrors++;
+    const msg = err instanceof Error ? err.message : String(err);
+    recordError("nyc-acc", msg);
+    bus.log("error", "nyc-acc", `NYC ACC scrape failed: ${msg}`);
+  } finally {
+    currentProgress = null;
+  }
+}
+
 // ─────────────────────────────────────────────
 // SECTION 6: Task Scheduler
 // ─────────────────────────────────────────────
@@ -891,6 +926,7 @@ const tasks: TaskDef[] = [
   { name: "stats", description: "Compute daily stats snapshot", fn: taskStats, intervalMs: 6 * HOUR, lastRun: null, nextRun: Date.now() + 15 * MIN, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
   { name: "fullAudit", description: "Full 9-check comprehensive audit", fn: taskFullAudit, intervalMs: 24 * HOUR, lastRun: null, nextRun: Date.now() + 1 * HOUR, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
   { name: "backup", description: "Zip backup + Google Drive sync", fn: taskBackup, intervalMs: 6 * HOUR, lastRun: null, nextRun: Date.now() + 20 * MIN, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
+  { name: "nycAcc", description: "Scrape NYC ACC priority placement at-risk dogs", fn: taskNycAccScrape, intervalMs: 6 * HOUR, lastRun: null, nextRun: Date.now() + 8 * MIN, isRunning: false, runCount: 0, lastDuration: null, lastError: null, consecutiveErrors: 0 },
 ];
 
 let isRunningTask = false;

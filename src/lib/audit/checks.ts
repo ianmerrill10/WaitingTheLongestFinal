@@ -4,6 +4,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AuditLogger } from "./logger";
 import { parseDateFromDescription } from "@/lib/utils/parse-description-date";
+import { parseUrgencyFromDescription } from "@/lib/utils/parse-urgency-from-description";
 import { parseAgeMonths } from "@/lib/rescuegroups/mapper";
 
 // ============================================================
@@ -763,4 +764,133 @@ export async function checkAgeSanity(logger: AuditLogger): Promise<{
   });
 
   return { checked, fixed };
+}
+
+// ============================================================
+// 10. DESCRIPTION URGENCY PARSING — extract euthanasia signals from descriptions
+// ============================================================
+export async function checkDescriptionUrgency(logger: AuditLogger): Promise<{
+  checked: number;
+  flagged: number;
+  datesSet: number;
+}> {
+  const supabase = createAdminClient();
+  const now = new Date();
+  let checked = 0;
+  let flagged = 0;
+  let datesSet = 0;
+  let offset = 0;
+
+  // Only scan dogs that:
+  // - Are available
+  // - Have descriptions
+  // - Don't already have a euthanasia_date set
+  while (true) {
+    const { data: dogs } = await supabase
+      .from("dogs")
+      .select("id, name, description, euthanasia_date, is_on_euthanasia_list, urgency_level")
+      .eq("is_available", true)
+      .not("description", "is", null)
+      .is("euthanasia_date", null)
+      .order("id")
+      .range(offset, offset + 499);
+
+    if (!dogs || dogs.length === 0) break;
+
+    for (const dog of dogs) {
+      checked++;
+      if (!dog.description) continue;
+
+      const signal = parseUrgencyFromDescription(dog.description);
+      if (!signal) continue;
+
+      flagged++;
+
+      const updates: Record<string, unknown> = {
+        last_audited_at: now.toISOString(),
+      };
+
+      if (signal.date) {
+        updates.euthanasia_date = signal.date.toISOString();
+        updates.is_on_euthanasia_list = true;
+        updates.euthanasia_list_added_at = now.toISOString();
+        datesSet++;
+
+        // Calculate urgency level
+        const hoursRemaining = (signal.date.getTime() - now.getTime()) / (1000 * 60 * 60);
+        if (hoursRemaining < 24) updates.urgency_level = "critical";
+        else if (hoursRemaining < 72) updates.urgency_level = "high";
+        else if (hoursRemaining < 168) updates.urgency_level = "medium";
+        else updates.urgency_level = "normal";
+      } else if (signal.type === "euthanasia_date" || signal.type === "at_risk") {
+        // No date but strong signal — mark as at-risk with high urgency
+        updates.is_on_euthanasia_list = true;
+        updates.euthanasia_list_added_at = now.toISOString();
+        if (dog.urgency_level === "normal" || dog.urgency_level === "medium") {
+          updates.urgency_level = "high";
+        }
+      } else if (signal.type === "urgent" && dog.urgency_level === "normal") {
+        // Weak signal — bump from normal to medium
+        updates.urgency_level = "medium";
+      }
+
+      await supabase.from("dogs").update(updates).eq("id", dog.id);
+    }
+
+    offset += dogs.length;
+    if (dogs.length < 500) break;
+  }
+
+  // Also re-scan dogs that are already on the euth list but without dates
+  let offset2 = 0;
+  while (true) {
+    const { data: dogs } = await supabase
+      .from("dogs")
+      .select("id, name, description, euthanasia_date, urgency_level")
+      .eq("is_available", true)
+      .eq("is_on_euthanasia_list", true)
+      .is("euthanasia_date", null)
+      .not("description", "is", null)
+      .order("id")
+      .range(offset2, offset2 + 499);
+
+    if (!dogs || dogs.length === 0) break;
+
+    for (const dog of dogs) {
+      if (!dog.description) continue;
+
+      const signal = parseUrgencyFromDescription(dog.description);
+      if (!signal?.date) continue;
+
+      datesSet++;
+      const hoursRemaining = (signal.date.getTime() - now.getTime()) / (1000 * 60 * 60);
+      let urgencyLevel: string;
+      if (hoursRemaining < 24) urgencyLevel = "critical";
+      else if (hoursRemaining < 72) urgencyLevel = "high";
+      else if (hoursRemaining < 168) urgencyLevel = "medium";
+      else urgencyLevel = "normal";
+
+      await supabase
+        .from("dogs")
+        .update({
+          euthanasia_date: signal.date.toISOString(),
+          urgency_level: urgencyLevel,
+          last_audited_at: now.toISOString(),
+        })
+        .eq("id", dog.id);
+    }
+
+    offset2 += dogs.length;
+    if (dogs.length < 500) break;
+  }
+
+  logger.log({
+    audit_type: "description_urgency_parse",
+    entity_type: "dog",
+    severity: flagged > 0 ? "warning" : "info",
+    message: `Urgency parser: scanned ${checked} descriptions, flagged ${flagged} dogs, set ${datesSet} euthanasia dates`,
+    action_taken: flagged > 0 ? `Flagged ${flagged} dogs, extracted ${datesSet} euthanasia dates from descriptions` : undefined,
+  });
+
+  return { checked, flagged, datesSet };
 }

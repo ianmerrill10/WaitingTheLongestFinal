@@ -5,7 +5,8 @@
  * 1. Recalculate urgency levels for all dogs with euthanasia dates
  * 2. Verify another batch of dogs against RG API (oldest first)
  * 3. Run description date parsing for any missed dogs
- * 4. Age sanity check — cap intake_date when wait time > dog's age
+ * 4. Description urgency parsing — extract euthanasia signals from descriptions
+ * 5. Age sanity check — cap intake_date when wait time > dog's age
  *
  * Combined with the 6am sync agent, this means verification runs
  * twice daily — ~200 dogs/day verified = all 33K dogs in ~165 days.
@@ -96,7 +97,28 @@ export async function GET(request: Request) {
       });
     }
 
-    // ── Step 4: Age sanity check — wait time cannot exceed dog's age ──
+    // ── Step 4: Description urgency parsing — extract euthanasia signals ──
+    const urgencyParseStart = Date.now();
+    try {
+      const urgencyParseResult = await runAudit("urgency_parse", "evening_agent");
+      const step = {
+        step: "urgency_parse",
+        status: "success",
+        duration_ms: Date.now() - urgencyParseStart,
+        stats: urgencyParseResult.stats.urgency_parse,
+      };
+      (pipeline.steps as unknown[]).push(step);
+      pipeline.urgency_parse = step;
+    } catch (err) {
+      (pipeline.steps as unknown[]).push({
+        step: "urgency_parse",
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+        duration_ms: Date.now() - urgencyParseStart,
+      });
+    }
+
+    // ── Step 5: Age sanity check — wait time cannot exceed dog's age ──
     const ageStart = Date.now();
     try {
       const ageResult = await runAudit("age_sanity", "evening_agent");
