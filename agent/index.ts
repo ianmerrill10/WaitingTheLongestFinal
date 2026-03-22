@@ -1233,6 +1233,23 @@ async function main() {
     bus.log("info", "system", "Press Ctrl+C to stop gracefully.");
   });
 
+  // Seed counters from DB so dashboard shows cumulative totals across restarts
+  try {
+    const supabase = createAdminClient();
+    const [verifiedRes, deactivatedRes] = await Promise.all([
+      supabase.from("dogs").select("id", { count: "exact", head: true })
+        .eq("verification_status", "verified"),
+      supabase.from("dogs").select("id", { count: "exact", head: true })
+        .eq("is_available", false),
+    ]);
+    totalVerified = verifiedRes.count ?? 0;
+    totalDeactivated = deactivatedRes.count ?? 0;
+    totalDogsProcessed = totalVerified + totalDeactivated;
+    bus.log("info", "system", `Counters seeded from DB: ${totalVerified} verified, ${totalDeactivated} deactivated`);
+  } catch (err) {
+    bus.log("warn", "system", `Counter seeding failed (starting from 0): ${err}`);
+  }
+
   // Initial DB stats
   await refreshDbStats();
   if (dbStats) {

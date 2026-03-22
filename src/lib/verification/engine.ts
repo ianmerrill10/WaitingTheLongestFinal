@@ -160,6 +160,8 @@ export async function runVerification(
         if (v.capturedFoundDate) foundDatesCaptured++;
         if (v.capturedKillDate) killDatesCaptured++;
         if (onDogProcessed) {
+          // Stagger callbacks so dashboard slideshow shows each dog individually
+          if (j > 0) await new Promise(r => setTimeout(r, 150));
           onDogProcessed({
             dog: {
               id: dog.id,
