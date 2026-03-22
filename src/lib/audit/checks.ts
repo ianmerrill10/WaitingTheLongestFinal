@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { AuditLogger } from "./logger";
 import { parseDateFromDescription } from "@/lib/utils/parse-description-date";
 import { parseUrgencyFromDescription } from "@/lib/utils/parse-urgency-from-description";
+import { classifyDescription } from "@/lib/utils/listing-classifier";
 import { parseAgeMonths } from "@/lib/rescuegroups/mapper";
 
 // ============================================================
@@ -893,4 +894,71 @@ export async function checkDescriptionUrgency(logger: AuditLogger): Promise<{
   });
 
   return { checked, flagged, datesSet };
+}
+
+// ============================================================
+// 11. BREEDER/SOURCE CLASSIFICATION — reject breeders that slipped through
+// ============================================================
+export async function checkSourceClassification(logger: AuditLogger): Promise<{
+  checked: number;
+  rejected: number;
+}> {
+  const supabase = createAdminClient();
+  const now = new Date();
+  let checked = 0;
+  let rejected = 0;
+  let offset = 0;
+
+  // Scan all available dogs with descriptions for breeder signals
+  while (true) {
+    const { data: dogs } = await supabase
+      .from("dogs")
+      .select("id, name, description")
+      .eq("is_available", true)
+      .not("description", "is", null)
+      .order("id")
+      .range(offset, offset + 499);
+
+    if (!dogs || dogs.length === 0) break;
+
+    const toDeactivate: string[] = [];
+
+    for (const dog of dogs) {
+      checked++;
+      if (!dog.description) continue;
+
+      const result = classifyDescription(dog.description);
+
+      if (result.shouldReject && result.confidence >= 0.7) {
+        toDeactivate.push(dog.id);
+      }
+    }
+
+    // Batch deactivate breeder listings
+    if (toDeactivate.length > 0) {
+      await supabase
+        .from("dogs")
+        .update({
+          is_available: false,
+          status: "rejected_breeder",
+          last_audited_at: now.toISOString(),
+        })
+        .in("id", toDeactivate);
+
+      rejected += toDeactivate.length;
+    }
+
+    offset += dogs.length;
+    if (dogs.length < 500) break;
+  }
+
+  logger.log({
+    audit_type: "data_quality",
+    entity_type: "dog",
+    severity: rejected > 0 ? "warning" : "info",
+    message: `Source classification: scanned ${checked} listings, rejected ${rejected} as breeder/pet-store`,
+    action_taken: rejected > 0 ? `Deactivated ${rejected} breeder listings` : undefined,
+  });
+
+  return { checked, rejected };
 }

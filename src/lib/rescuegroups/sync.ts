@@ -2,6 +2,7 @@ import { createRescueGroupsClient } from "./client";
 import type { RGIncludedItem, RGOrgAttributes } from "./client";
 import { mapRescueGroupsDog, extractPhotoUrls } from "./mapper";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateListing } from "@/lib/utils/listing-classifier";
 
 interface SyncResult {
   totalFetched: number;
@@ -9,6 +10,7 @@ interface SyncResult {
   updated: number;
   sheltersCreated: number;
   errors: number;
+  rejected: number;
   duration: number;
 }
 
@@ -128,6 +130,7 @@ export async function syncDogsFromRescueGroups(
   let updated = 0;
   let sheltersCreated = 0;
   let errors = 0;
+  let rejected = 0;
 
   const shelterCache = new Map<string, string>();
   const endPage = startPage + maxPages - 1;
@@ -185,6 +188,26 @@ export async function syncDogsFromRescueGroups(
             animal.attributes,
             photoData
           );
+
+          // ── Listing classifier gate: reject breeders/pet stores ──
+          const orgItem = included.find((i) => i.type === "orgs" && i.id === animal.relationships?.orgs?.data?.[0]?.id);
+          const orgAttrs = orgItem?.attributes as unknown as RGOrgAttributes | undefined;
+
+          const validation = validateListing({
+            name: mapped.name,
+            breed: mapped.breed_primary,
+            description: mapped.description,
+            size: mapped.size,
+            ageMonths: mapped.age_months,
+            sex: mapped.gender,
+            orgName: orgAttrs?.name,
+            orgType: orgAttrs?.type,
+          });
+
+          if (!validation.isValid && validation.classification.shouldReject) {
+            rejected++;
+            continue;
+          }
 
           const orgId = animal.relationships?.orgs?.data?.[0]?.id;
           const shelterId = orgId ? shelterCache.get(orgId) : null;
@@ -285,6 +308,7 @@ export async function syncDogsFromRescueGroups(
     updated,
     sheltersCreated,
     errors,
+    rejected,
     duration: Date.now() - startTime,
   };
 }

@@ -6,6 +6,7 @@ import {
   checkDates,
   checkDescriptionDates,
   checkDescriptionUrgency,
+  checkSourceClassification,
   checkAgeSanity,
   checkStaleness,
   checkDuplicates,
@@ -31,6 +32,7 @@ export interface AuditResult {
     data_quality?: { checked: number; issues: number; repaired: number };
     description_dates?: { checked: number; updated: number };
     urgency_parse?: { checked: number; flagged: number; datesSet: number };
+    source_classification?: { checked: number; rejected: number };
     age_sanity?: { checked: number; fixed: number };
   };
   logStats: {
@@ -80,6 +82,12 @@ export async function runAudit(
       await logger.flush();
     }
 
+    // Source classification — reject breeder/pet-store listings
+    if (mode === "full" || mode === "repair_only") {
+      stats.source_classification = await checkSourceClassification(logger);
+      await logger.flush();
+    }
+
     // Age sanity check — wait time cannot exceed dog's age
     if (mode === "full" || mode === "dates_only" || mode === "repair_only" || mode === "age_sanity") {
       stats.age_sanity = await checkAgeSanity(logger);
@@ -113,6 +121,7 @@ export async function runAudit(
       (stats.dates?.repaired ?? 0) +
       (stats.description_dates?.updated ?? 0) +
       (stats.urgency_parse?.datesSet ?? 0) +
+      (stats.source_classification?.rejected ?? 0) +
       (stats.age_sanity?.fixed ?? 0) +
       (stats.duplicates?.removed ?? 0) +
       (stats.statuses?.repaired ?? 0) +
@@ -128,6 +137,7 @@ export async function runAudit(
       (stats.shelters?.issues ?? 0) +
       (stats.data_quality?.issues ?? 0) +
       (stats.urgency_parse?.flagged ?? 0) +
+      (stats.source_classification?.rejected ?? 0) +
       (stats.age_sanity?.fixed ?? 0);
 
     logger.log({
