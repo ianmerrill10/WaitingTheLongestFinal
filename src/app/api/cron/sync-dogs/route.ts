@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   const skipSync = url.searchParams.get("skip_sync") === "true";
   const skipVerify = url.searchParams.get("skip_verify") === "true";
   const skipAudit = url.searchParams.get("skip_audit") === "true";
-  const verifyBatch = Math.min(parseInt(url.searchParams.get("verify_batch") || "200", 10), 400);
+  const verifyBatch = Math.min(parseInt(url.searchParams.get("verify_batch") || "300", 10), 500);
 
   const startTime = Date.now();
   const pipeline: Record<string, unknown> = {

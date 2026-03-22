@@ -145,14 +145,15 @@ export async function syncDogsFromRescueGroups(
       const externalIds = response.data.map((a) => a.id);
 
       // Batch lookup: find all existing dogs by external_id in one query
+      // Include date_source so we can protect verified dates from being overwritten
       const { data: existingDogs } = await supabase
         .from("dogs")
-        .select("id, external_id")
+        .select("id, external_id, date_source, date_confidence")
         .eq("external_source", "rescuegroups")
         .in("external_id", externalIds);
 
       const existingMap = new Map(
-        (existingDogs || []).map((d) => [d.external_id, d.id])
+        (existingDogs || []).map((d) => [d.external_id, { id: d.id, date_source: d.date_source, date_confidence: d.date_confidence }])
       );
 
       // Resolve all shelters for this page first
@@ -193,16 +194,38 @@ export async function syncDogsFromRescueGroups(
             continue;
           }
 
-          const existingId = existingMap.get(animal.id);
+          const existing = existingMap.get(animal.id);
 
-          if (existingId) {
+          if (existing) {
+            // Protect verified/high-quality dates from being overwritten by sync
+            // The search endpoint doesn't return availableDate/foundDate, so
+            // the mapper will fall through to createdDate/updatedDate.
+            // If verification already set a better date, preserve it.
+            const PROTECTED_SOURCES = [
+              "rescuegroups_available_date",
+              "rescuegroups_found_date",
+              "rescuegroups_returned_after_adoption",
+            ];
+            const isProtected = PROTECTED_SOURCES.includes(existing.date_source || "");
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const updateData: Record<string, any> = {
+              ...mapped,
+              shelter_id: shelterId,
+              last_synced_at: new Date().toISOString(),
+            };
+
+            // If existing dog has a verified date from verification engine,
+            // don't overwrite intake_date, date_confidence, or date_source
+            if (isProtected) {
+              delete updateData.intake_date;
+              delete updateData.date_confidence;
+              delete updateData.date_source;
+            }
+
             toUpdate.push({
-              id: existingId,
-              data: {
-                ...mapped,
-                shelter_id: shelterId,
-                last_synced_at: new Date().toISOString(),
-              },
+              id: existing.id,
+              data: updateData,
             });
           } else {
             toInsert.push({

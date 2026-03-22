@@ -192,13 +192,7 @@ export default async function DogProfilePage({
             <p className="text-gray-500 text-xs mt-3">
               Since {new Date(dog.intake_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </p>
-            {dog.date_confidence && dog.date_confidence !== "verified" && dog.date_confidence !== "high" && (
-              <p className={`text-xs mt-2 ${dog.date_confidence === "low" || dog.date_confidence === "unknown" ? "text-amber-400" : "text-gray-500"}`}>
-                {dog.date_confidence === "low" || dog.date_confidence === "unknown"
-                  ? "* Wait time is estimated — exact intake date has not been verified by the shelter"
-                  : "* Wait time is approximate based on available data"}
-              </p>
-            )}
+            <DateAccuracyBadge confidence={dog.date_confidence} source={dog.date_source} />
           </div>
 
           {/* Euthanasia Countdown */}
@@ -458,6 +452,59 @@ function humanYears(ageMonths: number | null, ageCategory: string): string {
     hy = 56 + (ageMonths - 84) * 0.4;
   }
   return `~${Math.round(hy)} human years`;
+}
+
+function DateAccuracyBadge({ confidence, source }: { confidence: string | null; source: string | null }) {
+  if (!confidence) return null;
+
+  const isVerified = confidence === "verified";
+  const isHigh = confidence === "high";
+  const isLow = confidence === "low" || confidence === "unknown";
+
+  // Derive a human-readable source label
+  let sourceLabel = "";
+  if (source?.includes("available_date")) sourceLabel = "Shelter-provided available date";
+  else if (source?.includes("found_date")) sourceLabel = "Shelter-recorded found date";
+  else if (source?.includes("returned_after_adoption")) sourceLabel = "Returned after adoption";
+  else if (source?.includes("description_parsed")) sourceLabel = "Parsed from listing description";
+  else if (source?.includes("created_date")) sourceLabel = "Listing creation date";
+  else if (source?.includes("updated_date")) sourceLabel = "Listing last updated";
+  else if (source?.includes("age_capped")) sourceLabel = "Capped to estimated birth date";
+  else if (source?.includes("audit_repair")) sourceLabel = "Estimated from available data";
+
+  if (isVerified) {
+    return (
+      <div className="mt-3 flex items-center justify-center gap-1.5">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-green-900/50 text-green-400 rounded-full border border-green-700/50">
+          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          Verified wait time
+        </span>
+        {sourceLabel && <span className="text-[10px] text-gray-600">{sourceLabel}</span>}
+      </div>
+    );
+  }
+
+  if (isHigh) {
+    return (
+      <div className="mt-2">
+        <span className="text-[10px] text-gray-500">Wait time based on {sourceLabel || "available listing data"}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex items-center justify-center gap-1.5">
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full border ${isLow ? "bg-amber-900/30 text-amber-400 border-amber-700/50" : "bg-gray-800 text-gray-400 border-gray-700"}`}>
+        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+        Estimated wait time
+      </span>
+      {sourceLabel && <span className="text-[10px] text-gray-600">{sourceLabel}</span>}
+    </div>
+  );
 }
 
 function VerificationBadge({ status, lastVerified, intakeDate }: { status: string; lastVerified: string | null; intakeDate: string | null }) {

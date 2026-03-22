@@ -112,8 +112,8 @@ export async function runVerification(
 
   const now = new Date().toISOString();
 
-  // Process in parallel batches of 5 for throughput
-  const PARALLEL_BATCH = 5;
+  // Process in parallel batches of 8 for throughput
+  const PARALLEL_BATCH = 8;
   for (let i = 0; i < dogs.length; i += PARALLEL_BATCH) {
     const batch = dogs.slice(i, i + PARALLEL_BATCH);
     const results = await Promise.allSettled(

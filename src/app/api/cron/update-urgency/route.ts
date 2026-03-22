@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     // ── Step 2: Verify batch of dogs ──
     const verifyStart = Date.now();
     try {
-      const verifyResult = await runVerification(200, "oldest");
+      const verifyResult = await runVerification(300, "oldest");
       const stats = await getVerificationStats();
       const step = {
         step: "verify",
