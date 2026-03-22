@@ -22,14 +22,11 @@ export default function RevenueDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // In production, this would be an admin API endpoint
-      // For now, show placeholder structure
-      setSummary({
-        total_revenue: 0,
-        total_clicks: 0,
-        total_conversions: 0,
-        by_partner: [],
-      });
+      const res = await fetch("/api/admin/revenue");
+      if (res.ok) {
+        const data = await res.json();
+        setSummary(data);
+      }
     } catch {
       // fail silently
     } finally {

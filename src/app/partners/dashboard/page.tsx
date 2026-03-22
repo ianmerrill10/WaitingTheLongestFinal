@@ -31,18 +31,19 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      // In production, this would use the session cookie to authenticate
-      // For now, show a placeholder dashboard
-      setData({
-        shelter: null,
-        stats: {
-          total_dogs: 0,
-          available_dogs: 0,
-          adopted_dogs: 0,
-          urgent_dogs: 0,
-          total_views: 0,
-        },
-      });
+      const shelterId = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("wtl_shelter_id="))
+        ?.split("=")[1];
+      if (!shelterId) {
+        setLoading(false);
+        return;
+      }
+      const res = await fetch(`/api/admin/partner?shelter_id=${shelterId}`);
+      if (res.ok) {
+        const json = await res.json();
+        setData({ shelter: json.shelter, stats: json.stats });
+      }
     } catch {
       // Handle error
     } finally {

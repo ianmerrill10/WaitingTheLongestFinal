@@ -63,18 +63,30 @@ export async function POST(
     .update({ inquiry_count: currentCount + 1 })
     .eq("id", id);
 
-  // Log the interest for now (SendGrid integration TODO)
-  console.log(
-    `ADOPTION INTEREST: ${name.trim()} (${email.trim()}, ${phone || "no phone"}) interested in ${dog.name} (${dog.breed_primary}) [dog_id: ${id}]`
-  );
-  if (message) console.log(`  Message: ${message}`);
-
-  // Build response with shelter contact info
+  // Build shelter contact info
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const shelterData = dog.shelters as any;
   const shelter = Array.isArray(shelterData) ? shelterData[0] : shelterData;
   const shelterName = shelter?.name || "the shelter";
   const shelterUrl = dog.external_url || shelter?.website || null;
+
+  // Log adoption interest
+  console.log(
+    `ADOPTION INTEREST: ${name.trim()} (${email.trim()}, ${phone || "no phone"}) interested in ${dog.name} (${dog.breed_primary}) [dog_id: ${id}]`
+  );
+
+  // Record as a communication for the shelter's dashboard
+  if (shelter?.id) {
+    await supabase.from("shelter_communications").insert({
+      shelter_id: shelter.id,
+      comm_type: "adoption_inquiry",
+      direction: "inbound",
+      subject: `Adoption inquiry for ${dog.name} from ${name.trim()}`,
+      body: `Name: ${name.trim()}\nEmail: ${email.trim()}\nPhone: ${phone || "N/A"}\n\n${message || "No message provided."}`,
+      to_address: shelter?.email || null,
+      status: "received",
+    }).then(() => {});
+  }
 
   return NextResponse.json({
     success: true,

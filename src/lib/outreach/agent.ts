@@ -117,6 +117,13 @@ export async function processOutreachQueue(
     const contactName = target.contact_name || "Shelter Team";
     const firstName = contactName.split(" ")[0] || "there";
 
+    // Pull actual view counts for this shelter's dogs
+    const { data: viewData } = await supabase
+      .from("dogs")
+      .select("view_count")
+      .eq("shelter_id", target.shelter_id);
+    const totalViews = (viewData || []).reduce((s, d) => s + (d.view_count || 0), 0);
+
     const rendered = renderTemplate(template, {
       shelter_name: shelter.name,
       contact_name: contactName,
@@ -127,7 +134,7 @@ export async function processOutreachQueue(
       shelter_url: `https://waitingthelongest.com/shelters/${target.shelter_id}`,
       register_url: "https://waitingthelongest.com/partners/register",
       unsubscribe_url: getUnsubscribeUrl(target.id),
-      view_count: "0", // TODO: pull actual view counts
+      view_count: String(totalViews),
     });
 
     // Send the email

@@ -31,14 +31,12 @@ export default function OutreachDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Placeholder — in production, this would be an admin API
-      setCampaigns([]);
-      setStats({
-        total_shelters: 44947,
-        with_email: 0,
-        campaigns_active: 0,
-        total_sent_alltime: 0,
-      });
+      const res = await fetch("/api/admin/campaigns");
+      if (res.ok) {
+        const data = await res.json();
+        setCampaigns(data.campaigns || []);
+        setStats(data.stats);
+      }
     } catch {
       // fail silently
     } finally {

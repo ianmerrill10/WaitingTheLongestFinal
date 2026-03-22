@@ -26,8 +26,11 @@ export default function CampaignManagementPage() {
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
     try {
-      // Placeholder — in production, fetch from admin API
-      setCampaigns([]);
+      const res = await fetch("/api/admin/campaigns");
+      if (res.ok) {
+        const data = await res.json();
+        setCampaigns(data.campaigns || []);
+      }
     } catch {
       // fail silently
     } finally {

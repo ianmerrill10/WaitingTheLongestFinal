@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface ApiKeyDisplay {
@@ -17,8 +17,20 @@ interface ApiKeyDisplay {
 }
 
 export default function DashboardKeysPage() {
-  const [keys] = useState<ApiKeyDisplay[]>([]);
+  const [keys, setKeys] = useState<ApiKeyDisplay[]>([]);
   const [newKey, setNewKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const shelterId = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("wtl_shelter_id="))
+      ?.split("=")[1];
+    if (!shelterId) return;
+    fetch(`/api/admin/partner?shelter_id=${shelterId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.keys) setKeys(data.keys); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

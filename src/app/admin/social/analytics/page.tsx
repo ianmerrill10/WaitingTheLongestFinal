@@ -35,21 +35,10 @@ export default function SocialAnalyticsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Use the engagement tracker API (could be an admin endpoint)
-      // For now, fetch via social schedule as placeholder
-      const res = await fetch(`/api/social/schedule`);
+      const res = await fetch(`/api/admin/social/stats?days=${days}`);
       if (res.ok) {
-        // Placeholder — real analytics would come from engagement-tracker
-        setSummary({
-          total_posts: 0,
-          total_likes: 0,
-          total_comments: 0,
-          total_shares: 0,
-          total_views: 0,
-          avg_engagement_rate: 0,
-          by_platform: {},
-          by_content_type: {},
-        });
+        const data = await res.json();
+        setSummary(data);
       }
     } catch {
       // fail silently

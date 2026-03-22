@@ -28,13 +28,26 @@ export default function DashboardAnalyticsPage() {
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/v1/analytics/overview?range=${timeRange}`,
-        { credentials: "include" }
-      );
+      const shelterId = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("wtl_shelter_id="))
+        ?.split("=")[1];
+      if (!shelterId) { setLoading(false); return; }
+
+      const res = await fetch(`/api/admin/partner?shelter_id=${shelterId}`);
       if (res.ok) {
         const data = await res.json();
-        setAnalytics(data);
+        setAnalytics({
+          totalDogs: data.stats.total_dogs,
+          activeDogs: data.stats.available_dogs,
+          adoptedDogs: data.stats.adopted_dogs,
+          totalViews: data.stats.total_views,
+          avgWaitDays: 0,
+          urgentCount: data.stats.urgent_dogs,
+          weeklyAdoptions: [],
+          weeklyViews: [],
+          topDogs: data.topDogs || [],
+        });
       }
     } catch {
       // silently fail — dashboard shows empty state

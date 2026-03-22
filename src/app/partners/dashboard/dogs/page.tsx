@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function DashboardDogsPage() {
-  const [dogs] = useState<Array<{
+  const [dogs, setDogs] = useState<Array<{
     id: string;
     name: string;
     breed: string;
@@ -12,6 +12,18 @@ export default function DashboardDogsPage() {
     views: number;
     listed_date: string;
   }>>([]);
+
+  useEffect(() => {
+    const shelterId = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("wtl_shelter_id="))
+      ?.split("=")[1];
+    if (!shelterId) return;
+    fetch(`/api/admin/partner?shelter_id=${shelterId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.dogs) setDogs(data.dogs); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

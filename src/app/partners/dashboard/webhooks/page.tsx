@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function DashboardWebhooksPage() {
-  const [endpoints] = useState<Array<{
+  const [endpoints, setEndpoints] = useState<Array<{
     id: string;
     url: string;
     events: string[];
@@ -14,6 +14,18 @@ export default function DashboardWebhooksPage() {
     total_failures: number;
     last_delivery_at: string | null;
   }>>([]);
+
+  useEffect(() => {
+    const shelterId = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("wtl_shelter_id="))
+      ?.split("=")[1];
+    if (!shelterId) return;
+    fetch(`/api/admin/partner?shelter_id=${shelterId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.webhooks) setEndpoints(data.webhooks); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
