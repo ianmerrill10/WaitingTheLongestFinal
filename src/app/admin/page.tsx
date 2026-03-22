@@ -4,6 +4,13 @@ import Link from "next/link";
 
 const adminSections = [
   {
+    title: "Data Dashboard",
+    description: "Verification progress, date accuracy, daily trends, and audit history.",
+    href: "/admin/dashboard",
+    count: null,
+    color: "bg-emerald-50 border-emerald-200 text-emerald-700",
+  },
+  {
     title: "Onboarding Pipeline",
     description: "Review, approve, and advance shelter applications through the pipeline.",
     href: "/admin/onboarding",
