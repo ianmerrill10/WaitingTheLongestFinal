@@ -557,20 +557,13 @@ CREATE TABLE social_templates (
 -- AUTO-UPDATE TRIGGERS for updated_at
 -- =====================================================
 
--- Reuse existing update_updated_at_column() function if it exists
-DO $$
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column') THEN
-    CREATE FUNCTION update_updated_at_column()
-    RETURNS TRIGGER AS $func$
-    BEGIN
-      NEW.updated_at = NOW();
-      RETURN NEW;
-    END;
-    $func$ LANGUAGE plpgsql;
-  END IF;
-END
-$$;
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_shelter_contacts_updated BEFORE UPDATE ON shelter_contacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_shelter_communications_updated BEFORE UPDATE ON shelter_communications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
