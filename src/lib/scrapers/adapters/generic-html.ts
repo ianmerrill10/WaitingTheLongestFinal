@@ -196,6 +196,46 @@ function extractDogsFromHTML(
           }
         }
 
+        // Look for size
+        const sizeEl = card.find(".size, [class*='size'], .pet-size");
+        let size: ScrapedDog["size"] | undefined;
+        if (sizeEl.length) {
+          const sizeText = sizeEl.text().toLowerCase().trim();
+          if (sizeText.includes("small")) size = "small";
+          else if (sizeText.includes("large") || sizeText.includes("xlarge")) size = "large";
+          else if (sizeText.includes("medium")) size = "medium";
+        }
+
+        // Look for description text
+        const descEl = card.find(".description, .bio, [class*='desc'], [class*='bio'], p");
+        let description: string | undefined;
+        if (descEl.length) {
+          const descText = descEl.first().text().trim();
+          if (descText.length > 20 && descText.length < 5000) description = descText;
+        }
+
+        // Extract behavioral keywords from description text
+        let good_with_kids: boolean | undefined;
+        let good_with_dogs: boolean | undefined;
+        let good_with_cats: boolean | undefined;
+        let house_trained: boolean | undefined;
+        const combinedText = (description || text).toLowerCase();
+        if (/good with (?:children|kids)|kid[- ]?friendly/i.test(combinedText)) good_with_kids = true;
+        if (/good with (?:other )?dogs|dog[- ]?friendly/i.test(combinedText)) good_with_dogs = true;
+        if (/good with cats|cat[- ]?friendly/i.test(combinedText)) good_with_cats = true;
+        if (/house ?trained|potty ?trained|housebroken/i.test(combinedText)) house_trained = true;
+
+        // Collect multiple photos
+        const photoUrls: string[] = [];
+        card.find("img").each((_, imgEl) => {
+          const src = $(imgEl).attr("src") || $(imgEl).attr("data-src");
+          if (src && !src.includes("placeholder") && !src.includes("no-photo") && !src.includes("logo")) {
+            try {
+              photoUrls.push(new URL(src, pageUrl).toString());
+            } catch { /* skip */ }
+          }
+        });
+
         const id = `generic-${hostname}-${idx}-${name.replace(/\s+/g, "-").toLowerCase().substring(0, 30)}`;
 
         dogs.push({
@@ -205,9 +245,15 @@ function extractDogsFromHTML(
           breed_mixed: breed.toLowerCase().includes("mix"),
           age_text: ageText,
           gender,
-          photo_urls: photoUrl ? [photoUrl] : [],
-          primary_photo_url: photoUrl,
+          size,
+          description,
+          photo_urls: photoUrls.length > 0 ? photoUrls : (photoUrl ? [photoUrl] : []),
+          primary_photo_url: photoUrls[0] || photoUrl,
           external_url: detailUrl,
+          good_with_kids,
+          good_with_dogs,
+          good_with_cats,
+          house_trained,
           tags: ["generic-scraper"],
         });
       } catch {

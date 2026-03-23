@@ -169,12 +169,26 @@ export function mapScrapedDog(
     date_source += `|wait_capped_${maxDays}d`;
   }
 
-  // Check for urgency signals in description
+  // Check for urgency — prefer explicit euthanasia_date from scraper, then description parsing
   let urgency_level = "normal";
   let euthanasia_date: string | null = null;
-  let is_on_euthanasia_list = false;
+  let is_on_euthanasia_list = dog.is_on_euthanasia_list ?? false;
 
-  if (dog.description) {
+  // Priority 1: Explicit euthanasia_date from scraper adapter
+  if (dog.euthanasia_date) {
+    const euthDate = new Date(dog.euthanasia_date);
+    if (!isNaN(euthDate.getTime()) && euthDate > new Date()) {
+      euthanasia_date = euthDate.toISOString();
+      is_on_euthanasia_list = true;
+      const hoursLeft = (euthDate.getTime() - Date.now()) / (1000 * 60 * 60);
+      if (hoursLeft > 0 && hoursLeft < 24) urgency_level = "critical";
+      else if (hoursLeft > 0 && hoursLeft < 72) urgency_level = "high";
+      else if (hoursLeft > 0 && hoursLeft < 168) urgency_level = "medium";
+    }
+  }
+
+  // Priority 2: Parse urgency from description text
+  if (!euthanasia_date && dog.description) {
     const urgency = parseUrgencyFromDescription(dog.description);
     if (urgency && urgency.date && urgency.confidence === "high") {
       euthanasia_date = urgency.date.toISOString();

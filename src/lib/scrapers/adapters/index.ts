@@ -8,6 +8,8 @@ import { petangoAdapter } from "./petango";
 import { rescuegroupsWidgetAdapter } from "./rescuegroups-widget";
 import { petstablishedAdapter } from "./petstablished";
 import { genericHtmlAdapter } from "./generic-html";
+import { chameleonAdapter } from "./chameleon";
+import { sheltermanagerAdapter } from "./sheltermanager";
 
 const ADAPTERS: Record<string, PlatformAdapter> = {
   shelterluv: shelterluvAdapter,
@@ -15,6 +17,8 @@ const ADAPTERS: Record<string, PlatformAdapter> = {
   petango: petangoAdapter,
   rescuegroups: rescuegroupsWidgetAdapter,
   petstablished: petstablishedAdapter,
+  chameleon: chameleonAdapter,
+  sheltermanager: sheltermanagerAdapter,
   custom_html: genericHtmlAdapter,
 };
 

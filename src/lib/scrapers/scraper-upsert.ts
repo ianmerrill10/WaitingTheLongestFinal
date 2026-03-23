@@ -5,6 +5,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateListing } from "@/lib/utils/listing-classifier";
 import { mapScrapedDog } from "./dog-mapper";
+import { findDuplicate, mergeDuplicate } from "./dedup-engine";
 import type { ScrapedDog, UpsertResult } from "./types";
 
 const CONFIDENCE_RANK: Record<string, number> = {
@@ -105,6 +106,24 @@ export async function upsertScrapedDogs(
 
         toUpdate.push({ id: existing.id, data: updateData });
       } else {
+        // Check for cross-platform duplicate before inserting
+        try {
+          const dup = await findDuplicate(
+            shelterId,
+            dog.name,
+            dog.breed_primary,
+            externalSource
+          );
+          if (dup) {
+            // Merge into existing record instead of creating duplicate
+            await mergeDuplicate(dup.id, dup, mapped, dog.external_id);
+            updated++; // Count as update since we enriched existing record
+            seenExternalIds.add(dog.external_id); // Mark as seen to prevent deactivation
+            continue;
+          }
+        } catch {
+          // Dedup check failed — proceed with insert
+        }
         toInsert.push(mapped);
       }
     } catch {

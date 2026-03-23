@@ -505,6 +505,53 @@ async function startScheduler(): Promise<void> {
       }
     }
 
+    // Between cycles: NYC ACC priority placement scrape (real euthanasia data)
+    if (!isShuttingDown && !isPaused) {
+      try {
+        const { runNycAccScrape } = await import("../src/lib/scrapers/nyc-acc");
+        log("info", "NYC-ACC", "Starting NYC ACC priority placement scrape...");
+        const nycResult = await runNycAccScrape({ fetchDetails: true, maxDetailFetches: 30, delayMs: 1500 });
+        if (nycResult.totalDogs > 0) {
+          log(
+            "success",
+            "NYC-ACC",
+            `Done: ${nycResult.totalDogs} dogs, ${nycResult.inserted} new, ${nycResult.updated} updated, ${nycResult.detailsFetched} details`
+          );
+          metrics.totalDogsFound += nycResult.totalDogs;
+          metrics.totalDogsInserted += nycResult.inserted;
+          metrics.totalDogsUpdated += nycResult.updated;
+        } else {
+          log("info", "NYC-ACC", "No dogs found on priority placement page");
+        }
+      } catch (err) {
+        log("error", "NYC-ACC", `Error: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Between cycles: refresh shelter dog counts (for master list sorting)
+    if (!isShuttingDown && !isPaused) {
+      try {
+        log("info", "SYSTEM", "Refreshing shelter dog counts...");
+        await supabase.rpc("refresh_shelter_dog_counts");
+        log("success", "SYSTEM", "Shelter dog counts refreshed");
+      } catch {
+        // Best-effort — counts will be stale but functional
+      }
+    }
+
+    // Between cycles: auto-verify shelters with valid EINs
+    if (!isShuttingDown && !isPaused) {
+      try {
+        const { verifySheltersByEIN } = await import("../src/lib/utils/shelter-verifier");
+        const vResult = await verifySheltersByEIN();
+        if (vResult.verified > 0) {
+          log("success", "VERIFY", `Verified ${vResult.verified} shelters by EIN (${vResult.alreadyVerified} already verified)`);
+        }
+      } catch {
+        // Best-effort
+      }
+    }
+
     // Between cycles: discover websites for IRS-only shelters (low priority)
     if (!isShuttingDown && !isPaused) {
       try {

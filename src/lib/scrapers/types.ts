@@ -20,6 +20,8 @@ export interface ScrapedDog {
   primary_photo_url?: string;
   external_url?: string;
   intake_date?: string;
+  euthanasia_date?: string;
+  is_on_euthanasia_list?: boolean;
   is_spayed_neutered?: boolean;
   good_with_kids?: boolean;
   good_with_dogs?: boolean;
@@ -77,6 +79,8 @@ export type WebsitePlatform =
   | "petango"
   | "petstablished"
   | "adoptapet"
+  | "chameleon"
+  | "sheltermanager"
   | "custom_html"
   | "facebook_only"
   | "no_website"

@@ -20,10 +20,22 @@ interface ShelterBuddyAnimal {
   Description?: string;
   AdoptionSummary?: string;
   AvailableForAdoptionFrom?: string;
+  // Potential euthanasia/commitment date fields (vary by shelter config)
+  CommitmentDate?: string;
+  DateToBeDestroyed?: string;
+  DueOutDate?: string;
+  OutcomeDate?: string;
   Photos?: string[];
   Photo?: string;
   Species?: string;
   IsDesexed?: boolean;
+  Size?: string;
+  GoodWithKids?: boolean;
+  GoodWithDogs?: boolean;
+  GoodWithCats?: boolean;
+  HouseTrained?: boolean;
+  SpecialNeeds?: boolean;
+  SpecialNeedsDescription?: string;
 }
 
 export const shelterbuddyAdapter: PlatformAdapter = {
@@ -72,6 +84,23 @@ export const shelterbuddyAdapter: PlatformAdapter = {
               }
             }
 
+            // Check for euthanasia/commitment date
+            let euthanasiaDate: string | undefined;
+            const commitDate = animal.CommitmentDate || animal.DateToBeDestroyed || animal.DueOutDate;
+            if (commitDate) {
+              const d = new Date(commitDate);
+              if (!isNaN(d.getTime()) && d > new Date()) {
+                euthanasiaDate = d.toISOString();
+              }
+            }
+
+            // Parse weight
+            let weightLbs: number | undefined;
+            if (animal.Weight) {
+              const wMatch = animal.Weight.match(/([\d.]+)/);
+              if (wMatch) weightLbs = parseFloat(wMatch[1]);
+            }
+
             dogs.push({
               external_id: `shelterbuddy-${platformId}-${animal.ShelterBuddyId || animal.Id}`,
               name: animal.Name || "Unknown",
@@ -84,12 +113,22 @@ export const shelterbuddyAdapter: PlatformAdapter = {
               gender: animal.Sex?.toLowerCase().includes("female")
                 ? "female"
                 : "male",
+              size: animal.Size?.toLowerCase() as ScrapedDog["size"],
+              weight_lbs: weightLbs,
               color_primary: animal.Color,
               description: animal.Description || animal.AdoptionSummary,
               photo_urls: photos,
               primary_photo_url: photos[0],
               intake_date: intakeDate,
+              euthanasia_date: euthanasiaDate,
+              is_on_euthanasia_list: !!euthanasiaDate,
               is_spayed_neutered: animal.IsDesexed,
+              good_with_kids: animal.GoodWithKids,
+              good_with_dogs: animal.GoodWithDogs,
+              good_with_cats: animal.GoodWithCats,
+              house_trained: animal.HouseTrained,
+              has_special_needs: animal.SpecialNeeds,
+              special_needs_description: animal.SpecialNeedsDescription,
               external_url: `https://${platformId}.shelterbuddy.com/animal/animalDetails.asp?task=view&animalid=${animal.ShelterBuddyId || animal.Id}`,
               tags: ["shelterbuddy"],
             });

@@ -192,6 +192,65 @@ export default async function ShelterProfilePage({
             </div>
           </div>
 
+          {/* Scraper & Data Status */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Data Status
+            </h2>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Platform</p>
+                <p className="text-gray-900 capitalize">{shelter.website_platform?.replace(/_/g, " ") || "Unknown"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Scrape Status</p>
+                <p className={`font-medium ${shelter.scrape_status === "success" ? "text-green-600" : shelter.scrape_status === "failed" ? "text-red-600" : "text-gray-600"}`}>
+                  {shelter.scrape_status || "Pending"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Last Scraped</p>
+                <p className="text-gray-900">{shelter.last_scraped_at ? new Date(shelter.last_scraped_at).toLocaleString() : "Never"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Scrape Count</p>
+                <p className="text-gray-900">{shelter.scrape_count || 0}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Dogs Found Last Scrape</p>
+                <p className="text-gray-900">{shelter.dogs_found_last_scrape ?? "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Data Source</p>
+                <p className="text-gray-900">{shelter.external_source || "Manual"}</p>
+              </div>
+              {shelter.ein && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">EIN</p>
+                  <p className="text-gray-900 font-mono">{shelter.ein}</p>
+                </div>
+              )}
+              {shelter.partner_status && shelter.partner_status !== "unregistered" && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Partner Status</p>
+                  <p className="text-gray-900 capitalize">{shelter.partner_status}</p>
+                </div>
+              )}
+            </div>
+            {shelter.adoptable_page_url && (
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <a
+                  href={shelter.adoptable_page_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline break-all"
+                >
+                  View Adoptable Animals Page
+                </a>
+              </div>
+            )}
+          </div>
+
           {/* Dogs at This Shelter */}
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between mb-4">
@@ -390,6 +449,30 @@ export default async function ShelterProfilePage({
               </div>
             </div>
           ) : null}
+
+          {/* Social Media & Links */}
+          {(shelter.facebook_url || shelter.social_instagram || shelter.social_tiktok) && (
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="font-bold text-gray-900 mb-3">Social Media</h3>
+              <div className="space-y-2">
+                {shelter.facebook_url && (
+                  <a href={shelter.facebook_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                    <span className="w-5 text-center">f</span> Facebook
+                  </a>
+                )}
+                {shelter.social_instagram && (
+                  <a href={`https://instagram.com/${shelter.social_instagram}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-pink-600 hover:underline">
+                    <span className="w-5 text-center">@</span> {shelter.social_instagram}
+                  </a>
+                )}
+                {shelter.social_tiktok && (
+                  <a href={`https://tiktok.com/@${shelter.social_tiktok}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-gray-900 hover:underline">
+                    <span className="w-5 text-center">T</span> {shelter.social_tiktok}
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="bg-green-50 rounded-xl p-6 border border-green-200">

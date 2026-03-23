@@ -96,6 +96,36 @@ const PLATFORM_SIGNATURES: PlatformSignature[] = [
       return match ? match[1] : null;
     },
   },
+  {
+    platform: "chameleon",
+    patterns: [
+      /petharbor\.com/i,
+      /chameleonbeach\.com/i,
+      /chameleon\.?(software|cms)/i,
+    ],
+    idExtractor: (html: string, url: string) => {
+      const match =
+        html.match(/petharbor\.com[^"']*[?&](?:shelter_id|shelterid|ID)=([A-Z0-9]+)/i) ||
+        url.match(/petharbor\.com[^"']*[?&](?:shelter_id|shelterid|ID)=([A-Z0-9]+)/i) ||
+        html.match(/chameleonbeach\.com\/([^/"']+)/i);
+      return match ? match[1] : null;
+    },
+  },
+  {
+    platform: "sheltermanager",
+    patterns: [
+      /sheltermanager\.com/i,
+      /asm\.?online/i,
+      /animal\s*shelter\s*manager/i,
+    ],
+    idExtractor: (html: string, url: string) => {
+      const match =
+        html.match(/https?:\/\/([^/.]+)\.sheltermanager\.com/i) ||
+        url.match(/https?:\/\/([^/.]+)\.sheltermanager\.com/i) ||
+        html.match(/account=([a-z0-9]+)/i);
+      return match ? match[1] : null;
+    },
+  },
 ];
 
 // Patterns for finding the adoptable animals page
