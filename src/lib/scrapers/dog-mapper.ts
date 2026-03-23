@@ -137,10 +137,18 @@ export function mapScrapedDog(
   let date_source: string;
 
   if (dog.intake_date) {
-    // Shelter-provided date from the listing page
-    intake_date = new Date(dog.intake_date).toISOString();
-    date_confidence = "verified";
-    date_source = `scraper_${platform}_listing_date`;
+    // Shelter-provided date from the listing page — validate before using
+    const parsedIntake = new Date(dog.intake_date);
+    if (!isNaN(parsedIntake.getTime())) {
+      intake_date = parsedIntake.toISOString();
+      date_confidence = "verified";
+      date_source = `scraper_${platform}_listing_date`;
+    } else {
+      // Invalid date string — fall through to description parsing or default
+      intake_date = new Date().toISOString();
+      date_confidence = "low";
+      date_source = `scraper_${platform}_invalid_date`;
+    }
   } else if (dog.description) {
     // Try to parse date from description text
     const parsed = parseDateFromDescription(dog.description);

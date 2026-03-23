@@ -76,8 +76,14 @@ export const sheltermanagerAdapter: PlatformAdapter = {
       if (!Array.isArray(animals)) return dogs;
 
       for (const animal of animals) {
-        // Filter to dogs only
-        if (animal.SPECIESNAME && !animal.SPECIESNAME.toLowerCase().includes("dog")) continue;
+        // Filter to dogs only — skip if species is explicitly non-dog, or if missing default to checking breed
+        if (animal.SPECIESNAME) {
+          if (!animal.SPECIESNAME.toLowerCase().includes("dog")) continue;
+        } else {
+          // No species — skip if breed suggests non-dog (cat, rabbit, bird, etc.)
+          const breed = (animal.BREEDNAME || "").toLowerCase();
+          if (/\b(cat|kitten|feline|rabbit|bunny|bird|hamster|guinea|ferret|reptile|turtle|snake)\b/.test(breed)) continue;
+        }
 
         // Parse intake date from MOSTRECENTENTRYDATE
         let intakeDate: string | undefined;

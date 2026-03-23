@@ -100,7 +100,7 @@ export default function ShelterCard({ shelter }: ShelterCardProps) {
         )}
         {shelter.website && (
           <a
-            href={shelter.website}
+            href={shelter.website.startsWith("http") ? shelter.website : `https://${shelter.website}`}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-blue-600 truncate"

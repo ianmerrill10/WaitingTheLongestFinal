@@ -201,8 +201,9 @@ function extractDogsFromHTML(
         let size: ScrapedDog["size"] | undefined;
         if (sizeEl.length) {
           const sizeText = sizeEl.text().toLowerCase().trim();
-          if (sizeText.includes("small")) size = "small";
-          else if (sizeText.includes("large") || sizeText.includes("xlarge")) size = "large";
+          if (sizeText.includes("xlarge") || sizeText.includes("extra large") || sizeText.includes("x-large") || sizeText.includes("giant")) size = "xlarge";
+          else if (sizeText.includes("small")) size = "small";
+          else if (sizeText.includes("large")) size = "large";
           else if (sizeText.includes("medium")) size = "medium";
         }
 

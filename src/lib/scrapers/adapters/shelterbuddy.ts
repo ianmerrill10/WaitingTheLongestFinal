@@ -8,6 +8,16 @@ import { fetchHTML, fetchJSON } from "../rate-limiter";
 import type { PlatformAdapter, ScrapedDog } from "../types";
 import { parseAgeToMonths } from "../dog-mapper";
 
+function normalizeShelterBuddySize(size?: string): ScrapedDog["size"] | undefined {
+  if (!size) return undefined;
+  const s = size.toLowerCase().trim();
+  if (s.includes("extra") || s.includes("xlarge") || s.includes("x-large") || s.includes("giant")) return "xlarge";
+  if (s.includes("small") || s.includes("toy") || s.includes("mini")) return "small";
+  if (s.includes("large")) return "large";
+  if (s.includes("medium") || s.includes("med")) return "medium";
+  return undefined;
+}
+
 interface ShelterBuddyAnimal {
   Id: number;
   ShelterBuddyId?: number;
@@ -113,7 +123,7 @@ export const shelterbuddyAdapter: PlatformAdapter = {
               gender: animal.Sex?.toLowerCase().includes("female")
                 ? "female"
                 : "male",
-              size: animal.Size?.toLowerCase() as ScrapedDog["size"],
+              size: normalizeShelterBuddySize(animal.Size),
               weight_lbs: weightLbs,
               color_primary: animal.Color,
               description: animal.Description || animal.AdoptionSummary,

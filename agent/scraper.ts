@@ -532,10 +532,14 @@ async function startScheduler(): Promise<void> {
     if (!isShuttingDown && !isPaused) {
       try {
         log("info", "SYSTEM", "Refreshing shelter dog counts...");
-        await supabase.rpc("refresh_shelter_dog_counts");
-        log("success", "SYSTEM", "Shelter dog counts refreshed");
-      } catch {
-        // Best-effort — counts will be stale but functional
+        const { error: rpcErr } = await supabase.rpc("refresh_shelter_dog_counts");
+        if (rpcErr) {
+          log("error", "SYSTEM", `refresh_shelter_dog_counts failed: ${rpcErr.message}`);
+        } else {
+          log("success", "SYSTEM", "Shelter dog counts refreshed");
+        }
+      } catch (err) {
+        log("error", "SYSTEM", `Dog count refresh error: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 

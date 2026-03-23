@@ -17,8 +17,10 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
 
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = Math.min(parseInt(searchParams.get("limit") || String(PAGE_SIZE)), 200);
+  const isExport = searchParams.get("export") === "true";
+  const maxLimit = isExport ? 10000 : 200;
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1") || 1);
+  const limit = Math.min(Math.max(1, parseInt(searchParams.get("limit") || String(PAGE_SIZE)) || PAGE_SIZE), maxLimit);
   const offset = (page - 1) * limit;
   const sort = searchParams.get("sort") || "name_asc";
   const search = searchParams.get("q");

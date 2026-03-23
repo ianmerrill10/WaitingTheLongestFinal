@@ -30,18 +30,29 @@ export async function verifySheltersByEIN(): Promise<VerifyResult> {
     .is("ein", null);
 
   // Step 1: Verify all shelters with EIN that aren't already verified
-  const { data: unverifiedWithEin, error: fetchErr } = await supabase
-    .from("shelters")
-    .select("id")
-    .not("ein", "is", null)
-    .eq("is_verified", false);
+  // Paginate to avoid Supabase's 1000-row default limit
+  const allUnverifiedEinIds: string[] = [];
+  let page = 0;
+  const PAGE_SIZE = 1000;
+  while (true) {
+    const { data: batch, error: fetchErr } = await supabase
+      .from("shelters")
+      .select("id")
+      .not("ein", "is", null)
+      .eq("is_verified", false)
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-  if (fetchErr) {
-    return { verified: 0, alreadyVerified: 0, noEin: noEinCount || 0, errors: 1 };
+    if (fetchErr) {
+      errors++;
+      break;
+    }
+    if (!batch || batch.length === 0) break;
+    allUnverifiedEinIds.push(...batch.map((s) => s.id));
+    if (batch.length < PAGE_SIZE) break;
+    page++;
   }
 
-  if (!unverifiedWithEin || unverifiedWithEin.length === 0) {
-    // Count already verified
+  if (allUnverifiedEinIds.length === 0) {
     const { count: verifiedCount } = await supabase
       .from("shelters")
       .select("id", { count: "exact", head: true })
@@ -52,14 +63,13 @@ export async function verifySheltersByEIN(): Promise<VerifyResult> {
       verified: 0,
       alreadyVerified: verifiedCount || 0,
       noEin: noEinCount || 0,
-      errors: 0,
+      errors,
     };
   }
 
   // Batch update in chunks of 200
-  const ids = unverifiedWithEin.map((s) => s.id);
-  for (let i = 0; i < ids.length; i += 200) {
-    const batch = ids.slice(i, i + 200);
+  for (let i = 0; i < allUnverifiedEinIds.length; i += 200) {
+    const batch = allUnverifiedEinIds.slice(i, i + 200);
     const { error: updateErr } = await supabase
       .from("shelters")
       .update({
@@ -76,16 +86,26 @@ export async function verifySheltersByEIN(): Promise<VerifyResult> {
   }
 
   // Step 2: Also verify RescueGroups-sourced shelters (they vet organizations)
-  const { data: rgUnverified } = await supabase
-    .from("shelters")
-    .select("id")
-    .eq("external_source", "rescuegroups")
-    .eq("is_verified", false);
+  // Paginate to avoid 1000-row truncation
+  const allRgUnverifiedIds: string[] = [];
+  page = 0;
+  while (true) {
+    const { data: batch } = await supabase
+      .from("shelters")
+      .select("id")
+      .eq("external_source", "rescuegroups")
+      .eq("is_verified", false)
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-  if (rgUnverified && rgUnverified.length > 0) {
-    const rgIds = rgUnverified.map((s) => s.id);
-    for (let i = 0; i < rgIds.length; i += 200) {
-      const batch = rgIds.slice(i, i + 200);
+    if (!batch || batch.length === 0) break;
+    allRgUnverifiedIds.push(...batch.map((s) => s.id));
+    if (batch.length < PAGE_SIZE) break;
+    page++;
+  }
+
+  if (allRgUnverifiedIds.length > 0) {
+    for (let i = 0; i < allRgUnverifiedIds.length; i += 200) {
+      const batch = allRgUnverifiedIds.slice(i, i + 200);
       const { error: rgErr } = await supabase
         .from("shelters")
         .update({
@@ -107,7 +127,7 @@ export async function verifySheltersByEIN(): Promise<VerifyResult> {
 
   return {
     verified,
-    alreadyVerified: (alreadyCount || 0) - verified,
+    alreadyVerified: Math.max(0, (alreadyCount || 0) - verified),
     noEin: noEinCount || 0,
     errors,
   };

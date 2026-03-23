@@ -19,6 +19,7 @@ export default function ShelterExport({ filterParams, total }: ShelterExportProp
       const params = new URLSearchParams(filterParams);
       params.set("limit", "10000");
       params.set("page", "1");
+      params.set("export", "true");
 
       const res = await fetch(`/api/shelters?${params.toString()}`);
       if (!res.ok) throw new Error("Export failed");
@@ -36,20 +37,20 @@ export default function ShelterExport({ filterParams, total }: ShelterExportProp
       const rows = shelters.map((s: Record<string, unknown>) => [
         csvEscape(s.name as string),
         csvEscape(s.city as string),
-        s.state_code,
-        s.zip_code || "",
-        csvEscape(s.county as string || ""),
-        s.shelter_type || "",
+        csvEscape(s.state_code as string),
+        csvEscape(s.zip_code as string),
+        csvEscape(s.county as string),
+        csvEscape(s.shelter_type as string),
         s.is_kill_shelter ? "Yes" : "No",
         s.accepts_rescue_pulls ? "Yes" : "No",
         s.is_verified ? "Yes" : "No",
         s.available_dog_count || 0,
         s.urgent_dog_count || 0,
-        s.phone || "",
-        s.email || "",
-        s.website || "",
-        s.website_platform || "",
-        s.ein || "",
+        csvEscape(s.phone as string),
+        csvEscape(s.email as string),
+        csvEscape(s.website as string),
+        csvEscape(s.website_platform as string),
+        csvEscape(s.ein as string),
         s.last_scraped_at ? new Date(s.last_scraped_at as string).toISOString().split("T")[0] : "",
       ]);
 
@@ -60,7 +61,7 @@ export default function ShelterExport({ filterParams, total }: ShelterExportProp
       a.href = url;
       a.download = `wtl-shelters-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       alert("Export failed. Please try again.");
     } finally {
