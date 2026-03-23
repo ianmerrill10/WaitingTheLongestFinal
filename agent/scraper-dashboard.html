@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>50-State Scraper Agent | WaitingTheLongest.com</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+  .header { background: #111; border-bottom: 2px solid #00ff41; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 20px; color: #00ff41; font-family: 'Courier New', monospace; }
+  .header .stats { display: flex; gap: 24px; font-size: 13px; }
+  .header .stat { text-align: center; }
+  .header .stat .value { font-size: 22px; font-weight: bold; color: #00ff41; font-family: 'Courier New', monospace; }
+  .header .stat .label { color: #888; font-size: 11px; text-transform: uppercase; }
+  .controls { padding: 8px 24px; background: #111; display: flex; gap: 8px; border-bottom: 1px solid #333; }
+  .controls button { padding: 6px 16px; border: 1px solid #444; background: #222; color: #ccc; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .controls button:hover { background: #333; border-color: #00ff41; color: #00ff41; }
+  .controls button.active { background: #00ff41; color: #000; border-color: #00ff41; }
+  .main { display: grid; grid-template-columns: 1fr 400px; height: calc(100vh - 120px); }
+  .state-grid { padding: 16px; overflow-y: auto; }
+  .state-grid h2 { font-size: 14px; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .states { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  .state-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px 12px; font-size: 12px; transition: all 0.2s; }
+  .state-card.running { border-color: #00ff41; background: #0a1a0a; }
+  .state-card.has-errors { border-color: #ff4444; }
+  .state-card .state-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .state-card .state-code { font-weight: bold; font-size: 16px; font-family: 'Courier New', monospace; }
+  .state-card .state-code.running { color: #00ff41; }
+  .state-card .shelters { color: #888; font-size: 11px; }
+  .state-card .dogs { color: #00ff41; font-family: 'Courier New', monospace; font-size: 13px; }
+  .state-card .last-scrape { color: #666; font-size: 10px; margin-top: 4px; }
+  .log-panel { background: #0d0d0d; border-left: 1px solid #333; display: flex; flex-direction: column; }
+  .log-panel h2 { font-size: 14px; color: #888; padding: 12px 16px; border-bottom: 1px solid #333; text-transform: uppercase; letter-spacing: 1px; }
+  .log-entries { flex: 1; overflow-y: auto; padding: 8px; font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.6; }
+  .log-entry { padding: 2px 8px; border-radius: 2px; }
+  .log-entry.info { color: #aaa; }
+  .log-entry.warn { color: #ffaa00; }
+  .log-entry.error { color: #ff4444; }
+  .log-entry.success { color: #00ff41; }
+  .log-entry .time { color: #555; }
+  .log-entry .cat { color: #6688cc; }
+  .platform-bar { padding: 16px; border-top: 1px solid #333; }
+  .platform-bar h3 { font-size: 12px; color: #888; margin-bottom: 8px; text-transform: uppercase; }
+  .platform-row { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; }
+  .platform-row .name { color: #aaa; }
+  .platform-row .count { color: #00ff41; font-family: 'Courier New', monospace; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>50-STATE SHELTER SCRAPER</h1>
+    <div class="stats">
+      <div class="stat">
+        <div class="value" id="sheltersScraped">0</div>
+        <div class="label">Shelters Scraped</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="dogsFound">0</div>
+        <div class="label">Dogs Found</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="dogsInserted">0</div>
+        <div class="label">New Dogs</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="dogsDeactivated">0</div>
+        <div class="label">Adopted</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="errors">0</div>
+        <div class="label">Errors</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="uptime">0m</div>
+        <div class="label">Uptime</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnPause" onclick="togglePause()">Pause</button>
+    <button onclick="triggerState()">Trigger State</button>
+    <button onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div class="main">
+    <div class="state-grid">
+      <h2>States</h2>
+      <div class="states" id="stateCards"></div>
+      <div class="platform-bar" id="platformBar">
+        <h3>Platform Breakdown</h3>
+        <div id="platformList"></div>
+      </div>
+    </div>
+    <div class="log-panel">
+      <h2>Live Log</h2>
+      <div class="log-entries" id="logEntries"></div>
+    </div>
+  </div>
+
+  <script>
+    let paused = false;
+
+    function formatNumber(n) { return n.toLocaleString(); }
+    function formatUptime(ms) {
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+    function timeAgo(iso) {
+      if (!iso) return 'never';
+      const d = (Date.now() - new Date(iso).getTime()) / 1000;
+      if (d < 60) return `${Math.floor(d)}s ago`;
+      if (d < 3600) return `${Math.floor(d/60)}m ago`;
+      if (d < 86400) return `${Math.floor(d/3600)}h ago`;
+      return `${Math.floor(d/86400)}d ago`;
+    }
+
+    async function fetchMetrics() {
+      try {
+        const res = await fetch('/api/metrics');
+        const data = await res.json();
+        document.getElementById('sheltersScraped').textContent = formatNumber(data.totalSheltersScraped);
+        document.getElementById('dogsFound').textContent = formatNumber(data.totalDogsFound);
+        document.getElementById('dogsInserted').textContent = formatNumber(data.totalDogsInserted);
+        document.getElementById('dogsDeactivated').textContent = formatNumber(data.totalDogsDeactivated);
+        document.getElementById('errors').textContent = formatNumber(data.totalErrors);
+        document.getElementById('uptime').textContent = formatUptime(data.uptimeMs);
+        paused = data.isPaused;
+        document.getElementById('btnPause').textContent = paused ? 'Resume' : 'Pause';
+        document.getElementById('btnPause').classList.toggle('active', paused);
+
+        // State cards
+        const container = document.getElementById('stateCards');
+        container.innerHTML = '';
+        const states = Object.values(data.states).sort((a,b) => b.totalShelters - a.totalShelters);
+        for (const s of states) {
+          const cls = ['state-card'];
+          if (s.isRunning) cls.push('running');
+          if (s.errorsThisRun > 0) cls.push('has-errors');
+          container.innerHTML += `
+            <div class="${cls.join(' ')}">
+              <div class="state-header">
+                <span class="state-code ${s.isRunning ? 'running' : ''}">${s.stateCode}</span>
+                <span class="dogs">${s.dogsFoundThisRun} dogs</span>
+              </div>
+              <div class="shelters">${s.sheltersWithWebsite}/${s.totalShelters} with website | ${s.sheltersScrapedThisRun} scraped</div>
+              <div class="last-scrape">${timeAgo(s.lastScrapeAt)}</div>
+            </div>`;
+        }
+
+        // Platform breakdown
+        const platContainer = document.getElementById('platformList');
+        platContainer.innerHTML = '';
+        const plats = Object.entries(data.platformBreakdown || {}).sort((a,b) => b[1] - a[1]);
+        for (const [name, count] of plats) {
+          platContainer.innerHTML += `<div class="platform-row"><span class="name">${name}</span><span class="count">${count}</span></div>`;
+        }
+      } catch(e) { console.error('Metrics fetch failed:', e); }
+    }
+
+    // SSE Log stream
+    const evtSource = new EventSource('/events');
+    const logContainer = document.getElementById('logEntries');
+
+    evtSource.onmessage = (e) => {
+      try {
+        const entry = JSON.parse(e.data);
+        const div = document.createElement('div');
+        div.className = `log-entry ${entry.level}`;
+        const time = entry.timestamp.substring(11, 19);
+        div.innerHTML = `<span class="time">${time}</span> <span class="cat">[${entry.category}]</span> ${entry.message}`;
+        logContainer.appendChild(div);
+        if (logContainer.children.length > 500) logContainer.removeChild(logContainer.firstChild);
+        logContainer.scrollTop = logContainer.scrollHeight;
+      } catch(err) { /* skip */ }
+    };
+
+    async function togglePause() {
+      await fetch(paused ? '/api/resume' : '/api/pause', { method: 'POST' });
+      fetchMetrics();
+    }
+
+    function triggerState() {
+      const state = prompt('Enter state code (e.g., TX, CA, NY):');
+      if (state) fetch('/api/trigger', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({state}) });
+    }
+
+    fetchMetrics();
+    setInterval(fetchMetrics, 10000);
+  </script>
+</body>
+</html>

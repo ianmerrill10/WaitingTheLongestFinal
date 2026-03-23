@@ -10,7 +10,8 @@
     "seed": "npx tsx src/data/seed.ts",
     "agent": "npx tsx --tsconfig tsconfig.json agent/index.ts",
     "agent:improve": "npx tsx --tsconfig tsconfig.json agent/improve.ts",
-    "agent:backup": "npx tsx --tsconfig tsconfig.json agent/backup.ts"
+    "agent:backup": "npx tsx --tsconfig tsconfig.json agent/backup.ts",
+    "agent:scraper": "npx tsx --tsconfig tsconfig.json agent/scraper.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
