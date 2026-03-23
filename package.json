@@ -11,7 +11,11 @@
     "agent": "npx tsx --tsconfig tsconfig.json agent/index.ts",
     "agent:improve": "npx tsx --tsconfig tsconfig.json agent/improve.ts",
     "agent:backup": "npx tsx --tsconfig tsconfig.json agent/backup.ts",
-    "agent:scraper": "npx tsx --tsconfig tsconfig.json agent/scraper.ts"
+    "agent:scraper": "npx tsx --tsconfig tsconfig.json agent/scraper.ts",
+    "agent:all": "npx tsx --tsconfig tsconfig.json agent/start-all.ts",
+    "export:shelters": "npx tsx --tsconfig tsconfig.json scripts/export-shelters.ts",
+    "export:dogs": "npx tsx --tsconfig tsconfig.json scripts/export-dogs.ts",
+    "classify:shelters": "npx tsx --tsconfig tsconfig.json scripts/classify-shelters.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

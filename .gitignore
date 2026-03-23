@@ -32,3 +32,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# exports and data artifacts
+/exports/
+/backups/
+agent.log
+INVESTMENT_REPORT.md
+
+# supabase local
+.supabase/

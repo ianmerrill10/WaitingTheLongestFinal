@@ -505,6 +505,19 @@ async function startScheduler(): Promise<void> {
       }
     }
 
+    // Between cycles: discover websites for IRS-only shelters (low priority)
+    if (!isShuttingDown && !isPaused) {
+      try {
+        const { discoverWebsiteBatch } = await import("../src/lib/scrapers/website-discovery");
+        const discovered = await discoverWebsiteBatch(25);
+        if (discovered > 0) {
+          log("success", "DISCOVERY", `Found ${discovered} new shelter websites`);
+        }
+      } catch {
+        // Website discovery is best-effort
+      }
+    }
+
     // Wait 5 minutes between cycles
     if (!isShuttingDown) {
       log("info", "SYSTEM", "Waiting 5 minutes before next cycle...");
