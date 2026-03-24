@@ -127,57 +127,89 @@ function addAnomaly(anomaly: Anomaly) {
 
 async function computeShelterRiskScores(): Promise<ShelterRisk[]> {
   const supabase = createAdminClient();
+  const t0 = Date.now();
 
   // Get shelters with dogs
-  const { data: shelters } = await supabase
+  console.log("[INTEL]   Fetching shelters...");
+  const { data: shelters, error: shelterErr } = await supabase
     .from("shelters")
     .select("id, name, city, state_code, available_dog_count, urgent_dog_count, website_platform, last_scraped_at, next_scrape_at")
     .gt("available_dog_count", 0)
     .order("urgent_dog_count", { ascending: false })
     .limit(500);
 
-  if (!shelters) return [];
+  console.log(`[INTEL]   Shelters: ${shelters?.length ?? 0} fetched in ${Date.now() - t0}ms${shelterErr ? ` ERROR: ${shelterErr.message}` : ""}`);
+  if (!shelters || shelters.length === 0) return [];
 
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Single query: Get ALL expired dogs from last 30 days, group client-side
+  const expiredMap = new Map<string, number>();
+  {
+    const t1 = Date.now();
+    console.log("[INTEL]   Fetching expired dogs...");
+    const { data: expiredDogs, error: expErr } = await supabase
+      .from("dogs")
+      .select("shelter_id")
+      .eq("is_available", false)
+      .in("status", ["outcome_unknown", "euthanized", "deceased"])
+      .gt("updated_at", thirtyDaysAgo)
+      .limit(5000);
+
+    console.log(`[INTEL]   Expired dogs: ${expiredDogs?.length ?? 0} fetched in ${Date.now() - t1}ms${expErr ? ` ERROR: ${expErr.message}` : ""}`);
+    if (expiredDogs) {
+      for (const dog of expiredDogs) {
+        expiredMap.set(dog.shelter_id, (expiredMap.get(dog.shelter_id) || 0) + 1);
+      }
+    }
+  }
+
+  // Single query: Get ALL dogs with euthanasia dates, group client-side
+  const euthMap = new Map<string, number>();
+  {
+    const t2 = Date.now();
+    console.log("[INTEL]   Fetching euth date data...");
+    const { data: euthDogs, error: euthErr } = await supabase
+      .from("dogs")
+      .select("shelter_id, intake_date, euthanasia_date")
+      .eq("is_available", true)
+      .not("euthanasia_date", "is", null)
+      .not("intake_date", "is", null)
+      .limit(5000);
+
+    console.log(`[INTEL]   Euth dogs: ${euthDogs?.length ?? 0} fetched in ${Date.now() - t2}ms${euthErr ? ` ERROR: ${euthErr.message}` : ""}`);
+    if (euthDogs) {
+      const shelterDays = new Map<string, number[]>();
+      for (const d of euthDogs) {
+        const intake = new Date(d.intake_date);
+        const euth = new Date(d.euthanasia_date);
+        const days = (euth.getTime() - intake.getTime()) / (1000 * 60 * 60 * 24);
+        if (days > 0 && days < 365) {
+          const arr = shelterDays.get(d.shelter_id) || [];
+          arr.push(days);
+          shelterDays.set(d.shelter_id, arr);
+        }
+      }
+      for (const [sid, days] of Array.from(shelterDays.entries())) {
+        euthMap.set(sid, days.reduce((a: number, b: number) => a + b, 0) / days.length);
+      }
+    }
+  }
+  console.log(`[INTEL]   Total shelter risk computation: ${Date.now() - t0}ms`);
+
+  // Now compute risk scores with pre-fetched data (no more individual queries)
   const risks: ShelterRisk[] = [];
 
   for (const shelter of shelters) {
-    // Count expired euthanasia dogs (deactivated in last 30 days)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const { count: expiredCount } = await supabase
-      .from("dogs")
-      .select("id", { count: "exact", head: true })
-      .eq("shelter_id", shelter.id)
-      .eq("is_available", false)
-      .in("status", ["outcome_unknown", "euthanized", "deceased"])
-      .gt("updated_at", thirtyDaysAgo.toISOString());
+    const expiredCount = expiredMap.get(shelter.id) || 0;
+    const avgDaysToEuth = euthMap.get(shelter.id) || 0;
 
-    // Get avg days to euthanasia for this shelter
-    const { data: euthDogs } = await supabase
-      .from("dogs")
-      .select("intake_date, euthanasia_date")
-      .eq("shelter_id", shelter.id)
-      .not("euthanasia_date", "is", null)
-      .not("intake_date", "is", null)
-      .limit(50);
-
-    let avgDaysToEuth = 0;
-    if (euthDogs && euthDogs.length > 0) {
-      const days = euthDogs.map(d => {
-        const intake = new Date(d.intake_date);
-        const euth = new Date(d.euthanasia_date);
-        return (euth.getTime() - intake.getTime()) / (1000 * 60 * 60 * 24);
-      }).filter(d => d > 0 && d < 365);
-      avgDaysToEuth = days.length > 0 ? days.reduce((a, b) => a + b, 0) / days.length : 0;
-    }
-
-    // Calculate risk score (0-100)
-    // Factors: urgent %, expired count, short avg euthanasia window
     const urgentPct = shelter.available_dog_count > 0
       ? (shelter.urgent_dog_count / shelter.available_dog_count) * 100
       : 0;
-    const expiredFactor = Math.min((expiredCount ?? 0) * 5, 30); // up to 30 points
-    const urgentFactor = Math.min(urgentPct, 40); // up to 40 points
-    const windowFactor = avgDaysToEuth > 0 ? Math.max(0, 30 - avgDaysToEuth) : 0; // short window = high risk
+    const expiredFactor = Math.min(expiredCount * 5, 30);
+    const urgentFactor = Math.min(urgentPct, 40);
+    const windowFactor = avgDaysToEuth > 0 ? Math.max(0, 30 - avgDaysToEuth) : 0;
 
     const riskScore = Math.min(100, Math.round(urgentFactor + expiredFactor + windowFactor));
 
@@ -204,7 +236,7 @@ async function computeShelterRiskScores(): Promise<ShelterRisk[]> {
       riskScore,
       totalDogs: shelter.available_dog_count,
       urgentDogs: shelter.urgent_dog_count,
-      expiredDogs: expiredCount ?? 0,
+      expiredDogs: expiredCount,
       avgDaysToEuth: Math.round(avgDaysToEuth * 10) / 10,
       lastScrapedAt: shelter.last_scraped_at,
       scrapeFrequency,
@@ -212,9 +244,7 @@ async function computeShelterRiskScores(): Promise<ShelterRisk[]> {
     });
   }
 
-  // Sort by risk score descending
   risks.sort((a, b) => b.riskScore - a.riskScore);
-
   return risks;
 }
 
@@ -223,24 +253,33 @@ async function computeShelterRiskScores(): Promise<ShelterRisk[]> {
 async function computeBreedRisks(): Promise<BreedRisk[]> {
   const supabase = createAdminClient();
 
-  // Get all breeds with their counts
-  const { data: breeds } = await supabase
-    .from("dogs")
-    .select("breed_primary")
-    .eq("is_available", true);
-
-  if (!breeds) return [];
-
-  // Count by breed
+  // Use breed_counts view from shelters or aggregate from denormalized data
+  // Fetch breed counts using paginated approach instead of pulling all 40K+ rows
   const breedCounts = new Map<string, { total: number; urgent: number }>();
-  for (const dog of breeds) {
-    const breed = dog.breed_primary || "Unknown";
-    const entry = breedCounts.get(breed) || { total: 0, urgent: 0 };
-    entry.total++;
-    breedCounts.set(breed, entry);
+
+  // Get total counts per breed (paginate to handle >1000 breeds)
+  let offset = 0;
+  while (true) {
+    const { data: page } = await supabase
+      .from("dogs")
+      .select("breed_primary")
+      .eq("is_available", true)
+      .range(offset, offset + 4999);
+
+    if (!page || page.length === 0) break;
+
+    for (const dog of page) {
+      const breed = dog.breed_primary || "Unknown";
+      const entry = breedCounts.get(breed) || { total: 0, urgent: 0 };
+      entry.total++;
+      breedCounts.set(breed, entry);
+    }
+
+    if (page.length < 5000) break;
+    offset += 5000;
   }
 
-  // Get urgent counts per breed
+  // Get urgent counts (much smaller set, usually <1000)
   const { data: urgentBreeds } = await supabase
     .from("dogs")
     .select("breed_primary")
@@ -257,7 +296,7 @@ async function computeBreedRisks(): Promise<BreedRisk[]> {
 
   const risks: BreedRisk[] = [];
   for (const [breed, counts] of Array.from(breedCounts.entries())) {
-    if (counts.total < 5) continue; // Skip very rare breeds
+    if (counts.total < 5) continue;
     risks.push({
       breed,
       totalAvailable: counts.total,
@@ -429,43 +468,71 @@ async function optimizeScraperFrequency(): Promise<number> {
   return optimized;
 }
 
+// ─── Timeout helper ───
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 // ─── Main Cycle ───
 
 async function runCycle() {
   const cycleStart = Date.now();
   metrics.cycleCount++;
+  const PHASE_TIMEOUT = 5 * 60 * 1000; // 5 min max per phase
 
+  // Phase 1: Compute shelter risk scores
   try {
-    // Phase 1: Compute shelter risk scores
     metrics.currentTask = "computing shelter risk scores";
     broadcastSSE({ type: "status", data: metrics.currentTask });
-    metrics.shelterRiskScores = await computeShelterRiskScores();
+    metrics.shelterRiskScores = await withTimeout(computeShelterRiskScores(), PHASE_TIMEOUT, "Shelter risk scores");
     metrics.totalSheltersAnalyzed = metrics.shelterRiskScores.length;
     metrics.highRiskShelters = metrics.shelterRiskScores.filter(s => s.riskScore >= 60).length;
+  } catch (err) {
+    console.error("[INTEL] Phase 1 (shelter risk) error:", err instanceof Error ? err.message : err);
+  }
 
-    // Phase 2: Breed risk analysis
+  // Phase 2: Breed risk analysis
+  try {
     metrics.currentTask = "analyzing breed risks";
     broadcastSSE({ type: "status", data: metrics.currentTask });
-    metrics.topBreedRisks = await computeBreedRisks();
+    metrics.topBreedRisks = await withTimeout(computeBreedRisks(), PHASE_TIMEOUT, "Breed risks");
+  } catch (err) {
+    console.error("[INTEL] Phase 2 (breed risk) error:", err instanceof Error ? err.message : err);
+  }
 
-    // Phase 3: State risk analysis
+  // Phase 3: State risk analysis
+  try {
     metrics.currentTask = "analyzing state risks";
     broadcastSSE({ type: "status", data: metrics.currentTask });
-    metrics.stateRisks = await computeStateRisks();
+    metrics.stateRisks = await withTimeout(computeStateRisks(), PHASE_TIMEOUT, "State risks");
+  } catch (err) {
+    console.error("[INTEL] Phase 3 (state risk) error:", err instanceof Error ? err.message : err);
+  }
 
-    // Phase 4: Anomaly detection
+  // Phase 4: Anomaly detection
+  try {
     metrics.currentTask = "detecting anomalies";
     broadcastSSE({ type: "status", data: metrics.currentTask });
-    await detectAnomalies();
+    await withTimeout(detectAnomalies(), PHASE_TIMEOUT, "Anomaly detection");
+  } catch (err) {
+    console.error("[INTEL] Phase 4 (anomaly) error:", err instanceof Error ? err.message : err);
+  }
 
-    // Phase 5: Auto-optimize scraper frequency
+  // Phase 5: Auto-optimize scraper frequency
+  try {
     metrics.currentTask = "optimizing scraper frequency";
     broadcastSSE({ type: "status", data: metrics.currentTask });
-    const optimized = await optimizeScraperFrequency();
+    const optimized = await withTimeout(optimizeScraperFrequency(), PHASE_TIMEOUT, "Scraper optimization");
     metrics.optimizationsApplied += optimized;
-
   } catch (err) {
-    console.error("[INTEL] Cycle error:", err);
+    console.error("[INTEL] Phase 5 (optimization) error:", err instanceof Error ? err.message : err);
   }
 
   metrics.lastCycleAt = new Date().toISOString();
