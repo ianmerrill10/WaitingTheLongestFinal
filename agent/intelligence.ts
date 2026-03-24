@@ -131,7 +131,7 @@ async function computeShelterRiskScores(): Promise<ShelterRisk[]> {
   // Get shelters with dogs
   const { data: shelters } = await supabase
     .from("shelters")
-    .select("id, name, city, state, available_dog_count, urgent_dog_count, platform, last_scraped_at, next_scrape_at")
+    .select("id, name, city, state_code, available_dog_count, urgent_dog_count, website_platform, last_scraped_at, next_scrape_at")
     .gt("available_dog_count", 0)
     .order("urgent_dog_count", { ascending: false })
     .limit(500);
@@ -200,7 +200,7 @@ async function computeShelterRiskScores(): Promise<ShelterRisk[]> {
       shelterId: shelter.id,
       shelterName: shelter.name,
       city: shelter.city || "",
-      state: shelter.state || "",
+      state: shelter.state_code || "",
       riskScore,
       totalDogs: shelter.available_dog_count,
       urgentDogs: shelter.urgent_dog_count,
@@ -277,14 +277,14 @@ async function computeStateRisks(): Promise<StateRisk[]> {
 
   const { data: shelters } = await supabase
     .from("shelters")
-    .select("state, available_dog_count, urgent_dog_count")
+    .select("state_code, available_dog_count, urgent_dog_count")
     .gt("available_dog_count", 0);
 
   if (!shelters) return [];
 
   const stateMap = new Map<string, { total: number; urgent: number; shelters: number }>();
   for (const s of shelters) {
-    const state = s.state || "Unknown";
+    const state = s.state_code || "Unknown";
     const entry = stateMap.get(state) || { total: 0, urgent: 0, shelters: 0 };
     entry.total += s.available_dog_count || 0;
     entry.urgent += s.urgent_dog_count || 0;
@@ -317,7 +317,7 @@ async function detectAnomalies(): Promise<void> {
   // 1. Mass deactivation events (>10 dogs deactivated from one shelter in 24h)
   const { data: recentDeactivated } = await supabase
     .from("dogs")
-    .select("shelter_id, shelters!inner(name, city, state)")
+    .select("shelter_id, shelters!inner(name, city, state_code)")
     .eq("is_available", false)
     .in("status", ["outcome_unknown", "adopted"])
     .gt("updated_at", oneDayAgo.toISOString())
@@ -329,7 +329,7 @@ async function detectAnomalies(): Promise<void> {
       const s = dog.shelter_id;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const shelter = dog.shelters as any;
-      const entry = shelterDeactivations.get(s) || { count: 0, name: shelter?.name || "Unknown", state: shelter?.state || "" };
+      const entry = shelterDeactivations.get(s) || { count: 0, name: shelter?.name || "Unknown", state: shelter?.state_code || "" };
       entry.count++;
       shelterDeactivations.set(s, entry);
     }
@@ -360,7 +360,7 @@ async function detectAnomalies(): Promise<void> {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const { data: offlineShelters } = await supabase
     .from("shelters")
-    .select("id, name, state, available_dog_count, last_scraped_at")
+    .select("id, name, state_code, available_dog_count, last_scraped_at")
     .gt("available_dog_count", 5)
     .lt("last_scraped_at", sevenDaysAgo.toISOString())
     .limit(20);
@@ -378,7 +378,7 @@ async function detectAnomalies(): Promise<void> {
           severity: "warning",
           shelterId: shelter.id,
           shelterName: shelter.name,
-          message: `${shelter.name} (${shelter.state}) not scraped in 7+ days, has ${shelter.available_dog_count} dogs`,
+          message: `${shelter.name} (${shelter.state_code}) not scraped in 7+ days, has ${shelter.available_dog_count} dogs`,
           data: { dogCount: shelter.available_dog_count, lastScraped: shelter.last_scraped_at },
         });
       }
@@ -390,7 +390,7 @@ async function detectAnomalies(): Promise<void> {
     .from("shelters")
     .select("id", { count: "exact", head: true })
     .gt("available_dog_count", 10)
-    .is("platform", null);
+    .is("website_platform", null);
 
   metrics.coverageGaps = gapCount ?? 0;
 }

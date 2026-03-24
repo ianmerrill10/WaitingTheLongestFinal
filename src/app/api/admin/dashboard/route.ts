@@ -60,9 +60,9 @@ export async function GET() {
       supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).like("date_source", "description_parsed%"),
       supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).like("date_source", "%age_capped%"),
       // State breakdown from shelters
-      supabase.from("shelters").select("id, name, city, state, available_dog_count, urgent_dog_count, platform, website, last_scraped_at").gt("available_dog_count", 0),
+      supabase.from("shelters").select("id, name, city, state_code, available_dog_count, urgent_dog_count, website_platform, website, last_scraped_at").gt("available_dog_count", 0),
       // Top shelters
-      supabase.from("shelters").select("id, name, city, state, available_dog_count, urgent_dog_count, platform, website, last_scraped_at, org_type").gt("available_dog_count", 0).order("available_dog_count", { ascending: false }).limit(500),
+      supabase.from("shelters").select("id, name, city, state_code, available_dog_count, urgent_dog_count, website_platform, website, last_scraped_at, shelter_type").gt("available_dog_count", 0).order("available_dog_count", { ascending: false }).limit(500),
       // Source breakdown
       supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).eq("external_source", "rescuegroups"),
       supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).like("external_source", "scraper_%"),
@@ -77,7 +77,7 @@ export async function GET() {
     // Compute state breakdown from shelter data
     const stateMap = new Map<string, { total: number; urgent: number; shelters: number }>();
     for (const s of (shelterDataRes.data || [])) {
-      const st = s.state || "Unknown";
+      const st = s.state_code || "Unknown";
       const entry = stateMap.get(st) || { total: 0, urgent: 0, shelters: 0 };
       entry.total += s.available_dog_count || 0;
       entry.urgent += s.urgent_dog_count || 0;
@@ -133,13 +133,13 @@ export async function GET() {
         id: s.id,
         name: s.name,
         city: s.city,
-        state: s.state,
+        state: s.state_code,
         dogCount: s.available_dog_count,
         urgentCount: s.urgent_dog_count,
-        platform: s.platform,
+        platform: s.website_platform,
         website: s.website,
         lastScraped: s.last_scraped_at,
-        orgType: s.org_type,
+        orgType: s.shelter_type,
       })),
       dailyTrends: dailyStatsRes.data ?? [],
       recentAudits: auditRunsRes.data ?? [],
