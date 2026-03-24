@@ -142,14 +142,18 @@ export async function upsertScrapedDogs(
     }
   }
 
-  // Step 4: Update existing dogs
-  for (const item of toUpdate) {
-    const { error: updateErr } = await supabase
-      .from("dogs")
-      .update(item.data)
-      .eq("id", item.id);
-    if (updateErr) errors++;
-    else updated++;
+  // Step 4: Update existing dogs (batched in parallel chunks of 10)
+  for (let i = 0; i < toUpdate.length; i += 10) {
+    const batch = toUpdate.slice(i, i + 10);
+    const results = await Promise.all(
+      batch.map((item) =>
+        supabase.from("dogs").update(item.data).eq("id", item.id)
+      )
+    );
+    for (const result of results) {
+      if (result.error) errors++;
+      else updated++;
+    }
   }
 
   // Step 5: Deactivate dogs that are NO LONGER on the shelter's website

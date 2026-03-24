@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ShelterCard from "./ShelterCard";
 import ShelterTable from "./ShelterTable";
@@ -88,6 +88,17 @@ export default function ShelterListings() {
   const verified = searchParams.get("verified") || "";
   const hasDogs = searchParams.get("has_dogs") || "";
 
+  // Local state for text inputs (debounced before updating URL)
+  const [searchLocal, setSearchLocal] = useState(search);
+  const [cityLocal, setCityLocal] = useState(city);
+  const [zipLocal, setZipLocal] = useState(zip);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Sync local state when URL params change externally (e.g. clear filters)
+  useEffect(() => { setSearchLocal(search); }, [search]);
+  useEffect(() => { setCityLocal(city); }, [city]);
+  useEffect(() => { setZipLocal(zip); }, [zip]);
+
   const fetchShelters = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -131,6 +142,11 @@ export default function ShelterListings() {
     }
     params.set("page", "1");
     router.push(`/shelters?${params.toString()}`);
+  }
+
+  function updateFilterDebounced(key: string, value: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => updateFilter(key, value), 300);
   }
 
   function clearFilters() {
@@ -183,8 +199,8 @@ export default function ShelterListings() {
             <input
               type="text"
               placeholder="Shelter name..."
-              value={search}
-              onChange={(e) => updateFilter("q", e.target.value)}
+              value={searchLocal}
+              onChange={(e) => { setSearchLocal(e.target.value); updateFilterDebounced("q", e.target.value); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </FilterSection>
@@ -194,8 +210,8 @@ export default function ShelterListings() {
             <input
               type="text"
               placeholder="City name..."
-              value={city}
-              onChange={(e) => updateFilter("city", e.target.value)}
+              value={cityLocal}
+              onChange={(e) => { setCityLocal(e.target.value); updateFilterDebounced("city", e.target.value); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </FilterSection>
@@ -205,8 +221,8 @@ export default function ShelterListings() {
             <input
               type="text"
               placeholder="e.g. 90210"
-              value={zip}
-              onChange={(e) => updateFilter("zip", e.target.value)}
+              value={zipLocal}
+              onChange={(e) => { setZipLocal(e.target.value); updateFilterDebounced("zip", e.target.value); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </FilterSection>

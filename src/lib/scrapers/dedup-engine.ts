@@ -154,6 +154,7 @@ export async function mergeDuplicate(
 /**
  * Run a batch dedup pass across all dogs in a shelter.
  * Finds scraper-sourced dogs that duplicate RG-sourced dogs and merges them.
+ * Batched: groups scraper dogs by shelter, fetches all RG dogs per shelter in one query.
  */
 export async function runBatchDedup(shelterId?: string): Promise<{
   checked: number;
@@ -165,10 +166,12 @@ export async function runBatchDedup(shelterId?: string): Promise<{
   let merged = 0;
   let removed = 0;
 
+  const DOG_FIELDS = "id, name, shelter_id, breed_primary, external_id, external_source, description, photo_urls, primary_photo_url, intake_date, date_confidence, euthanasia_date, weight_lbs, color_primary, good_with_kids, good_with_dogs, good_with_cats, house_trained, dedup_merged_from";
+
   // Find scraper-sourced dogs
   let query = supabase
     .from("dogs")
-    .select("id, name, shelter_id, breed_primary, external_id, external_source, description, photo_urls, primary_photo_url, intake_date, date_confidence, euthanasia_date, weight_lbs, color_primary, good_with_kids, good_with_dogs, good_with_cats, house_trained, dedup_merged_from")
+    .select(DOG_FIELDS)
     .eq("is_available", true)
     .like("external_source", "scraper_%")
     .limit(1000);
@@ -180,45 +183,81 @@ export async function runBatchDedup(shelterId?: string): Promise<{
   const { data: scraperDogs } = await query;
   if (!scraperDogs || scraperDogs.length === 0) return { checked, merged, removed };
 
-  for (const scraperDog of scraperDogs) {
-    checked++;
+  // Group scraper dogs by shelter_id to batch RG lookups
+  const byShelter = new Map<string, typeof scraperDogs>();
+  for (const dog of scraperDogs) {
+    const list = byShelter.get(dog.shelter_id) || [];
+    list.push(dog);
+    byShelter.set(dog.shelter_id, list);
+  }
 
-    // Look for RG-sourced duplicate
+  // Process each shelter in one batch
+  for (const [sid, shelterScraperDogs] of Array.from(byShelter.entries())) {
+    // Single query: get ALL RG dogs for this shelter
     const { data: rgDogs } = await supabase
       .from("dogs")
-      .select("id, name, shelter_id, breed_primary, external_id, external_source, description, photo_urls, primary_photo_url, intake_date, date_confidence, euthanasia_date, weight_lbs, color_primary, good_with_kids, good_with_dogs, good_with_cats, house_trained, dedup_merged_from")
-      .eq("shelter_id", scraperDog.shelter_id)
+      .select(DOG_FIELDS)
+      .eq("shelter_id", sid)
       .eq("is_available", true)
       .eq("external_source", "rescuegroups")
-      .ilike("name", scraperDog.name.trim())
-      .limit(3);
+      .limit(5000);
 
-    if (!rgDogs || rgDogs.length === 0) continue;
+    if (!rgDogs || rgDogs.length === 0) {
+      checked += shelterScraperDogs.length;
+      continue;
+    }
 
-    // Find breed match
-    const scraperBreed = (scraperDog.breed_primary || "").toLowerCase();
-    const match = rgDogs.find((rg) => {
-      const rgBreed = (rg.breed_primary || "").toLowerCase();
-      return (
-        rgBreed === scraperBreed ||
-        rgBreed.includes(scraperBreed) ||
-        scraperBreed.includes(rgBreed) ||
-        rgBreed.split(/[\s/]+/)[0] === scraperBreed.split(/[\s/]+/)[0]
-      );
-    });
+    // Index RG dogs by lowercase name for fast lookup
+    const rgByName = new Map<string, typeof rgDogs>();
+    for (const rg of rgDogs) {
+      const key = (rg.name || "").toLowerCase().trim();
+      const list = rgByName.get(key) || [];
+      list.push(rg);
+      rgByName.set(key, list);
+    }
 
-    if (match) {
-      // Merge scraper data into RG record
-      const didMerge = await mergeDuplicate(
-        match.id,
-        match as DogRecord,
-        scraperDog,
-        scraperDog.external_id
-      );
+    // Collect IDs to deactivate (batch the update)
+    const toDeactivate: string[] = [];
 
-      if (didMerge) {
-        merged++;
-        // Deactivate the scraper duplicate
+    for (const scraperDog of shelterScraperDogs) {
+      checked++;
+
+      const nameKey = (scraperDog.name || "").toLowerCase().trim();
+      const candidates = rgByName.get(nameKey);
+      if (!candidates || candidates.length === 0) continue;
+
+      // Find breed match
+      const scraperBreed = (scraperDog.breed_primary || "").toLowerCase();
+      const match = candidates.find((rg) => {
+        const rgBreed = (rg.breed_primary || "").toLowerCase();
+        return (
+          rgBreed === scraperBreed ||
+          rgBreed.includes(scraperBreed) ||
+          scraperBreed.includes(rgBreed) ||
+          rgBreed.split(/[\s/]+/)[0] === scraperBreed.split(/[\s/]+/)[0]
+        );
+      });
+
+      if (match) {
+        const didMerge = await mergeDuplicate(
+          match.id,
+          match as DogRecord,
+          scraperDog,
+          scraperDog.external_id
+        );
+
+        if (didMerge) {
+          merged++;
+          toDeactivate.push(scraperDog.id);
+          removed++;
+        }
+      }
+    }
+
+    // Batch deactivate merged duplicates for this shelter
+    if (toDeactivate.length > 0) {
+      for (let i = 0; i < toDeactivate.length; i += 50) {
+        const batch = toDeactivate.slice(i, i + 50);
         await supabase
           .from("dogs")
           .update({
@@ -226,8 +265,7 @@ export async function runBatchDedup(shelterId?: string): Promise<{
             status: "duplicate_merged",
             updated_at: new Date().toISOString(),
           })
-          .eq("id", scraperDog.id);
-        removed++;
+          .in("id", batch);
       }
     }
   }

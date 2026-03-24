@@ -183,29 +183,34 @@ export function mapScrapedDog(
   let is_on_euthanasia_list = dog.is_on_euthanasia_list ?? false;
 
   // Priority 1: Explicit euthanasia_date from scraper adapter
+  // Grace window: accept dates up to 24h in the past (dog may still be alive)
   if (dog.euthanasia_date) {
     const euthDate = new Date(dog.euthanasia_date);
-    if (!isNaN(euthDate.getTime()) && euthDate > new Date()) {
+    const graceMs = 24 * 60 * 60 * 1000; // 24 hours
+    if (!isNaN(euthDate.getTime()) && euthDate.getTime() > Date.now() - graceMs) {
       euthanasia_date = euthDate.toISOString();
       is_on_euthanasia_list = true;
       const hoursLeft = (euthDate.getTime() - Date.now()) / (1000 * 60 * 60);
-      if (hoursLeft > 0 && hoursLeft < 24) urgency_level = "critical";
-      else if (hoursLeft > 0 && hoursLeft < 72) urgency_level = "high";
-      else if (hoursLeft > 0 && hoursLeft < 168) urgency_level = "medium";
+      if (hoursLeft <= 0) urgency_level = "critical"; // past deadline = most urgent
+      else if (hoursLeft < 24) urgency_level = "critical";
+      else if (hoursLeft < 72) urgency_level = "high";
+      else if (hoursLeft < 168) urgency_level = "medium";
     }
   }
 
   // Priority 2: Parse urgency from description text
   if (!euthanasia_date && dog.description) {
     const urgency = parseUrgencyFromDescription(dog.description);
-    if (urgency && urgency.date && urgency.confidence === "high") {
+    const graceMs = 24 * 60 * 60 * 1000;
+    if (urgency && urgency.date && urgency.confidence === "high" && urgency.date.getTime() > Date.now() - graceMs) {
       euthanasia_date = urgency.date.toISOString();
       is_on_euthanasia_list = true;
       const hoursLeft =
         (urgency.date.getTime() - Date.now()) / (1000 * 60 * 60);
-      if (hoursLeft > 0 && hoursLeft < 24) urgency_level = "critical";
-      else if (hoursLeft > 0 && hoursLeft < 72) urgency_level = "high";
-      else if (hoursLeft > 0 && hoursLeft < 168) urgency_level = "medium";
+      if (hoursLeft <= 0) urgency_level = "critical";
+      else if (hoursLeft < 24) urgency_level = "critical";
+      else if (hoursLeft < 72) urgency_level = "high";
+      else if (hoursLeft < 168) urgency_level = "medium";
     }
   }
 
