@@ -15,7 +15,12 @@
  */
 
 import http from "http";
+import path from "path";
+import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+
+// Load .env.local before accessing env vars
+dotenv.config({ path: path.join(__dirname, "..", ".env.local") });
 
 const PORT = 3850;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
