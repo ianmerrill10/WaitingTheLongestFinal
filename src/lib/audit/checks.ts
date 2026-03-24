@@ -6,7 +6,7 @@ import { AuditLogger } from "./logger";
 import { parseDateFromDescription } from "@/lib/utils/parse-description-date";
 import { parseUrgencyFromDescription } from "@/lib/utils/parse-urgency-from-description";
 import { classifyDescription } from "@/lib/utils/listing-classifier";
-import { parseAgeMonths } from "@/lib/rescuegroups/mapper";
+import { parseAgeMonths, MAX_WAIT_DAYS, type DateConfidence } from "@/lib/rescuegroups/mapper";
 
 // ============================================================
 // 1. DATE VALIDATION — bulk classify and repair intake dates
@@ -104,44 +104,138 @@ export async function checkDates(logger: AuditLogger): Promise<{
     flagged += oldCount;
   }
 
-  // Step 3: Flag 2-5 year old dates as low confidence (batch)
+  // Step 3: ENFORCE MAX_WAIT_DAYS caps — actually cap the intake_date, not just flag confidence.
+  // This is the critical fix: previously we only changed the confidence label but left
+  // the intake_date untouched, so dogs with "low" confidence could still show 5-year waits.
+  let capped = 0;
+  const confidenceLevels: DateConfidence[] = ["verified", "high", "medium", "low", "unknown"];
+
+  for (const conf of confidenceLevels) {
+    const maxDays = MAX_WAIT_DAYS[conf];
+    const cutoffDate = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000);
+
+    // Find dogs whose wait time exceeds the cap for their confidence level
+    let offset = 0;
+    while (true) {
+      const { data: dogs } = await supabase
+        .from("dogs")
+        .select("id, name, intake_date, date_confidence, date_source")
+        .eq("is_available", true)
+        .eq("date_confidence", conf)
+        .lt("intake_date", cutoffDate.toISOString())
+        .order("id")
+        .range(offset, offset + 499);
+
+      if (!dogs || dogs.length === 0) break;
+
+      for (const dog of dogs) {
+        const cappedDate = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000);
+        const newConf = conf === "verified" ? "medium" : "low";
+        await supabase
+          .from("dogs")
+          .update({
+            intake_date: cappedDate.toISOString(),
+            date_confidence: newConf,
+            date_source: `${dog.date_source || "unknown"}|audit_wait_capped_${maxDays}d`,
+            last_audited_at: now.toISOString(),
+          })
+          .eq("id", dog.id);
+        capped++;
+      }
+
+      offset += dogs.length;
+      if (dogs.length < 500) break;
+    }
+  }
+
+  if (capped > 0) {
+    logger.log({
+      audit_type: "date_check",
+      entity_type: "dog",
+      severity: "warning",
+      message: `${capped} dogs had wait times exceeding MAX_WAIT_DAYS for their confidence level — intake dates capped`,
+      action_taken: `Capped ${capped} intake dates to max allowed wait`,
+    });
+    repaired += capped;
+    flagged += capped;
+  }
+
+  // Step 4: Downgrade confidence for old dates that weren't already caught
   const twoYearsAgo = new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000);
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+  // >2 years with non-verified source → low
   const { count: suspiciousCount } = await supabase
     .from("dogs")
     .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
     .lt("intake_date", twoYearsAgo.toISOString())
-    .gte("intake_date", fiveYearsAgo.toISOString());
+    .not("date_source", "like", "%available_date%")
+    .not("date_source", "like", "%found_date%")
+    .neq("date_confidence", "low");
 
   if (suspiciousCount && suspiciousCount > 0) {
     await supabase
       .from("dogs")
       .update({
         date_confidence: "low",
-        date_source: "rescuegroups_unverified",
         last_audited_at: now.toISOString(),
       })
+      .eq("is_available", true)
       .lt("intake_date", twoYearsAgo.toISOString())
-      .gte("intake_date", fiveYearsAgo.toISOString())
+      .not("date_source", "like", "%available_date%")
+      .not("date_source", "like", "%found_date%")
       .neq("date_confidence", "low");
 
     logger.log({
       audit_type: "date_check",
       entity_type: "dog",
       severity: "warning",
-      message: `${suspiciousCount} dogs have intake dates 2-5 years old — flagged as low confidence`,
+      message: `${suspiciousCount} dogs >2yr wait without verified source — downgraded to low confidence`,
     });
     flagged += suspiciousCount;
   }
 
-  // Step 4: Classify remaining dates (bulk updates by confidence tier)
-  const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+  // 1-2 years with created_date source → downgrade to low
+  const { count: oldCreatedCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
+    .lt("intake_date", oneYearAgo.toISOString())
+    .gte("intake_date", twoYearsAgo.toISOString())
+    .like("date_source", "%created_date%")
+    .in("date_confidence", ["high", "medium"]);
 
-  // Medium: 6 months to 2 years, currently unknown
+  if (oldCreatedCount && oldCreatedCount > 0) {
+    await supabase
+      .from("dogs")
+      .update({
+        date_confidence: "low",
+        last_audited_at: now.toISOString(),
+      })
+      .eq("is_available", true)
+      .lt("intake_date", oneYearAgo.toISOString())
+      .gte("intake_date", twoYearsAgo.toISOString())
+      .like("date_source", "%created_date%")
+      .in("date_confidence", ["high", "medium"]);
+
+    logger.log({
+      audit_type: "date_check",
+      entity_type: "dog",
+      severity: "info",
+      message: `${oldCreatedCount} dogs 1-2yr wait with created_date source — downgraded to low`,
+    });
+    flagged += oldCreatedCount;
+  }
+
+  // Classify unknowns
   const { count: medCount } = await supabase
     .from("dogs")
     .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
     .lt("intake_date", sixMonthsAgo.toISOString())
-    .gte("intake_date", twoYearsAgo.toISOString())
+    .gte("intake_date", oneYearAgo.toISOString())
     .eq("date_confidence", "unknown");
 
   if (medCount && medCount > 0) {
@@ -149,18 +243,18 @@ export async function checkDates(logger: AuditLogger): Promise<{
       .from("dogs")
       .update({
         date_confidence: "medium",
-        date_source: "rescuegroups_updated_date",
         last_audited_at: now.toISOString(),
       })
+      .eq("is_available", true)
       .lt("intake_date", sixMonthsAgo.toISOString())
-      .gte("intake_date", twoYearsAgo.toISOString())
+      .gte("intake_date", oneYearAgo.toISOString())
       .eq("date_confidence", "unknown");
   }
 
-  // High: under 6 months, currently unknown
   const { count: highCount } = await supabase
     .from("dogs")
     .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
     .gte("intake_date", sixMonthsAgo.toISOString())
     .lte("intake_date", now.toISOString())
     .eq("date_confidence", "unknown");
@@ -170,15 +264,14 @@ export async function checkDates(logger: AuditLogger): Promise<{
       .from("dogs")
       .update({
         date_confidence: "high",
-        date_source: "rescuegroups_updated_date",
         last_audited_at: now.toISOString(),
       })
+      .eq("is_available", true)
       .gte("intake_date", sixMonthsAgo.toISOString())
       .lte("intake_date", now.toISOString())
       .eq("date_confidence", "unknown");
   }
 
-  // Get total for reporting
   const { count: totalCount } = await supabase
     .from("dogs")
     .select("id", { count: "exact", head: true });
@@ -187,7 +280,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
     audit_type: "date_check",
     entity_type: "dog",
     severity: "info",
-    message: `Date audit complete: ${totalCount} dogs checked, ${flagged} flagged, ${repaired} repaired. Classified: ${highCount || 0} high, ${medCount || 0} medium`,
+    message: `Date audit complete: ${totalCount} dogs checked, ${flagged} flagged, ${repaired} repaired (${capped} capped). Classified: ${highCount || 0} high, ${medCount || 0} medium`,
   });
 
   return { checked: totalCount ?? 0, flagged, repaired };
@@ -966,4 +1059,149 @@ export async function checkSourceClassification(logger: AuditLogger): Promise<{
   });
 
   return { checked, rejected };
+}
+
+// ============================================================
+// 12. WAIT TIME REASONABLENESS — cross-validate wait vs age, shelter type, confidence
+// ============================================================
+export async function checkWaitTimeReasonableness(logger: AuditLogger): Promise<{
+  checked: number;
+  capped: number;
+  downgraded: number;
+}> {
+  const supabase = createAdminClient();
+  const now = new Date();
+  let capped = 0;
+  let downgraded = 0;
+  let checked = 0;
+
+  // Phase 1: Dogs with wait time > 50% of their life (very suspicious)
+  // A dog waiting for more than half its life is almost certainly a bad date.
+  let offset = 0;
+  while (true) {
+    const { data: dogs } = await supabase
+      .from("dogs")
+      .select("id, name, intake_date, age_months, birth_date, date_confidence, date_source")
+      .eq("is_available", true)
+      .not("age_months", "is", null)
+      .gt("age_months", 0)
+      .order("id")
+      .range(offset, offset + 499);
+
+    if (!dogs || dogs.length === 0) break;
+
+    for (const dog of dogs) {
+      checked++;
+      if (!dog.age_months) continue;
+
+      const intakeDate = new Date(dog.intake_date);
+      if (isNaN(intakeDate.getTime())) continue;
+
+      const waitMs = now.getTime() - intakeDate.getTime();
+      const waitMonths = waitMs / (1000 * 60 * 60 * 24 * 30.44);
+      const ageMonths = dog.age_months;
+
+      // Skip if wait is reasonable (< 50% of age for non-verified dates)
+      const isVerifiedSource = dog.date_source?.includes("available_date") ||
+        dog.date_source?.includes("found_date");
+
+      if (isVerifiedSource) continue; // Trust verified sources
+
+      if (waitMonths > ageMonths * 0.5 && waitMonths > 12) {
+        // Wait > 50% of life AND > 1 year — cap to 25% of age or 6 months, whichever is longer
+        const reasonableWaitMonths = Math.max(ageMonths * 0.25, 6);
+        const cappedDate = new Date(now);
+        cappedDate.setMonth(cappedDate.getMonth() - Math.round(reasonableWaitMonths));
+
+        await supabase
+          .from("dogs")
+          .update({
+            intake_date: cappedDate.toISOString(),
+            date_confidence: "low",
+            date_source: `${dog.date_source || "unknown"}|reasonableness_capped_${Math.round(waitMonths)}mo_to_${Math.round(reasonableWaitMonths)}mo`,
+            last_audited_at: now.toISOString(),
+          })
+          .eq("id", dog.id);
+        capped++;
+      }
+    }
+
+    offset += dogs.length;
+    if (dogs.length < 500) break;
+  }
+
+  // Phase 2: Non-verified dates > 1 year on created_date source — downgrade to low
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  const { count: oldCreatedCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
+    .lt("intake_date", oneYearAgo.toISOString())
+    .like("date_source", "%created_date%")
+    .not("date_source", "like", "%available_date%")
+    .in("date_confidence", ["high", "medium", "verified"]);
+
+  if (oldCreatedCount && oldCreatedCount > 0) {
+    await supabase
+      .from("dogs")
+      .update({
+        date_confidence: "low",
+        last_audited_at: now.toISOString(),
+      })
+      .eq("is_available", true)
+      .lt("intake_date", oneYearAgo.toISOString())
+      .like("date_source", "%created_date%")
+      .not("date_source", "like", "%available_date%")
+      .in("date_confidence", ["high", "medium", "verified"]);
+
+    downgraded += oldCreatedCount;
+  }
+
+  // Phase 3: Dogs with updated_date source and wait > 6 months — downgrade
+  const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const { count: oldUpdatedCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
+    .lt("intake_date", sixMonthsAgo.toISOString())
+    .like("date_source", "%updated_date%")
+    .not("date_source", "like", "%available_date%")
+    .not("date_source", "like", "%found_date%")
+    .in("date_confidence", ["high", "medium"]);
+
+  if (oldUpdatedCount && oldUpdatedCount > 0) {
+    await supabase
+      .from("dogs")
+      .update({
+        date_confidence: "low",
+        last_audited_at: now.toISOString(),
+      })
+      .eq("is_available", true)
+      .lt("intake_date", sixMonthsAgo.toISOString())
+      .like("date_source", "%updated_date%")
+      .not("date_source", "like", "%available_date%")
+      .not("date_source", "like", "%found_date%")
+      .in("date_confidence", ["high", "medium"]);
+
+    downgraded += oldUpdatedCount;
+  }
+
+  if (capped > 0 || downgraded > 0) {
+    logger.log({
+      audit_type: "wait_time_reasonableness",
+      entity_type: "dog",
+      severity: capped > 0 ? "warning" : "info",
+      message: `Wait time reasonableness: ${checked} dogs checked, ${capped} capped (wait >50% of age), ${downgraded} confidence downgraded`,
+      action_taken: capped > 0 ? `Capped ${capped} unreasonable wait times, downgraded ${downgraded}` : `Downgraded ${downgraded} date confidence levels`,
+    });
+  } else {
+    logger.log({
+      audit_type: "wait_time_reasonableness",
+      entity_type: "dog",
+      severity: "info",
+      message: `Wait time reasonableness: ${checked} dogs checked, all reasonable`,
+    });
+  }
+
+  return { checked, capped, downgraded };
 }

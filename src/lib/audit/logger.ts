@@ -13,6 +13,7 @@ export type AuditType =
   | "description_date_parse"
   | "age_sanity_check"
   | "description_urgency_parse"
+  | "wait_time_reasonableness"
   | "repair"
   | "system";
 

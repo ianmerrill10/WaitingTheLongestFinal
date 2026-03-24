@@ -22,6 +22,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRescueGroupsClient, type RGAnimalAttributes } from "@/lib/rescuegroups/client";
+import { MAX_WAIT_DAYS, type DateConfidence } from "@/lib/rescuegroups/mapper";
 
 export interface VerificationResult {
   checked: number;
@@ -35,6 +36,7 @@ export interface VerificationResult {
   availableDatesCaptured: number;
   foundDatesCaptured: number;
   killDatesCaptured: number;
+  datesCapped: number;
   duration: number;
 }
 
@@ -44,6 +46,8 @@ interface DogToVerify {
   external_id: string;
   external_url: string | null;
   intake_date: string;
+  date_confidence: DateConfidence | null;
+  date_source: string | null;
   verification_status: string | null;
   last_verified_at: string | null;
   age_months: number | null;
@@ -99,11 +103,12 @@ export async function runVerification(
   let availableDatesCaptured = 0;
   let foundDatesCaptured = 0;
   let killDatesCaptured = 0;
+  let datesCapped = 0;
 
   // Fetch dogs to verify — prioritize based on strategy
   let query = supabase
     .from("dogs")
-    .select("id, name, external_id, external_url, intake_date, verification_status, last_verified_at, age_months, birth_date, breed_primary, primary_photo_url, shelter_id")
+    .select("id, name, external_id, external_url, intake_date, date_confidence, date_source, verification_status, last_verified_at, age_months, birth_date, breed_primary, primary_photo_url, shelter_id")
     .eq("is_available", true)
     .eq("external_source", "rescuegroups")
     .not("external_id", "is", null)
@@ -130,7 +135,7 @@ export async function runVerification(
   const { data: dogs, error: fetchError } = await query;
 
   if (fetchError || !dogs || dogs.length === 0) {
-    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, birthDatesCaptured: 0, deadExternalUrls: 0, availableDatesCaptured: 0, foundDatesCaptured: 0, killDatesCaptured: 0, duration: Date.now() - startTime };
+    return { checked: 0, verified: 0, notFound: 0, deactivated: 0, pending: 0, errors: 0, birthDatesCaptured: 0, deadExternalUrls: 0, availableDatesCaptured: 0, foundDatesCaptured: 0, killDatesCaptured: 0, datesCapped: 0, duration: Date.now() - startTime };
   }
 
   const now = new Date().toISOString();
@@ -159,6 +164,7 @@ export async function runVerification(
         if (v.capturedAvailableDate) availableDatesCaptured++;
         if (v.capturedFoundDate) foundDatesCaptured++;
         if (v.capturedKillDate) killDatesCaptured++;
+        if (v.dateCapped) datesCapped++;
         if (onDogProcessed) {
           // Stagger callbacks so dashboard slideshow shows each dog individually
           if (j > 0) await new Promise(r => setTimeout(r, 150));
@@ -218,6 +224,7 @@ export async function runVerification(
     availableDatesCaptured,
     foundDatesCaptured,
     killDatesCaptured,
+    datesCapped,
     duration: Date.now() - startTime,
   };
 }
@@ -231,9 +238,9 @@ async function verifyOneDog(
   rgClient: ReturnType<typeof createRescueGroupsClient>,
   supabase: ReturnType<typeof createAdminClient>,
   now: string,
-): Promise<{ outcome: VerifyOutcome; capturedBirthDate: boolean; externalUrlDead: boolean; capturedAvailableDate: boolean; capturedFoundDate: boolean; capturedKillDate: boolean }> {
+): Promise<{ outcome: VerifyOutcome; capturedBirthDate: boolean; externalUrlDead: boolean; capturedAvailableDate: boolean; capturedFoundDate: boolean; capturedKillDate: boolean; dateCapped: boolean }> {
   const rgResult = await rgClient.verifyAnimal(dog.external_id);
-  const noCapture = { capturedAvailableDate: false, capturedFoundDate: false, capturedKillDate: false };
+  const noCapture = { capturedAvailableDate: false, capturedFoundDate: false, capturedKillDate: false, dateCapped: false };
 
   if (rgResult.status === "available") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -326,14 +333,45 @@ async function verifyOneDog(
       }
     }
 
+    // ─── ENFORCE MAX_WAIT_DAYS caps on every verification ───
+    // Even if no better date was found, check if the current wait time
+    // exceeds the max for this dog's date confidence level.
+    const effectiveIntakeDate = new Date(updateData.intake_date || dog.intake_date);
+    const effectiveConfidence = (updateData.date_confidence || dog.date_confidence || "unknown") as DateConfidence;
+    const nowDate = new Date();
+    const waitDays = (nowDate.getTime() - effectiveIntakeDate.getTime()) / (1000 * 60 * 60 * 24);
+    const maxDays = MAX_WAIT_DAYS[effectiveConfidence] || MAX_WAIT_DAYS.unknown;
+
+    if (waitDays > maxDays) {
+      const cappedDate = new Date(nowDate.getTime() - maxDays * 24 * 60 * 60 * 1000);
+      updateData.intake_date = cappedDate.toISOString();
+      updateData.date_confidence = effectiveConfidence === "verified" ? "medium" : "low";
+      updateData.date_source = `${updateData.date_source || dog.date_source || "unknown"}|verify_capped_${maxDays}d`;
+      capturedAvailableDate = true; // count as date improvement
+    }
+
+    // ─── Age vs wait time cross-check ───
+    // If we have a birth_date and wait > age, cap to birth date
+    const birthDateForCap = updateData.birth_date ? new Date(updateData.birth_date) :
+      (dog.birth_date ? new Date(dog.birth_date) : null);
+    if (birthDateForCap && !isNaN(birthDateForCap.getTime())) {
+      const currentIntake = new Date(updateData.intake_date || dog.intake_date);
+      if (currentIntake < birthDateForCap) {
+        updateData.intake_date = birthDateForCap.toISOString();
+        updateData.date_confidence = "low";
+        updateData.date_source = `${updateData.date_source || dog.date_source || "unknown"}|verify_age_capped`;
+      }
+    }
+
     // Also check if the external URL is still alive
     if (dog.external_url) {
       const urlAlive = await checkUrlAlive(dog.external_url);
       if (!urlAlive) externalUrlDead = true;
     }
 
+    const dateCapped = waitDays > maxDays;
     await supabase.from("dogs").update(updateData).eq("id", dog.id);
-    return { outcome: "verified", capturedBirthDate, externalUrlDead, capturedAvailableDate, capturedFoundDate, capturedKillDate };
+    return { outcome: "verified", capturedBirthDate, externalUrlDead, capturedAvailableDate, capturedFoundDate, capturedKillDate, dateCapped };
   }
 
   if (rgResult.status === "pending") {
@@ -345,11 +383,11 @@ async function verifyOneDog(
         status: "pending",
       })
       .eq("id", dog.id);
-    return { outcome: "pending", capturedBirthDate: false, externalUrlDead: false, ...noCapture };
+    return { outcome: "pending", capturedBirthDate: false, externalUrlDead: false, capturedAvailableDate: false, capturedFoundDate: false, capturedKillDate: false, dateCapped: false };
   }
 
   if (rgResult.status === "api_error") {
-    return { outcome: "error", capturedBirthDate: false, externalUrlDead: false, ...noCapture };
+    return { outcome: "error", capturedBirthDate: false, externalUrlDead: false, capturedAvailableDate: false, capturedFoundDate: false, capturedKillDate: false, dateCapped: false };
   }
 
   // Status is "not_found" — dog no longer in RescueGroups
@@ -368,7 +406,7 @@ async function verifyOneDog(
         status: "adopted",
       })
       .eq("id", dog.id);
-    return { outcome: "deactivated", capturedBirthDate: false, externalUrlDead: true, ...noCapture };
+    return { outcome: "deactivated", capturedBirthDate: false, externalUrlDead: true, capturedAvailableDate: false, capturedFoundDate: false, capturedKillDate: false, dateCapped: false };
   } else {
     await supabase
       .from("dogs")
@@ -377,7 +415,7 @@ async function verifyOneDog(
         last_verified_at: now,
       })
       .eq("id", dog.id);
-    return { outcome: "not_found", capturedBirthDate: false, externalUrlDead: false, ...noCapture };
+    return { outcome: "not_found", capturedBirthDate: false, externalUrlDead: false, capturedAvailableDate: false, capturedFoundDate: false, capturedKillDate: false, dateCapped: false };
   }
 }
 

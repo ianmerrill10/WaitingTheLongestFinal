@@ -8,6 +8,7 @@ import {
   checkDescriptionUrgency,
   checkSourceClassification,
   checkAgeSanity,
+  checkWaitTimeReasonableness,
   checkStaleness,
   checkDuplicates,
   checkStatuses,
@@ -34,6 +35,7 @@ export interface AuditResult {
     urgency_parse?: { checked: number; flagged: number; datesSet: number };
     source_classification?: { checked: number; rejected: number };
     age_sanity?: { checked: number; fixed: number };
+    wait_reasonableness?: { checked: number; capped: number; downgraded: number };
   };
   logStats: {
     info: number;
@@ -94,6 +96,12 @@ export async function runAudit(
       await logger.flush();
     }
 
+    // Wait time reasonableness — cross-validate wait vs age %, downgrade stale created_dates
+    if (mode === "full" || mode === "dates_only" || mode === "repair_only") {
+      stats.wait_reasonableness = await checkWaitTimeReasonableness(logger);
+      await logger.flush();
+    }
+
     if (mode === "full" || mode === "quick" || mode === "stale_only") {
       stats.staleness = await checkStaleness(logger);
       await logger.flush();
@@ -123,6 +131,7 @@ export async function runAudit(
       (stats.urgency_parse?.datesSet ?? 0) +
       (stats.source_classification?.rejected ?? 0) +
       (stats.age_sanity?.fixed ?? 0) +
+      (stats.wait_reasonableness?.capped ?? 0) +
       (stats.duplicates?.removed ?? 0) +
       (stats.statuses?.repaired ?? 0) +
       (stats.data_quality?.repaired ?? 0) +
@@ -138,7 +147,9 @@ export async function runAudit(
       (stats.data_quality?.issues ?? 0) +
       (stats.urgency_parse?.flagged ?? 0) +
       (stats.source_classification?.rejected ?? 0) +
-      (stats.age_sanity?.fixed ?? 0);
+      (stats.age_sanity?.fixed ?? 0) +
+      (stats.wait_reasonableness?.capped ?? 0) +
+      (stats.wait_reasonableness?.downgraded ?? 0);
 
     logger.log({
       audit_type: "system",

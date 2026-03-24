@@ -358,8 +358,8 @@ function computeIntakeDate(
     let confidence: DateConfidence;
     if (daysSince <= 90) confidence = "high";
     else if (daysSince <= 365) confidence = isActive ? "high" : "medium";
-    else if (daysSince <= 730) confidence = "medium";
-    else confidence = "low";
+    else if (daysSince <= 730) confidence = isActive ? "medium" : "low";
+    else confidence = "low"; // >2 years: listing creation date is NOT a reliable intake date
 
     return applyAgeSanityCheck({
       intake_date: attrs.createdDate!,
@@ -374,8 +374,8 @@ function computeIntakeDate(
     const daysSince = (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24);
     return applyAgeSanityCheck({
       intake_date: attrs.updatedDate!,
-      date_confidence: daysSince <= 180 ? "medium" : "low",
-      date_source: daysSince <= 180 ? "rescuegroups_updated_date_only" : "rescuegroups_updated_date_stale",
+      date_confidence: daysSince <= 90 ? "medium" : "low",
+      date_source: daysSince <= 90 ? "rescuegroups_updated_date_only" : "rescuegroups_updated_date_stale",
     }, ageMonths, now, birthDateStr);
   }
 
@@ -388,15 +388,15 @@ function computeIntakeDate(
 }
 
 // ─── Maximum reasonable wait time caps (in days) by confidence level ───
-// No shelter dog realistically waits longer than these thresholds.
-// Even the longest-waiting dogs on record are ~5-7 years.
-// Stale RescueGroups listings from 2007-2016 are NOT real wait times.
-const MAX_WAIT_DAYS: Record<DateConfidence, number> = {
-  verified: 4380, // 12 years — some sanctuary/long-term foster dogs genuinely wait this long
-  high: 4380,     // 12 years
-  medium: 2555,   // 7 years
-  low: 730,       // 2 years
-  unknown: 365,   // 1 year
+// Aggressive caps: the longest verified shelter waits on record are ~5 years.
+// Listing creation dates older than 1-2 years are almost never real intake dates.
+// Better to show "Estimated" with a shorter time than a wildly wrong 5-year claim.
+export const MAX_WAIT_DAYS: Record<DateConfidence, number> = {
+  verified: 2555, // 7 years — only verified shelter-provided dates get this long
+  high: 1825,     // 5 years — strong evidence but could be stale listing
+  medium: 1095,   // 3 years — moderate evidence, cap conservatively
+  low: 365,       // 1 year — weak evidence, cap aggressively
+  unknown: 180,   // 6 months — no evidence, assume recent
 };
 
 /**

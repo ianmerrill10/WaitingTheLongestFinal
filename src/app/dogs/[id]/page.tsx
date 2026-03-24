@@ -460,19 +460,22 @@ function DateAccuracyBadge({ confidence, source }: { confidence: string | null; 
   const isVerified = confidence === "verified";
   const isHigh = confidence === "high";
   const isLow = confidence === "low" || confidence === "unknown";
+  const isCapped = source?.includes("capped") || source?.includes("reasonableness");
 
   // Derive a human-readable source label
   let sourceLabel = "";
-  if (source?.includes("available_date")) sourceLabel = "Shelter-provided available date";
-  else if (source?.includes("found_date")) sourceLabel = "Shelter-recorded found date";
+  if (source?.includes("available_date") && !source?.includes("capped")) sourceLabel = "Shelter-provided available date";
+  else if (source?.includes("found_date") && !source?.includes("capped")) sourceLabel = "Shelter-recorded found date";
   else if (source?.includes("returned_after_adoption")) sourceLabel = "Returned after adoption";
   else if (source?.includes("description_parsed")) sourceLabel = "Parsed from listing description";
+  else if (isCapped) sourceLabel = "Adjusted for accuracy";
   else if (source?.includes("created_date")) sourceLabel = "Listing creation date";
   else if (source?.includes("updated_date")) sourceLabel = "Listing last updated";
   else if (source?.includes("age_capped")) sourceLabel = "Capped to estimated birth date";
   else if (source?.includes("audit_repair")) sourceLabel = "Estimated from available data";
+  else if (source?.includes("no_date")) sourceLabel = "No date available from shelter";
 
-  if (isVerified) {
+  if (isVerified && !isCapped) {
     return (
       <div className="mt-3 flex items-center justify-center gap-1.5">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-green-900/50 text-green-400 rounded-full border border-green-700/50">
@@ -486,7 +489,7 @@ function DateAccuracyBadge({ confidence, source }: { confidence: string | null; 
     );
   }
 
-  if (isHigh) {
+  if (isHigh && !isCapped) {
     return (
       <div className="mt-2">
         <span className="text-[10px] text-gray-500">Wait time based on {sourceLabel || "available listing data"}</span>
@@ -494,15 +497,21 @@ function DateAccuracyBadge({ confidence, source }: { confidence: string | null; 
     );
   }
 
+  // Low confidence, unknown, or capped — show prominent warning
   return (
-    <div className="mt-3 flex items-center justify-center gap-1.5">
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full border ${isLow ? "bg-amber-900/30 text-amber-400 border-amber-700/50" : "bg-gray-800 text-gray-400 border-gray-700"}`}>
-        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-        </svg>
-        Estimated wait time
-      </span>
-      {sourceLabel && <span className="text-[10px] text-gray-600">{sourceLabel}</span>}
+    <div className="mt-3">
+      <div className="flex items-center justify-center gap-1.5">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full border bg-amber-900/30 text-amber-400 border-amber-700/50">
+          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          Estimated wait time
+        </span>
+        {sourceLabel && <span className="text-[10px] text-gray-600">{sourceLabel}</span>}
+      </div>
+      <p className="text-[9px] text-amber-500/70 mt-1 text-center">
+        Actual wait time may differ. Contact the shelter to confirm when this dog arrived.
+      </p>
     </div>
   );
 }
@@ -513,11 +522,11 @@ function VerificationBadge({ status, lastVerified, intakeDate }: { status: strin
     : null;
   const verifiedAgoDays = verifiedAgo !== null ? Math.floor(verifiedAgo / 24) : null;
 
-  // Flag listings older than 2 years as suspicious
+  // Flag listings older than 1 year as suspicious
   const waitDays = intakeDate
     ? Math.floor((Date.now() - new Date(intakeDate).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
-  const isSuspiciouslyOld = waitDays > 730; // > 2 years
+  const isSuspiciouslyOld = waitDays > 365; // > 1 year
 
   switch (status) {
     case "verified":

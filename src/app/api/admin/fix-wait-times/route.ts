@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { MAX_WAIT_DAYS } from "@/lib/rescuegroups/mapper";
 
 /**
  * POST /api/admin/fix-wait-times
  *
  * Batch-fix unreasonable wait times in the database:
- * 1. Cap wait times by confidence level (same logic as mapper.ts)
+ * 1. Cap wait times by confidence level (uses MAX_WAIT_DAYS from mapper)
  * 2. Remove non-dog listings (info pages, sponsorship pages, etc.)
  * 3. Downgrade confidence for capped dates
+ * 4. Downgrade old created_date sources to low confidence
  */
 export async function POST() {
   const supabase = createAdminClient();
@@ -15,17 +17,9 @@ export async function POST() {
   const results = {
     waitTimeCapped: 0,
     nonDogsRemoved: 0,
+    confidenceDowngraded: 0,
     errors: 0,
     details: [] as string[],
-  };
-
-  // ─── Max wait time caps (days) by confidence level ───
-  const MAX_WAIT_DAYS: Record<string, number> = {
-    verified: 4380, // 12 years
-    high: 4380,     // 12 years
-    medium: 2555,   // 7 years
-    low: 730,       // 2 years
-    unknown: 365,   // 1 year
   };
 
   // ─── Non-dog listing name patterns ───
@@ -123,9 +117,84 @@ export async function POST() {
     }
   }
 
+  // ─── Step 3: Downgrade old created_date and updated_date sources ───
+  // created_date > 1 year = low confidence (listing creation ≠ intake date)
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  const { count: oldCreatedCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
+    .lt("intake_date", oneYearAgo.toISOString())
+    .like("date_source", "%created_date%")
+    .not("date_source", "like", "%available_date%")
+    .in("date_confidence", ["high", "medium", "verified"]);
+
+  if (oldCreatedCount && oldCreatedCount > 0) {
+    await supabase
+      .from("dogs")
+      .update({ date_confidence: "low" })
+      .eq("is_available", true)
+      .lt("intake_date", oneYearAgo.toISOString())
+      .like("date_source", "%created_date%")
+      .not("date_source", "like", "%available_date%")
+      .in("date_confidence", ["high", "medium", "verified"]);
+    results.confidenceDowngraded += oldCreatedCount;
+    results.details.push(`Downgraded ${oldCreatedCount} created_date sources >1yr to low confidence`);
+  }
+
+  // updated_date > 6 months = low confidence
+  const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const { count: oldUpdatedCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
+    .lt("intake_date", sixMonthsAgo.toISOString())
+    .like("date_source", "%updated_date%")
+    .not("date_source", "like", "%available_date%")
+    .not("date_source", "like", "%found_date%")
+    .in("date_confidence", ["high", "medium"]);
+
+  if (oldUpdatedCount && oldUpdatedCount > 0) {
+    await supabase
+      .from("dogs")
+      .update({ date_confidence: "low" })
+      .eq("is_available", true)
+      .lt("intake_date", sixMonthsAgo.toISOString())
+      .like("date_source", "%updated_date%")
+      .not("date_source", "like", "%available_date%")
+      .not("date_source", "like", "%found_date%")
+      .in("date_confidence", ["high", "medium"]);
+    results.confidenceDowngraded += oldUpdatedCount;
+    results.details.push(`Downgraded ${oldUpdatedCount} updated_date sources >6mo to low confidence`);
+  }
+
+  // >2 years with any non-verified source = low
+  const twoYearsAgo = new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000);
+  const { count: veryOldCount } = await supabase
+    .from("dogs")
+    .select("id", { count: "exact", head: true })
+    .eq("is_available", true)
+    .lt("intake_date", twoYearsAgo.toISOString())
+    .not("date_source", "like", "%available_date%")
+    .not("date_source", "like", "%found_date%")
+    .neq("date_confidence", "low");
+
+  if (veryOldCount && veryOldCount > 0) {
+    await supabase
+      .from("dogs")
+      .update({ date_confidence: "low" })
+      .eq("is_available", true)
+      .lt("intake_date", twoYearsAgo.toISOString())
+      .not("date_source", "like", "%available_date%")
+      .not("date_source", "like", "%found_date%")
+      .neq("date_confidence", "low");
+    results.confidenceDowngraded += veryOldCount;
+    results.details.push(`Downgraded ${veryOldCount} non-verified sources >2yr to low confidence`);
+  }
+
   return NextResponse.json({
     success: true,
     ...results,
-    summary: `Capped ${results.waitTimeCapped} wait times, removed ${results.nonDogsRemoved} non-dog listings, ${results.errors} errors`,
+    summary: `Capped ${results.waitTimeCapped} wait times, removed ${results.nonDogsRemoved} non-dog listings, downgraded ${results.confidenceDowngraded} confidence levels, ${results.errors} errors`,
   });
 }

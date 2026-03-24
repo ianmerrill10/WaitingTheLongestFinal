@@ -424,6 +424,200 @@ async function checkShelterRecentlySscraped(
   return !!data && data.length > 0;
 }
 
+// ─── Phase 4: Deep Verify Suspicious Wait Times ───
+
+// MAX_WAIT_DAYS per confidence level (must match mapper.ts)
+const MAX_WAIT_DAYS: Record<string, number> = {
+  verified: 2555, // 7 years
+  high: 1825,     // 5 years
+  medium: 1095,   // 3 years
+  low: 365,       // 1 year
+  unknown: 180,   // 6 months
+};
+
+async function verifySuspiciousWaitTimes(): Promise<{ processed: number; capped: number }> {
+  const supabase = createAdminClient();
+  const now = new Date();
+  let processed = 0;
+  let capped = 0;
+
+  // Find dogs with long wait times and non-verified date sources
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+  const { data: suspiciousDogs } = await supabase
+    .from("dogs")
+    .select("id, name, intake_date, date_confidence, date_source, age_months, birth_date, external_id, external_source")
+    .eq("is_available", true)
+    .lt("intake_date", oneYearAgo.toISOString())
+    .not("date_source", "like", "%available_date%")
+    .not("date_source", "like", "%found_date%")
+    .order("intake_date", { ascending: true })
+    .limit(30);
+
+  if (!suspiciousDogs || suspiciousDogs.length === 0) return { processed, capped };
+
+  for (const dog of suspiciousDogs) {
+    processed++;
+
+    const intakeDate = new Date(dog.intake_date);
+    const waitDays = (now.getTime() - intakeDate.getTime()) / (1000 * 60 * 60 * 24);
+    const conf = dog.date_confidence || "unknown";
+    const maxDays = MAX_WAIT_DAYS[conf] || MAX_WAIT_DAYS.unknown;
+
+    // Strategy 1: Try to get a better date from RescueGroups API
+    if (dog.external_source === "rescuegroups" && dog.external_id) {
+      try {
+        const apiKey = process.env.RESCUEGROUPS_API_KEY;
+        if (apiKey) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+
+          const response = await fetch(
+            `https://api.rescuegroups.org/v5/public/animals/${dog.external_id}`,
+            {
+              headers: {
+                Authorization: apiKey,
+                "Content-Type": "application/vnd.api+json",
+              },
+              signal: controller.signal,
+            }
+          );
+
+          clearTimeout(timeout);
+
+          if (response.status === 200) {
+            const data = await response.json();
+            const attrs = data?.data?.[0]?.attributes || data?.data?.attributes;
+
+            if (attrs) {
+              // Try to capture a better date
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const updateData: Record<string, any> = {
+                last_verified_at: now.toISOString(),
+                verification_status: "verified",
+              };
+
+              if (attrs.availableDate) {
+                const ad = new Date(attrs.availableDate);
+                if (!isNaN(ad.getTime()) && ad <= now) {
+                  updateData.intake_date = attrs.availableDate;
+                  updateData.date_confidence = "verified";
+                  updateData.date_source = "rescuegroups_available_date";
+                  await supabase.from("dogs").update(updateData).eq("id", dog.id);
+                  capped++;
+                  addAction({
+                    timestamp: now.toISOString(),
+                    dogName: dog.name,
+                    dogId: dog.id,
+                    action: "verified_fresh",
+                    detail: `Found available_date: ${attrs.availableDate} (was ${dog.intake_date})`,
+                  });
+                  continue;
+                }
+              }
+
+              if (attrs.foundDate) {
+                const fd = new Date(attrs.foundDate);
+                if (!isNaN(fd.getTime()) && fd <= now) {
+                  updateData.intake_date = attrs.foundDate;
+                  updateData.date_confidence = "verified";
+                  updateData.date_source = "rescuegroups_found_date";
+                  await supabase.from("dogs").update(updateData).eq("id", dog.id);
+                  capped++;
+                  addAction({
+                    timestamp: now.toISOString(),
+                    dogName: dog.name,
+                    dogId: dog.id,
+                    action: "verified_fresh",
+                    detail: `Found found_date: ${attrs.foundDate} (was ${dog.intake_date})`,
+                  });
+                  continue;
+                }
+              }
+
+              // Capture birth_date for age cross-check
+              if (attrs.birthDate && !dog.birth_date) {
+                const bd = new Date(attrs.birthDate);
+                if (!isNaN(bd.getTime()) && intakeDate < bd) {
+                  // Wait > age — cap to birth date
+                  updateData.intake_date = bd.toISOString();
+                  updateData.date_confidence = "low";
+                  updateData.date_source = `${dog.date_source || "unknown"}|freshness_age_capped`;
+                  updateData.birth_date = attrs.birthDate;
+                  await supabase.from("dogs").update(updateData).eq("id", dog.id);
+                  capped++;
+                  addAction({
+                    timestamp: now.toISOString(),
+                    dogName: dog.name,
+                    dogId: dog.id,
+                    action: "verified_fresh",
+                    detail: `Age-capped: birth ${attrs.birthDate}, was waiting since ${dog.intake_date}`,
+                  });
+                  continue;
+                }
+              }
+
+              // Just mark as verified (no better date found)
+              await supabase.from("dogs").update(updateData).eq("id", dog.id);
+            }
+          } else if (response.status === 404) {
+            // Dog no longer on RG — deactivate
+            await supabase
+              .from("dogs")
+              .update({
+                is_available: false,
+                status: "adopted",
+                verification_status: "not_found",
+                last_verified_at: now.toISOString(),
+              })
+              .eq("id", dog.id);
+            capped++;
+            addAction({
+              timestamp: now.toISOString(),
+              dogName: dog.name,
+              dogId: dog.id,
+              action: "deactivated",
+              detail: `Not found on RescueGroups (had ${Math.round(waitDays)}d wait, ${conf} confidence)`,
+            });
+            continue;
+          }
+        }
+      } catch {
+        // Skip API errors
+      }
+    }
+
+    // Strategy 2: If wait exceeds max for confidence, cap it
+    if (waitDays > maxDays) {
+      const cappedDate = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000);
+      const newConf = conf === "verified" ? "medium" : "low";
+      await supabase
+        .from("dogs")
+        .update({
+          intake_date: cappedDate.toISOString(),
+          date_confidence: newConf,
+          date_source: `${dog.date_source || "unknown"}|freshness_capped_${maxDays}d`,
+          last_verified_at: now.toISOString(),
+        })
+        .eq("id", dog.id);
+      capped++;
+      addAction({
+        timestamp: now.toISOString(),
+        dogName: dog.name,
+        dogId: dog.id,
+        action: "verified_fresh",
+        detail: `Wait capped: ${Math.round(waitDays)}d → ${maxDays}d (${conf} → ${newConf})`,
+      });
+    }
+  }
+
+  if (processed > 0) {
+    console.log(`[FRESHNESS] Phase 4: ${processed} suspicious dogs checked, ${capped} capped/improved`);
+  }
+
+  return { processed, capped };
+}
+
 // ─── Main Cycle ───
 
 async function runCycle() {
@@ -455,6 +649,13 @@ async function runCycle() {
 
     const recheck = await checkRecentDeactivations();
     metrics.reprieves += recheck.reactivated;
+
+    // Phase 4: Deep verify suspicious wait times (>1yr, low confidence, created_date source)
+    metrics.currentTask = "verifying suspicious wait times";
+    broadcastSSE({ type: "status", data: metrics.currentTask });
+    const suspicious = await verifySuspiciousWaitTimes();
+    metrics.totalProcessed += suspicious.processed;
+    metrics.deactivated += suspicious.capped;
 
     // Update queue sizes
     const supabase = createAdminClient();
