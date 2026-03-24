@@ -43,6 +43,22 @@ const AGENTS: AgentConfig[] = [
     restartDelayMs: 10000,
   },
   {
+    name: "FRESHNESS",
+    script: "agent/freshness.ts",
+    port: 3850,
+    color: "\x1b[35m",    // magenta
+    restartOnCrash: true,
+    restartDelayMs: 10000,
+  },
+  {
+    name: "INTEL",
+    script: "agent/intelligence.ts",
+    port: 3851,
+    color: "\x1b[34m",    // blue
+    restartOnCrash: true,
+    restartDelayMs: 15000,
+  },
+  {
     name: "IMPROVE",
     script: "agent/improve.ts",
     port: 3848,
@@ -141,6 +157,8 @@ console.log(`
   Data Agent:      http://localhost:3847
   Improvement:     http://localhost:3848
   Scraper (50-st): http://localhost:3849
+  Freshness:       http://localhost:3850
+  Intelligence:    http://localhost:3851
 
   All agents auto-restart on crash.
   Press Ctrl+C to stop all.

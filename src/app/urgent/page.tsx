@@ -60,10 +60,10 @@ export default async function UrgentPage() {
           .eq("is_available", true)
           .eq("urgency_level", section.level);
 
-        // HARD RULE: critical/high dogs MUST have an euthanasia_date.
-        // Never show a dog as "72 hours from death" without actual proof.
+        // HARD RULE: critical/high dogs MUST have a FUTURE euthanasia_date.
+        // Never show expired/dead dogs as "urgent". Only show dogs we can still save.
         if (section.level === "critical" || section.level === "high") {
-          query = query.not("euthanasia_date", "is", null);
+          query = query.gt("euthanasia_date", new Date().toISOString());
         }
 
         return query

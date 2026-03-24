@@ -20,7 +20,7 @@ export default async function HomePage() {
     // Fetch stats
     const [dogsResult, urgentResult, shelterResult] = await Promise.all([
       supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true),
-      supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).in("urgency_level", ["critical", "high"]),
+      supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).in("urgency_level", ["critical", "high"]).gt("euthanasia_date", new Date().toISOString()),
       supabase.from("shelters").select("id", { count: "exact", head: true }),
     ]);
 
@@ -28,12 +28,13 @@ export default async function HomePage() {
     urgentCount = urgentResult.count || 0;
     shelterCount = shelterResult.count || 0;
 
-    // Fetch urgent dogs (top 6 by euthanasia date)
+    // Fetch urgent dogs (top 6 by euthanasia date — ONLY future dates, never expired)
     const urgentRes = await supabase
       .from("dogs")
       .select("*, shelters!inner(name, city, state_code)")
       .eq("is_available", true)
       .in("urgency_level", ["critical", "high"])
+      .gt("euthanasia_date", new Date().toISOString())
       .order("euthanasia_date", { ascending: true, nullsFirst: false })
       .limit(6);
     urgentDogs = urgentRes.data || [];

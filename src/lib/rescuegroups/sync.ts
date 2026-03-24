@@ -350,8 +350,13 @@ export async function updateUrgencyLevels(): Promise<{
       (euthDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     let urgencyLevel: string;
-    if (hoursRemaining <= 0) {
-      // Euthanasia date has passed — mark as expired, reset to normal
+    let shouldDeactivate = false;
+    if (hoursRemaining <= -48) {
+      // Expired >48h ago — deactivate (outcome unknown, likely euthanized or adopted)
+      urgencyLevel = "normal";
+      shouldDeactivate = true;
+    } else if (hoursRemaining <= 0) {
+      // Recently expired (0-48h) — remove from urgent pages, Freshness Agent will verify
       urgencyLevel = "normal";
     } else if (hoursRemaining < 24) {
       urgencyLevel = "critical";
@@ -363,8 +368,18 @@ export async function updateUrgencyLevels(): Promise<{
       urgencyLevel = "normal";
     }
 
-    // Only update if level actually changed
-    if (dog.urgency_level !== urgencyLevel) {
+    if (shouldDeactivate) {
+      const { error: deactErr } = await supabase
+        .from("dogs")
+        .update({
+          urgency_level: "normal",
+          is_available: false,
+          status: "outcome_unknown",
+        })
+        .eq("id", dog.id);
+      if (deactErr) errors++;
+      else updated++;
+    } else if (dog.urgency_level !== urgencyLevel) {
       const { error: updateError } = await supabase
         .from("dogs")
         .update({ urgency_level: urgencyLevel })

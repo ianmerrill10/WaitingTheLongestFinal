@@ -12,6 +12,8 @@
     "agent:improve": "npx tsx --tsconfig tsconfig.json agent/improve.ts",
     "agent:backup": "npx tsx --tsconfig tsconfig.json agent/backup.ts",
     "agent:scraper": "npx tsx --tsconfig tsconfig.json agent/scraper.ts",
+    "agent:freshness": "npx tsx --tsconfig tsconfig.json agent/freshness.ts",
+    "agent:intel": "npx tsx --tsconfig tsconfig.json agent/intelligence.ts",
     "agent:all": "npx tsx --tsconfig tsconfig.json agent/start-all.ts",
     "export:shelters": "npx tsx --tsconfig tsconfig.json scripts/export-shelters.ts",
     "export:dogs": "npx tsx --tsconfig tsconfig.json scripts/export-dogs.ts",

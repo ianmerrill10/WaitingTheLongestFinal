@@ -334,32 +334,36 @@ export async function checkStatuses(logger: AuditLogger): Promise<{
   let issues = 0;
   let repaired = 0;
 
-  // Batch fix: dogs with expired euthanasia dates (>7 days expired) still available
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  // Deactivate dogs with euthanasia dates expired >48 hours.
+  // After 48h with no reprieve confirmation, assume outcome is unknown.
+  // The Freshness Agent handles verification within the 0-48h window.
+  const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   const { count: expiredCount } = await supabase
     .from("dogs")
     .select("id", { count: "exact", head: true })
     .eq("is_available", true)
     .not("euthanasia_date", "is", null)
-    .lt("euthanasia_date", sevenDaysAgo.toISOString());
+    .lt("euthanasia_date", twoDaysAgo.toISOString());
 
   if (expiredCount && expiredCount > 0) {
     await supabase
       .from("dogs")
       .update({
-        urgency_level: "critical",
+        is_available: false,
+        status: "outcome_unknown",
+        urgency_level: "normal",
         last_audited_at: now.toISOString(),
       })
       .eq("is_available", true)
       .not("euthanasia_date", "is", null)
-      .lt("euthanasia_date", sevenDaysAgo.toISOString());
+      .lt("euthanasia_date", twoDaysAgo.toISOString());
 
     logger.log({
       audit_type: "status_check",
       entity_type: "dog",
-      severity: "critical",
-      message: `${expiredCount} dogs have euthanasia dates expired >7 days ago — marked critical`,
-      action_taken: `Set urgency_level=critical on ${expiredCount} dogs`,
+      severity: "warning",
+      message: `${expiredCount} dogs with euthanasia dates expired >48h — deactivated as outcome_unknown`,
+      action_taken: `Set is_available=false, status=outcome_unknown on ${expiredCount} dogs`,
     });
     issues += expiredCount;
     repaired += expiredCount;
