@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/utils/rate-limit";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ZIP_REGEX = /^\d{5}(-\d{4})?$/;
@@ -28,6 +29,17 @@ const VALID_SIZES = [
 ];
 
 export async function POST(request: Request) {
+  // Rate limit: 5 foster applications per minute per IP
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip = forwarded?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = rateLimit(`foster:${ip}`, 5, 60000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
   let body;
   try {
     body = await request.json();
@@ -109,7 +121,8 @@ export async function GET(request: Request) {
     .select("*", { count: "exact", head: true });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[FosterAPI] GET error:", error.message);
+    return NextResponse.json({ error: "Failed to fetch applications" }, { status: 500 });
   }
 
   const { data: recent } = await supabase

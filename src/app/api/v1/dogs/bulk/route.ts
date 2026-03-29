@@ -141,7 +141,8 @@ export async function POST(request: Request) {
             .eq("id", existing.id);
 
           if (error) {
-            results.errors.push({ index: i, name: dog.name, error: error.message });
+            console.error(`[BulkAPI] Update error for dog ${i}:`, error.message);
+            results.errors.push({ index: i, name: dog.name, error: "Failed to update" });
           } else {
             results.updated++;
           }
@@ -152,7 +153,8 @@ export async function POST(request: Request) {
       // Create new
       const { error } = await supabase.from("dogs").insert(createDogData);
       if (error) {
-        results.errors.push({ index: i, name: dog.name, error: error.message });
+        console.error(`[BulkAPI] Insert error for dog ${i}:`, error.message);
+        results.errors.push({ index: i, name: dog.name, error: "Failed to create" });
       } else {
         results.created++;
       }

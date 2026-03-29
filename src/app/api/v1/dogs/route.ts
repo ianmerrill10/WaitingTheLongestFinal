@@ -197,7 +197,7 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json(
-      { error: "Failed to create dog", code: "INSERT_ERROR", detail: error.message },
+      { error: "Failed to create dog", code: "INSERT_ERROR" },
       { status: 500, headers: rateLimitHeaders(rateLimit) }
     );
   }

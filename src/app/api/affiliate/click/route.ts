@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { trackClick } from "@/lib/monetization/click-tracker";
 import { getRecommendations } from "@/lib/monetization/breed-recommendations";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/utils/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,14 @@ export async function GET(req: NextRequest) {
  * POST /api/affiliate/click — Track a click on an affiliate link
  */
 export async function POST(req: NextRequest) {
+  // Rate limit: 30 click tracks per minute per IP
+  const fwd = req.headers.get("x-forwarded-for");
+  const clientIp = fwd?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = rateLimit(`affiliate:${clientIp}`, 30, 60000);
+  if (!allowed) {
+    return NextResponse.json({ success: false }, { status: 429 });
+  }
+
   try {
     const body = await req.json();
     const { product_id, dog_id, page_url } = body;

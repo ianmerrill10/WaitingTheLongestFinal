@@ -387,9 +387,11 @@ export async function syncDogsFromRescueGroups(
         }
       }
 
-      console.log(
-        `Page ${page}/${maxPages}: +${toInsert.length} inserted, ${toUpdate.length} updated, ${errors} errors`
-      );
+      if (errors > 0) {
+        console.error(
+          `[RG Sync] Page ${page}/${maxPages}: +${toInsert.length} inserted, ${toUpdate.length} updated, ${errors} errors`
+        );
+      }
 
       if (response.meta && page >= response.meta.pages) break;
     } catch (err) {

@@ -74,7 +74,8 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[BackupAPI] Query error:", error.message);
+      return NextResponse.json({ error: "Failed to export table data" }, { status: 500 });
     }
 
     const totalPages = Math.ceil((totalCount ?? 0) / limit);
@@ -117,8 +118,9 @@ export async function GET(request: Request) {
       data,
     });
   } catch (err) {
+    console.error("[BackupAPI] Error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
+      { error: "Backup export failed" },
       { status: 500 }
     );
   }

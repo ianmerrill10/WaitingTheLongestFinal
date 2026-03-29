@@ -128,7 +128,8 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      insertErrors.push({ row: i + 2, name: dog.name, error: error.message });
+      console.error(`[ImportAPI] Insert error row ${i + 2}:`, error.message);
+      insertErrors.push({ row: i + 2, name: dog.name, error: "Failed to insert" });
     } else {
       created++;
     }

@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       supabase
         .from("shelters")
-        .select("id, name, city, state, partner_status, partner_tier")
+        .select("id, name, city, state_code, partner_status, partner_tier")
         .eq("id", shelterId)
         .single(),
       supabase
