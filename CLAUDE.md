@@ -43,7 +43,7 @@ Every dog listed for free. Every shelter integration for free.
 - Urgency levels: CRITICAL (<24h), HIGH (<72h), MEDIUM (<7d), NORMAL (>7d)
 - No ads on urgent/euthanasia dog pages
 - Amazon Associates ID: waitingthelon-20
-- DB column for state is `state_code` (NOT `state`)
+- DB column for state is `state_code` (NOT `state`) — exists on BOTH `shelters` and `dogs` tables
 - DB columns: `available_dog_count`, `urgent_dog_count` (NOT `available_dogs`, `total_dogs`)
 - Tests use `node:test` with `tsx --test` (NOT Jest)
 - Build requires `NODE_OPTIONS=--max-old-space-size=4096`
@@ -67,7 +67,7 @@ Every dog listed for free. Every shelter integration for free.
   - `utils/` - Shared utilities
 - `src/types/` - TypeScript type definitions
 - `src/data/` - Seed data and reference tables
-- `supabase/migrations/` - Database migrations (001-017)
+- `supabase/migrations/` - Database migrations (001-018)
 - `agent/` - Local autonomous agents (7 files, 5 agents)
 - `tests/` - Test files (tsx --test)
 - `docs/` - Documentation and archives

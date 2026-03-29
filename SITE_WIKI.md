@@ -78,7 +78,7 @@ Local Agents (5 processes)
 | `/dogs/[id]/sources` | SSR | Dog data sources and provenance |
 | `/urgent` | SSR | Urgent dogs — critical/high/medium sections with countdown timers |
 | `/overlooked` | SSR | Overlooked Angels — senior, black, pit bull, bonded, special needs, long-timer dogs |
-| `/states` | SSR | States directory — all 50 states with dog/shelter counts |
+| `/states` | SSR | States directory — all 50 states with per-state dog and shelter counts |
 | `/states/[code]` | SSR | State detail — dogs and shelters in a specific state |
 | `/breeds` | SSR | Breed directory — all 170 breeds |
 | `/breeds/[slug]` | SSR | Breed detail — breed info and available dogs |
@@ -200,7 +200,7 @@ Local Agents (5 processes)
 
 ## Database Schema
 
-### Tables (17 migrations, 001-017)
+### Tables (18 migrations, 001-018)
 
 | Table | Rows | Description |
 |-------|------|-------------|
@@ -224,18 +224,20 @@ Local Agents (5 processes)
 ### Key Dog Fields
 
 - `id` (UUID, PK), `name`, `breed_primary`, `breed_secondary`, `breed_mixed`
-- `size_general`, `age_category`, `age_text`, `age_months`
-- `sex`, `color_primary`
-- `photo_url`, `photo_urls` (array)
-- `description`, `description_plain`, `status`, `is_available`
+- `size`, `age_category`, `age_months`
+- `gender`, `color_primary`
+- `primary_photo_url`, `photo_urls` (array), `thumbnail_url`
+- `description`, `status`, `is_available`
+- `state_code` — denormalized from shelter for fast state-based queries (added migration 018)
 - `intake_date` — used for LED wait time counter
 - `original_intake_date` — preserved original before any capping
 - `euthanasia_date` — used for countdown timer
 - `urgency_level` (critical/high/medium/normal)
-- `date_confidence` (verified/high/medium/low)
+- `date_confidence` (verified/high/medium/low/unknown)
 - `date_source` — how intake_date was determined
 - `ranking_eligible` — whether this dog ranks in "Waiting the Longest"
 - `intake_date_observation_count` — how many syncs confirmed the same date
+- `credibility_score` — computed credibility score
 - `shelter_id` (FK to shelters)
 - `external_id`, `external_source`, `external_url`
 - `source_links` (JSONB array of source URLs)
@@ -409,6 +411,7 @@ Returns JSON with: database connectivity, dog/shelter counts, urgency breakdown,
 **Dogs not showing up:**
 - Check `is_available` flag
 - Check `shelter_id` is not null
+- Check `state_code` is set (populated from shelter's state_code via migration 018)
 - Check `ranking_eligible` for homepage section
 
 **Expired euthanasia dogs showing:**

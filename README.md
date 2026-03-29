@@ -100,9 +100,9 @@ agent/              Local autonomous agents
   start-all.ts      Master launcher (starts all agents with auto-restart)
 
 supabase/
-  migrations/       Database schema (001-017)
+  migrations/       Database schema (001-018)
 
-tests/              Test files (node:test + tsx)
+tests/              Test files (19 tests, 4 suites — node:test + tsx)
 docs/               Documentation and archives
 ```
 
@@ -134,7 +134,7 @@ docs/               Documentation and archives
 
 ## Database
 
-- **17 migrations** (001-017) in `supabase/migrations/`
+- **18 migrations** (001-018) in `supabase/migrations/`
 - ~57K dogs, ~45K shelters, 50 states, 170 breeds
 - Key tables: dogs, shelters, states, breeds, daily_stats, audit_runs, audit_logs, foster_applications, shelter_communications, shelter_api_keys, webhook_endpoints, affiliate_products, affiliate_clicks, outreach_targets, social_posts
 
