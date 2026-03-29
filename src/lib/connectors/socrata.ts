@@ -44,6 +44,10 @@ export async function fetchSocrataAnimals(
   // Filter for animals still in shelter (no outcome)
   if (f.outcomeType) {
     whereClauses.push(`${f.outcomeType} IS NULL`);
+  } else {
+    // Intakes-only dataset: limit to last 2 years to avoid pulling entire history
+    const cutoff = new Date(Date.now() - 730 * 86400000).toISOString().split("T")[0];
+    whereClauses.push(`${f.intakeDate} > '${cutoff}'`);
   }
 
   const whereClause = whereClauses.join(" AND ");

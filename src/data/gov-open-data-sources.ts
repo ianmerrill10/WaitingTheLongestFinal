@@ -46,7 +46,7 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     state: "TX",
     city: "Austin",
     domain: "data.austintexas.gov",
-    datasetId: "9t4d-g238",
+    datasetId: "wter-evkm", // Intakes dataset (9t4d-g238 is outcomes)
     platform: "socrata",
     fields: {
       animalId: "animal_id",
@@ -58,10 +58,11 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
       age: "age_upon_intake",
       color: "color",
       intakeType: "intake_type",
+      // No outcomeType — intakes-only dataset
     },
     dogTypeValue: "Dog",
     needsOutcomesCrossRef: true,
-    outcomesDatasetId: "9t4d-g238", // Same dataset — filter outcome_type IS NULL
+    outcomesDatasetId: "9t4d-g238",
     active: true,
   },
   {
@@ -72,17 +73,17 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     datasetId: "8cmr-fbcu",
     platform: "socrata",
     fields: {
-      animalId: "area_id",
-      name: "animal_name",
-      breed: "breed1",
+      animalId: "animal_id",
+      name: "animal_id", // No name field in this dataset
+      breed: "breed_1",
       intakeDate: "intake_date",
       animalType: "animal_type",
-      outcomeType: "outcome_type",
+      // No outcome_type in this dataset — intakes only
       sex: "sex",
       age: "age",
     },
     dogTypeValue: "DOG",
-    needsOutcomesCrossRef: false,
+    needsOutcomesCrossRef: true,
     active: true,
   },
   {
@@ -103,7 +104,7 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     },
     dogTypeValue: "Dog",
     needsOutcomesCrossRef: false,
-    active: true,
+    active: false, // Dataset returns empty — may be removed or restructured
   },
   {
     name: "Louisville Metro Animal Services",
@@ -124,7 +125,7 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     },
     dogTypeValue: "Dog",
     needsOutcomesCrossRef: false,
-    active: true,
+    active: false, // Redirects to ArcGIS hub — no longer Socrata
   },
   {
     name: "Sonoma County Animal Services",
@@ -156,16 +157,17 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     datasetId: "e245-r9ub",
     platform: "socrata",
     fields: {
-      animalId: "animal_id",
-      name: "animal_name",
-      breed: "breed",
-      intakeDate: "intake_date",
-      animalType: "animal_type",
-      outcomeType: "outcome_type",
-      sex: "sex",
+      animalId: "sheltercode",
+      name: "animalname",
+      breed: "breedname",
+      intakeDate: "intakedate",
+      animalType: "speciesname",
+      sex: "sexname",
+      color: "basecolour",
+      // No outcomeType — uses movementtype/movementdate instead
     },
     dogTypeValue: "Dog",
-    needsOutcomesCrossRef: false,
+    needsOutcomesCrossRef: true,
     active: true,
   },
   {
@@ -178,11 +180,13 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     fields: {
       animalId: "animal_id",
       name: "animal_name",
-      breed: "breed",
-      intakeDate: "intake_datetime",
+      breed: "primary_breed",
+      intakeDate: "intake_date",
       animalType: "animal_type",
       outcomeType: "outcome_type",
       sex: "sex",
+      color: "primary_color",
+      intakeType: "intake_type",
     },
     dogTypeValue: "Dog",
     needsOutcomesCrossRef: false,
@@ -206,7 +210,7 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     },
     dogTypeValue: "DOG",
     needsOutcomesCrossRef: false,
-    active: true,
+    active: false, // Dataset missing (404) as of 2026-03-29
   },
 ];
 
