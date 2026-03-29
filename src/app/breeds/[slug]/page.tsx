@@ -39,7 +39,7 @@ export default async function BreedPage({
     const [dogsRes, countRes] = await Promise.all([
       supabase
         .from("dogs")
-        .select("*, shelters(name, city, state_code)")
+        .select("*, shelters!dogs_shelter_id_fkey(name, city, state_code)")
         .eq("is_available", true)
         .ilike("breed_primary", breed)
         .order("intake_date", { ascending: true })

@@ -79,7 +79,7 @@ export default async function ShelterProfilePage({
     const [dogsRes, availRes, urgentRes, totalRes] = await Promise.all([
       supabase
         .from("dogs")
-        .select("*, shelters(name, city, state_code)")
+        .select("*, shelters!dogs_shelter_id_fkey(name, city, state_code)")
         .eq("shelter_id", id)
         .eq("is_available", true)
         .order("intake_date", { ascending: true })

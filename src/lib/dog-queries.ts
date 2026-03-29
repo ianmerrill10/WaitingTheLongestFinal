@@ -21,7 +21,7 @@ export async function getDogs(supabase: SupabaseClient, searchParams: URLSearchP
     .select(
       `
       *,
-      shelters (
+      shelters!dogs_shelter_id_fkey (
         name,
         city,
         state_code
@@ -42,7 +42,7 @@ export async function getDogs(supabase: SupabaseClient, searchParams: URLSearchP
   if (gender) query = query.eq("gender", gender);
   if (state) {
     const stateCode = state.toUpperCase();
-    query = query.or(`state_code.eq.${stateCode},shelters.state_code.eq.${stateCode}`);
+    query = query.eq("state_code", stateCode);
   }
   if (urgency) query = query.eq("urgency_level", urgency);
   if (search) {

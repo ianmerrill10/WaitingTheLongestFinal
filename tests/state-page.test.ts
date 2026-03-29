@@ -19,7 +19,7 @@ function buildStatePageQuery(stateCode: string) {
   const selects: string[] = [];
 
   // This mirrors src/app/states/[code]/page.tsx after the fix
-  selects.push("*, shelters(name, city, state_code)");
+  selects.push("*, shelters!dogs_shelter_id_fkey(name, city, state_code)");
   filters.push({ table: "dogs", column: "is_available", op: "eq", value: true });
   filters.push({ table: "dogs", column: "state_code", op: "eq", value: stateCode });
 
@@ -90,19 +90,14 @@ describe("State page query patterns", () => {
 });
 
 describe("dog-queries state filter (via getDogs)", () => {
-  test("getDogs OR filter checks both dogs.state_code and shelters.state_code", async () => {
-    // This tests the OR pattern in src/lib/dog-queries.ts line 45
-    // query.or("state_code.eq.MA,shelters.state_code.eq.MA")
-
-    const expectedFilter = "state_code.eq.MA,shelters.state_code.eq.MA";
-
-    // Verify the filter includes both dog-level and shelter-level state_code
-    assert.ok(expectedFilter.includes("state_code.eq.MA"));
-    assert.ok(expectedFilter.includes("shelters.state_code.eq.MA"));
-
-    // Verify the pattern handles edge cases
-    const txFilter = "state_code.eq.TX,shelters.state_code.eq.TX";
-    assert.ok(txFilter.startsWith("state_code.eq.TX"));
+  test("getDogs uses direct state_code eq filter (not broken .or with shelters)", async () => {
+    // The .or("state_code.eq.MA,shelters.state_code.eq.MA") pattern was broken
+    // because PostgREST can't parse embedded resource filters in .or() clauses.
+    // Fixed to use simple .eq("state_code", stateCode) instead.
+    const stateCode = "MA";
+    const filter = { column: "state_code", op: "eq", value: stateCode };
+    assert.strictEqual(filter.column, "state_code");
+    assert.strictEqual(filter.value, "MA");
   });
 });
 

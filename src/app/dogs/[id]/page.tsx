@@ -69,7 +69,7 @@ export default async function DogProfilePage({
       .select(
         `
         *,
-        shelters (
+        shelters!dogs_shelter_id_fkey (
           id,
           name,
           city,

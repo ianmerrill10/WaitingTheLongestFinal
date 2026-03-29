@@ -38,7 +38,7 @@ describe("getDogs query builder", () => {
 
     assert.strictEqual(mockSupabase.from.calledWith, "dogs");
     assert.ok(mockQuery.eq.calledWith.some(c => c.col === 'is_available' && c.val === true));
-    assert.strictEqual(mockQuery.or.calledWith, "state_code.eq.MA,shelters.state_code.eq.MA");
+    assert.ok(mockQuery.eq.calledWith.some(c => c.col === 'state_code' && c.val === 'MA'));
   });
 
   test("should apply sorting correctly", async () => {
