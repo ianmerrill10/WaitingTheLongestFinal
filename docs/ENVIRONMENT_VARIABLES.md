@@ -2,56 +2,76 @@
 
 All environment variables used by WaitingTheLongest.com.
 
-## Required Variables
+> **Last updated:** 2026-03-29
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DB_HOST` | PostgreSQL host | `db` (Docker) or `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_NAME` | Database name | `waitingthelongest` |
-| `DB_USER` | Database user | `postgres` |
-| `DB_PASSWORD` | Database password | (generate a 32+ char random string) |
-| `REDIS_HOST` | Redis host | `redis` (Docker) or `localhost` |
-| `REDIS_PORT` | Redis port | `6379` |
-| `REDIS_PASSWORD` | Redis AUTH password | (generate a 32+ char random string) |
-| `JWT_SECRET` | JWT signing secret | (generate a 64+ char random string) |
-| `JWT_ISSUER` | JWT issuer claim | `waitingthelongest.com` |
+## Required (Supabase)
 
-## Optional Variables
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (e.g., `https://xxxxx.supabase.co`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin key (server-side only, never expose to client) |
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LOG_LEVEL` | Logging level (debug/info/warn/error) | `info` |
-| `DOMAIN` | Application domain | `localhost` |
-| `REDIS_DB` | Redis database number | `0` |
-| `JWT_EXPIRATION_HOURS` | Access token lifetime | `24` |
-| `REFRESH_TOKEN_EXPIRATION_DAYS` | Refresh token lifetime | `30` |
-| `BCRYPT_COST` | Password hashing cost factor | `12` |
+## Required (Auth & Security)
 
-## External API Keys
+| Variable | Description |
+|----------|-------------|
+| `CRON_SECRET` | Bearer token for all cron/admin/debug API routes. All protected routes check `Authorization: Bearer $CRON_SECRET` |
+| `SITE_PASSWORD` | Password for site-wide login gate (middleware enforced). In production, login fails closed if unset |
+| `SUPABASE_DB_PASSWORD` | Database password for direct PostgreSQL connections (used by setup route) |
+
+## Data Sources
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `RESCUEGROUPS_API_KEY` | RescueGroups.org API key | For data sync |
-| `THEDOGAPI_KEY_1` through `_4` | TheDogAPI keys (up to 4) | For breed images |
-| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth client ID | For social login |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth client secret | For social login |
-| `SENDGRID_API_KEY` | SendGrid API key | For email notifications |
-| `FROM_EMAIL` | Sender email address | For emails |
+| `RESCUEGROUPS_API_KEY` | RescueGroups.org API v5 key | Yes — primary data source |
+| `THEDOGAPI_KEY_1` through `_4` | TheDogAPI keys (up to 4, rotated) | For breed images |
 
-## Deployment Variables
+## Email & Outreach
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SENDGRID_API_KEY` | SendGrid API key for outreach emails | For email campaigns |
+| `FROM_EMAIL` | Sender email address | For outreach |
+
+## Social Media
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `TWITTER_API_KEY` | Twitter/X API key | For social posting |
+| `TWITTER_API_SECRET` | Twitter/X API secret | For social posting |
+| `TWITTER_ACCESS_TOKEN` | Twitter/X access token | For social posting |
+| `TWITTER_ACCESS_SECRET` | Twitter/X access token secret | For social posting |
+| `BLUESKY_HANDLE` | Bluesky handle | For social posting |
+| `BLUESKY_APP_PASSWORD` | Bluesky app password | For social posting |
+| `REDDIT_CLIENT_ID` | Reddit app client ID | For social posting |
+| `REDDIT_CLIENT_SECRET` | Reddit app client secret | For social posting |
+| `REDDIT_USERNAME` | Reddit username | For social posting |
+| `REDDIT_PASSWORD` | Reddit password | For social posting |
+| `YOUTUBE_API_KEY` | YouTube Data API key | For video content |
+
+## Monetization
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SSL_EMAIL` | Email for Let's Encrypt | Required for SSL |
-| `AMAZON_ASSOCIATE_TAG` | Amazon Associates tag | For product links |
-| `DEBUG_MODE` | Enable debug mode | `false` |
-| `ENABLE_CORS` | Enable CORS headers | `true` |
-| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | `http://localhost:8080` |
+| `AMAZON_ASSOCIATE_TAG` | Amazon Associates ID | `waitingthelon-20` |
+
+## Optional
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SITE_URL` | Site URL for OpenGraph tags (defaults to `https://waitingthelongest.com`) |
+
+## Where Variables Are Set
+
+- **Vercel:** All production variables are stored in Vercel project settings (Environment Variables)
+- **Local dev:** `.env.local` file (git-ignored)
+- **Agents:** `agent/*.ts` files load dotenv from `.env.local`
 
 ## Important Notes
 
-- **Never commit `.env` to version control** - it contains secrets
-- Copy `.env.example` to `.env` and fill in real values
-- Docker Compose reads `.env` automatically
-- **There is NO Petfinder API** - do not add Petfinder keys
+- **Never commit `.env.local` to version control** — it contains secrets
+- **CRON_SECRET** protects all admin, cron, debug, social, outreach, and backup API routes
+- **All routes require auth** — there are no unauthenticated admin/cron endpoints
+- **There is NO Petfinder API** — do not add Petfinder keys
+- **No Docker, Redis, or JWT** — the project uses Supabase (hosted PostgreSQL) and Vercel (serverless)
