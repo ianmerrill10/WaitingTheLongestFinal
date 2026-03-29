@@ -8,30 +8,18 @@ export const metadata: Metadata = {
 };
 
 export default async function BreedsPage() {
-  let breeds: { breed_primary: string }[] = [];
+  let sortedBreeds: [string, number][] = [];
 
   try {
     const supabase = createAdminClient();
 
-    // Get all breeds with counts
-    const { data } = await supabase
-      .from("dogs")
-      .select("breed_primary")
-      .eq("is_available", true);
-    breeds = data || [];
+    const { data } = await supabase.rpc("get_breed_counts");
+    if (data) {
+      sortedBreeds = data.map((row: { breed: string; count: number }) => [row.breed, row.count]);
+    }
   } catch (err) {
     console.error("[BreedsPage] Failed to fetch data:", err);
   }
-
-  // Count occurrences
-  const breedCounts: Record<string, number> = {};
-  breeds.forEach((d) => {
-    const b = d.breed_primary;
-    if (b) breedCounts[b] = (breedCounts[b] || 0) + 1;
-  });
-
-  const sortedBreeds = Object.entries(breedCounts)
-    .sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

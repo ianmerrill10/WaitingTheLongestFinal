@@ -119,6 +119,7 @@ export default async function DogProfilePage({
 
   const urgency = (dog.urgency_level || "normal") as UrgencyLevel;
   const isUrgent = urgency === "critical" || urgency === "high";
+  const isAvailable = dog.is_available !== false;
   const photos: string[] = dog.photo_urls || [];
   const mainPhoto = dog.primary_photo_url || photos[0] || null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,6 +127,15 @@ export default async function DogProfilePage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {!isAvailable && (
+        <div className="mb-6 p-4 bg-gray-100 border border-gray-300 rounded-xl text-center">
+          <p className="text-gray-700 font-bold text-lg">This dog is no longer listed as available</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {dog.name} may have been adopted, transferred, or the listing was removed.
+            Contact the shelter for the latest information.
+          </p>
+        </div>
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -346,7 +356,9 @@ export default async function DogProfilePage({
             </div>
           </div>
 
-          <InterestForm dogId={dog.id} dogName={dog.name} shelterId={dog.shelter_id} />
+          {isAvailable && (
+            <InterestForm dogId={dog.id} dogName={dog.name} shelterId={dog.shelter_id} />
+          )}
 
           {/* Shelter Info */}
           {shelter && (
@@ -380,7 +392,7 @@ export default async function DogProfilePage({
                   </div>
                 )}
               </div>
-              {isUrgent && shelter.phone && (
+              {isAvailable && isUrgent && shelter.phone && (
                 <a href={`tel:${shelter.phone}`} className="block w-full text-center py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition text-sm mt-3">
                   Call Shelter NOW - {shelter.phone}
                 </a>
@@ -562,7 +574,7 @@ function DateAccuracyBadge({ confidence, source }: { confidence: string | null; 
 
 function VerificationBadge({ status, lastVerified, intakeDate }: { status: string; lastVerified: string | null; intakeDate: string | null }) {
   const verifiedAgo = lastVerified
-    ? Math.floor((Date.now() - new Date(lastVerified).getTime()) / (1000 * 60 * 60 * 1000))
+    ? Math.floor((Date.now() - new Date(lastVerified).getTime()) / (1000 * 60 * 60))
     : null;
   const verifiedAgoDays = verifiedAgo !== null ? Math.floor(verifiedAgo / 24) : null;
 

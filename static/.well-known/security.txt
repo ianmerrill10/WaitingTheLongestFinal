@@ -1,4 +1,0 @@
-Contact: mailto:security@waitingthelongest.com
-Preferred-Languages: en
-Canonical: https://waitingthelongest.com/.well-known/security.txt
-Expires: 2027-02-12T00:00:00.000Z

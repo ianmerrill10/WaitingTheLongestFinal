@@ -186,7 +186,7 @@ export default async function ShelterProfilePage({
               Statistics
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <StatCard label="Total Dogs" value={String(totalCount ?? 0)} />
+              <StatCard label="Total Listings" value={String(totalCount ?? 0)} />
               <StatCard
                 label="Available"
                 value={String(availableCount ?? 0)}

@@ -13,37 +13,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
 
-    - name: Build Docker image
-      run: docker build --target builder -t wtl-builder .
+    - name: Install dependencies
+      run: npm ci
 
-    - name: Build full image
-      run: docker build -t wtl-app .
+    - name: Run tests
+      run: npx tsx --test tests/**/*.test.ts
 
-    - name: Start services
-      run: |
-        cp .env.example .env
-        docker compose up -d db redis
-        sleep 10
-
-    - name: Run smoke tests
-      run: |
-        docker compose up -d
-        sleep 15
-        chmod +x scripts/smoke_test.sh
-        bash scripts/smoke_test.sh || true
-
-  lint-html:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Validate HTML
-      run: |
-        for f in static/*.html; do
-          echo "Checking $f..."
-          # Basic validation - check for DOCTYPE, html lang, head, body
-          grep -q "<!DOCTYPE html>" "$f" || echo "WARN: Missing DOCTYPE in $f"
-          grep -q '<html lang=' "$f" || echo "WARN: Missing lang attribute in $f"
-        done
+    - name: Build Next.js
+      run: npx next build
+      env:
+        NODE_OPTIONS: '--max-old-space-size=4096'
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
