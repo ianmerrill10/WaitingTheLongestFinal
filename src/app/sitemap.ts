@@ -78,20 +78,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // Legal pages
+  const legalPages: MetadataRoute.Sitemap = [
+    "terms-of-service", "privacy-policy", "dmca", "shelter-terms", "data-sharing", "api-terms",
+  ].map((slug) => ({
+    url: `${BASE_URL}/legal/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.3,
+  }));
+
   // Dynamic pages from database
   let dogPages: MetadataRoute.Sitemap = [];
   let shelterPages: MetadataRoute.Sitemap = [];
+  let breedPages: MetadataRoute.Sitemap = [];
 
   try {
     const supabase = createAdminClient();
 
-    // Fetch top 100 available dogs ordered by intake_date (longest waiting first)
+    // Fetch top 5000 available dogs ordered by intake_date (longest waiting first)
     const { data: dogs } = await supabase
       .from("dogs")
       .select("id, updated_at")
       .eq("is_available", true)
       .order("intake_date", { ascending: true })
-      .limit(100);
+      .limit(5000);
 
     if (dogs) {
       dogPages = dogs.map((dog) => ({
@@ -102,13 +113,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
     }
 
-    // Fetch top 100 shelters ordered by available_dogs count
+    // Fetch top 1000 shelters ordered by available_dogs count
     const { data: shelters } = await supabase
       .from("shelters")
       .select("id, updated_at")
       .eq("is_active", true)
       .order("available_dogs", { ascending: false })
-      .limit(100);
+      .limit(1000);
 
     if (shelters) {
       shelterPages = shelters.map((shelter) => ({
@@ -118,10 +129,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       }));
     }
-  } catch (error) {
+
+    // Fetch distinct breeds for breed pages
+    const { data: breeds } = await supabase
+      .from("dogs")
+      .select("breed_primary")
+      .eq("is_available", true)
+      .not("breed_primary", "is", null)
+      .limit(1000);
+
+    if (breeds) {
+      const uniqueBreeds = Array.from(new Set(breeds.map((b) => b.breed_primary).filter(Boolean)));
+      breedPages = uniqueBreeds.map((breed) => ({
+        url: `${BASE_URL}/breeds/${encodeURIComponent(breed.toLowerCase().replace(/\s+/g, "-"))}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.5,
+      }));
+    }
+  } catch {
     // If the database is unavailable, we still return static and state routes
-    console.error("Sitemap: Failed to fetch dynamic routes from database:", error);
   }
 
-  return [...staticPages, ...statePages, ...dogPages, ...shelterPages];
+  return [...staticPages, ...statePages, ...legalPages, ...dogPages, ...shelterPages, ...breedPages];
 }

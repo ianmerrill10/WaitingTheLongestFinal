@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 
 export const metadata: Metadata = {
@@ -124,7 +124,7 @@ async function fetchOverlookedDogs() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const categories: Record<string, any[]> = {};
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Senior dogs
     const { data: seniors } = await supabase
@@ -187,8 +187,8 @@ async function fetchOverlookedDogs() {
       .order("intake_date", { ascending: true })
       .limit(4);
     categories["bonded-pairs"] = bondedPairs || [];
-  } catch {
-    // Supabase not configured yet
+  } catch (err) {
+    console.error("[OverlookedPage] Failed to fetch data:", err);
   }
   return categories;
 }

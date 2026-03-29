@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 
 function slugToBreed(slug: string): string {
@@ -27,17 +27,35 @@ export default async function BreedPage({
 }) {
   const { slug } = await params;
   const breed = slugToBreed(slug);
-  const supabase = await createClient();
 
-  const { data: dogs, count } = await supabase
-    .from("dogs")
-    .select("*, shelters!inner(name, city, state_code)", { count: "exact" })
-    .eq("is_available", true)
-    .ilike("breed_primary", breed)
-    .order("intake_date", { ascending: true })
-    .limit(24);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let dogs: any[] = [];
+  let totalCount = 0;
 
-  const totalCount = count || 0;
+  try {
+    const supabase = createAdminClient();
+
+    // Separate count query from data query — shelters!inner + count can return wrong counts
+    const [dogsRes, countRes] = await Promise.all([
+      supabase
+        .from("dogs")
+        .select("*, shelters(name, city, state_code)")
+        .eq("is_available", true)
+        .ilike("breed_primary", breed)
+        .order("intake_date", { ascending: true })
+        .limit(24),
+      supabase
+        .from("dogs")
+        .select("id", { count: "exact", head: true })
+        .eq("is_available", true)
+        .ilike("breed_primary", breed),
+    ]);
+
+    dogs = dogsRes.data || [];
+    totalCount = countRes.count || 0;
+  } catch (err) {
+    console.error("[BreedPage] Failed to fetch data:", err);
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -214,6 +214,10 @@ export function mapScrapedDog(
     }
   }
 
+  // Foster detection from description or tags
+  const isFoster = /\b(foster home|in foster|currently fostered|living in foster)\b/i.test(dog.description || "")
+    || (dog.tags || []).some((t: string) => /foster/i.test(t));
+
   return {
     name: (dog.name || "Unknown").substring(0, 200),
     shelter_id: shelterId,
@@ -255,5 +259,7 @@ export function mapScrapedDog(
     external_url: dog.external_url?.substring(0, 500) || null,
     verification_status: "verified",
     last_verified_at: new Date().toISOString(),
+    source_extraction_method: `html_scraper_${platform}`,
+    is_foster: isFoster,
   };
 }

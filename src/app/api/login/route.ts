@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +19,15 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    if (password !== sitePassword) {
+    // Timing-safe comparison to prevent timing attacks
+    const pwBuf = Buffer.from(String(password || ''));
+    const secretBuf = Buffer.from(sitePassword);
+    const maxLen = Math.max(pwBuf.length, secretBuf.length);
+    const a = Buffer.alloc(maxLen);
+    const b = Buffer.alloc(maxLen);
+    pwBuf.copy(a);
+    secretBuf.copy(b);
+    if (!timingSafeEqual(a, b) || pwBuf.length !== secretBuf.length) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 
 const STATE_NAMES: Record<string, string> = {
@@ -51,45 +51,59 @@ export default async function StateDetailPage({
   let shelterCount = 0;
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    const dogsRes = await supabase
-      .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
-      .eq("is_available", true)
-      .eq("shelters.state_code", stateCode)
-      .order("intake_date", { ascending: true })
-      .limit(24);
-    dogs = dogsRes.data || [];
+    // First get shelter IDs for this state — avoids unreliable !inner join counts
+    const { data: stateShelters } = await supabase
+      .from("shelters")
+      .select("id")
+      .eq("state_code", stateCode);
 
-    const [urgentRes, totalRes, shelterCountRes, shelterRes] = await Promise.all([
-      supabase
-        .from("dogs")
-        .select("id, shelters!inner(state_code)", { count: "exact", head: true })
-        .eq("is_available", true)
-        .eq("shelters.state_code", stateCode)
-        .in("urgency_level", ["critical", "high"]),
-      supabase
-        .from("dogs")
-        .select("id, shelters!inner(state_code)", { count: "exact", head: true })
-        .eq("is_available", true)
-        .eq("shelters.state_code", stateCode),
-      supabase
-        .from("shelters")
-        .select("id", { count: "exact", head: true })
-        .eq("state_code", stateCode),
-      supabase
+    const shelterIds = (stateShelters || []).map((s) => s.id);
+    shelterCount = shelterIds.length;
+
+    if (shelterIds.length > 0) {
+      const [dogsRes, urgentRes, totalRes, shelterRes] = await Promise.all([
+        supabase
+          .from("dogs")
+          .select("*, shelters(name, city, state_code)")
+          .eq("is_available", true)
+          .in("shelter_id", shelterIds)
+          .order("intake_date", { ascending: true })
+          .limit(24),
+        supabase
+          .from("dogs")
+          .select("id", { count: "exact", head: true })
+          .eq("is_available", true)
+          .in("shelter_id", shelterIds)
+          .in("urgency_level", ["critical", "high"]),
+        supabase
+          .from("dogs")
+          .select("id", { count: "exact", head: true })
+          .eq("is_available", true)
+          .in("shelter_id", shelterIds),
+        supabase
+          .from("shelters")
+          .select("*")
+          .eq("state_code", stateCode)
+          .order("name", { ascending: true })
+          .limit(30),
+      ]);
+
+      dogs = dogsRes.data || [];
+      urgentCount = urgentRes.count;
+      totalDogsCount = totalRes.count;
+      shelters = shelterRes.data || [];
+    } else {
+      // No shelters in this state — get shelter list anyway for display
+      const { data: shelterRes } = await supabase
         .from("shelters")
         .select("*")
         .eq("state_code", stateCode)
         .order("name", { ascending: true })
-        .limit(30),
-    ]);
-
-    urgentCount = urgentRes.count;
-    totalDogsCount = totalRes.count;
-    shelterCount = shelterCountRes.count ?? 0;
-    shelters = shelterRes.data || [];
+        .limit(30);
+      shelters = shelterRes || [];
+    }
   } catch {
     // Supabase not configured yet
   }

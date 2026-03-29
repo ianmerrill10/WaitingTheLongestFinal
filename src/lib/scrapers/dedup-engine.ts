@@ -18,6 +18,7 @@ interface DogRecord {
   primary_photo_url: string | null;
   intake_date: string | null;
   date_confidence: string | null;
+  date_source: string | null;
   euthanasia_date: string | null;
   weight_lbs: number | null;
   color_primary: string | null;
@@ -47,7 +48,7 @@ export async function findDuplicate(
   // Exact name + shelter + different source
   const { data } = await supabase
     .from("dogs")
-    .select("id, name, shelter_id, breed_primary, external_id, external_source, description, photo_urls, primary_photo_url, intake_date, date_confidence, euthanasia_date, weight_lbs, color_primary, good_with_kids, good_with_dogs, good_with_cats, house_trained, dedup_merged_from")
+    .select("id, name, shelter_id, breed_primary, external_id, external_source, description, photo_urls, primary_photo_url, intake_date, date_confidence, date_source, euthanasia_date, weight_lbs, color_primary, good_with_kids, good_with_dogs, good_with_cats, house_trained, dedup_merged_from")
     .eq("shelter_id", shelterId)
     .eq("is_available", true)
     .ilike("name", name.trim())
@@ -132,6 +133,24 @@ export async function mergeDuplicate(
     updates.is_on_euthanasia_list = scraperData.is_on_euthanasia_list;
   }
 
+  // Transfer detection: if the duplicate is from a DIFFERENT shelter,
+  // this is a transfer — record the origin shelter and original intake
+  const scraperShelterId = scraperData.shelter_id as string | undefined;
+  if (scraperShelterId && scraperShelterId !== existing.shelter_id) {
+    updates.transfer_origin_shelter_id = existing.shelter_id;
+    updates.transfer_original_intake = existing.intake_date;
+    // Keep the older (original) intake date for cumulative wait time
+    if (existing.intake_date && scraperData.intake_date) {
+      const existingTime = new Date(existing.intake_date).getTime();
+      const scraperTime = new Date(scraperData.intake_date as string).getTime();
+      if (existingTime < scraperTime) {
+        updates.intake_date = existing.intake_date;
+        updates.date_source = existing.date_source || "transfer_preserved";
+        updates.date_confidence = existing.date_confidence || "medium";
+      }
+    }
+  }
+
   // Track the merge
   const mergedFrom = existing.dedup_merged_from || [];
   if (!mergedFrom.includes(scraperExternalId)) {
@@ -166,7 +185,7 @@ export async function runBatchDedup(shelterId?: string): Promise<{
   let merged = 0;
   let removed = 0;
 
-  const DOG_FIELDS = "id, name, shelter_id, breed_primary, external_id, external_source, description, photo_urls, primary_photo_url, intake_date, date_confidence, euthanasia_date, weight_lbs, color_primary, good_with_kids, good_with_dogs, good_with_cats, house_trained, dedup_merged_from";
+  const DOG_FIELDS = "id, name, shelter_id, breed_primary, external_id, external_source, description, photo_urls, primary_photo_url, intake_date, date_confidence, date_source, euthanasia_date, weight_lbs, color_primary, good_with_kids, good_with_dogs, good_with_cats, house_trained, dedup_merged_from";
 
   // Find scraper-sourced dogs
   let query = supabase

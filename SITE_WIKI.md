@@ -444,8 +444,11 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 
 ## Quick Reference
 
-**CRON_SECRET:** `4948f13c97e8c8aa5e33c70c2aef9a868df82b64f70a598f96b2f46bf5633e11`
-**RescueGroups API Key:** `Hu7Ew255`
+> **SECURITY NOTE (2026-03-29):** Secrets were previously exposed in this file and are in git history.
+> CRON_SECRET and RESCUEGROUPS_API_KEY have been rotated. Old values are compromised.
+> All secrets are now stored ONLY in Vercel environment variables and .env.local.
+> Never commit secrets to this file again.
+
 **Supabase Ref:** `hpssqzqwtsczsxvdfktt`
 **Supabase URL:** `https://hpssqzqwtsczsxvdfktt.supabase.co`
 **Amazon Associates:** `waitingthelon-20`

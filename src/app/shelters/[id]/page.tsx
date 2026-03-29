@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 
 const SHELTER_TYPE_LABELS: Record<string, string> = {
@@ -20,7 +20,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: shelter } = await supabase
       .from("shelters")
       .select("name, city, state_code")
@@ -61,7 +61,7 @@ export default async function ShelterProfilePage({
   let totalCount: number | null = 0;
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: shelterData, error } = await supabase
       .from("shelters")
@@ -74,36 +74,38 @@ export default async function ShelterProfilePage({
     }
     shelter = shelterData;
 
-    const dogsRes = await supabase
-      .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
-      .eq("shelter_id", id)
-      .eq("is_available", true)
-      .order("intake_date", { ascending: true })
-      .limit(24);
+    // Parallelize all queries — no !inner join needed since we filter by shelter_id
+    const [dogsRes, availRes, urgentRes, totalRes] = await Promise.all([
+      supabase
+        .from("dogs")
+        .select("*, shelters(name, city, state_code)")
+        .eq("shelter_id", id)
+        .eq("is_available", true)
+        .order("intake_date", { ascending: true })
+        .limit(24),
+      supabase
+        .from("dogs")
+        .select("id", { count: "exact", head: true })
+        .eq("shelter_id", id)
+        .eq("is_available", true),
+      supabase
+        .from("dogs")
+        .select("id", { count: "exact", head: true })
+        .eq("shelter_id", id)
+        .eq("is_available", true)
+        .in("urgency_level", ["critical", "high"]),
+      supabase
+        .from("dogs")
+        .select("id", { count: "exact", head: true })
+        .eq("shelter_id", id),
+    ]);
+
     dogs = dogsRes.data || [];
-
-    const availRes = await supabase
-      .from("dogs")
-      .select("id", { count: "exact", head: true })
-      .eq("shelter_id", id)
-      .eq("is_available", true);
     availableCount = availRes.count;
-
-    const urgentRes = await supabase
-      .from("dogs")
-      .select("id", { count: "exact", head: true })
-      .eq("shelter_id", id)
-      .eq("is_available", true)
-      .in("urgency_level", ["critical", "high"]);
     urgentCount = urgentRes.count;
-
-    const totalRes = await supabase
-      .from("dogs")
-      .select("id", { count: "exact", head: true })
-      .eq("shelter_id", id);
     totalCount = totalRes.count;
-  } catch {
+  } catch (err) {
+    console.error("[ShelterProfilePage] Failed to fetch data:", err);
     notFound();
   }
 

@@ -88,7 +88,7 @@ export async function POST() {
     // Find dogs where intake_date is before the cutoff for this confidence level
     const { data: stale } = await supabase
       .from("dogs")
-      .select("id, name, intake_date, date_source")
+      .select("id, name, intake_date, original_intake_date, date_source")
       .eq("is_available", true)
       .eq("date_confidence", confidence)
       .lt("intake_date", cappedDate);
@@ -101,8 +101,11 @@ export async function POST() {
         .from("dogs")
         .update({
           intake_date: cappedDate,
+          original_intake_date: dog.original_intake_date || dog.intake_date,
           date_confidence: newConfidence,
           date_source: `${dog.date_source || "unknown"}|wait_capped_${maxDays}d`,
+          ranking_eligible: false,
+          intake_date_observation_count: 1,
         })
         .eq("id", dog.id);
 
@@ -132,7 +135,7 @@ export async function POST() {
   if (oldCreatedCount && oldCreatedCount > 0) {
     await supabase
       .from("dogs")
-      .update({ date_confidence: "low" })
+      .update({ date_confidence: "low", ranking_eligible: false })
       .eq("is_available", true)
       .lt("intake_date", oneYearAgo.toISOString())
       .like("date_source", "%created_date%")
@@ -157,7 +160,7 @@ export async function POST() {
   if (oldUpdatedCount && oldUpdatedCount > 0) {
     await supabase
       .from("dogs")
-      .update({ date_confidence: "low" })
+      .update({ date_confidence: "low", ranking_eligible: false })
       .eq("is_available", true)
       .lt("intake_date", sixMonthsAgo.toISOString())
       .like("date_source", "%updated_date%")
@@ -182,7 +185,7 @@ export async function POST() {
   if (veryOldCount && veryOldCount > 0) {
     await supabase
       .from("dogs")
-      .update({ date_confidence: "low" })
+      .update({ date_confidence: "low", ranking_eligible: false })
       .eq("is_available", true)
       .lt("intake_date", twoYearsAgo.toISOString())
       .not("date_source", "like", "%available_date%")

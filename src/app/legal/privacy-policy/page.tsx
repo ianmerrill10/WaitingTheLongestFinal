@@ -32,6 +32,16 @@ export default function PrivacyPolicyPage() {
               <li>Communication history with WTL</li>
             </ul>
 
+            <h3 className="text-lg font-semibold mt-4 mb-2">Dog Listing Data Sources</h3>
+            <p>Dog listings displayed on the Platform are aggregated from the following sources:</p>
+            <ul>
+              <li>RescueGroups.org API v5 (primary database of ~33,000+ dog listings)</li>
+              <li>Direct shelter website scraping via 8 automated platform adapters (ShelterLuv, ShelterBuddy, Petango, Petstablished, Chameleon/PetHarbor, ShelterManager/ASM, RescueGroups Widget, and generic HTML parsing)</li>
+              <li>Shelter-submitted CSV imports and API feeds via our partner portal</li>
+              <li>Automated verification and freshness monitoring systems</li>
+            </ul>
+            <p>Each dog listing includes a Data Sources page documenting the specific provenance of that listing&apos;s data.</p>
+
             <h3 className="text-lg font-semibold mt-4 mb-2">From Adopters / Website Visitors</h3>
             <ul>
               <li>Information voluntarily provided (name, email when submitting interest forms or foster applications)</li>

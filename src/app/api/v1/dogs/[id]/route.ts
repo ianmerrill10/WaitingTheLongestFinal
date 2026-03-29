@@ -99,7 +99,7 @@ export async function PUT(
   const supabase = createAdminClient();
   const { data: existing } = await supabase
     .from("dogs")
-    .select("id")
+    .select("id, intake_date, original_intake_date")
     .eq("id", params.id)
     .eq("shelter_id", auth.shelter_id!)
     .single();
@@ -135,6 +135,14 @@ export async function PUT(
   if (body.color !== undefined) update.color_primary = body.color;
   if (body.size !== undefined) update.size_general = body.size;
   if (body.photos !== undefined) update.photo_urls = body.photos;
+
+  if (body.intake_date !== undefined) {
+    update.date_confidence = "verified";
+    update.date_source = "api_submission";
+    update.original_intake_date = existing.original_intake_date || existing.intake_date;
+    update.ranking_eligible = true;
+    update.intake_date_observation_count = 1;
+  }
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json(

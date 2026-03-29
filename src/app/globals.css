@@ -126,18 +126,13 @@
     0 0 1px #fff;
 }
 
-/* Critical pulsing — urgent red flash */
+/* Critical — solid red, no pulsing */
 .led-counter.critical .led-segment.active {
-  animation: led-critical-pulse 0.8s ease-in-out infinite;
+  opacity: 1;
 }
 
 .led-counter.critical .led-separator-dot {
-  animation: led-critical-pulse 0.8s ease-in-out infinite;
-}
-
-@keyframes led-critical-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
+  opacity: 1;
 }
 
 /* Countdown urgency color escalation */
@@ -350,7 +345,7 @@
 }
 
 .urgency-critical {
-  @apply bg-red-600 text-white animate-pulse;
+  @apply bg-red-600 text-white;
 }
 
 .urgency-high {

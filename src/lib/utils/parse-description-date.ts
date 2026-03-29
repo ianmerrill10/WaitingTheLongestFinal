@@ -94,7 +94,7 @@ const MONTH_MAP: Record<string, number> = {
 };
 
 function parseDate(year: number, month: number, day: number): Date | null {
-  if (year < 2000 || year > 2030) return null;
+  if (year < 2000 || year > new Date().getFullYear() + 2) return null;
   if (month < 1 || month > 12) return null;
   if (day < 1 || day > 31) return null;
 

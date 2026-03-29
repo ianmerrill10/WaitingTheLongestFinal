@@ -1,5 +1,13 @@
 import type { UrgencyLevel } from "@/lib/constants";
 
+export interface SourceLink {
+  url: string;
+  source: string;
+  checked_at: string;
+  status_code: number | null;
+  description: string;
+}
+
 export interface Dog {
   id: string;
   name: string;
@@ -55,6 +63,19 @@ export interface Dog {
   external_url_alive: boolean | null;
   verification_status: string | null;
   last_verified_at: string | null;
+  source_links: SourceLink[] | null;
+  original_intake_date: string | null;
+  source_extraction_method: string | null;
+  credibility_score: number;
+  source_nonprofit_verified: boolean;
+  is_foster: boolean;
+  transfer_origin_shelter_id: string | null;
+  transfer_original_intake: string | null;
+  ranking_eligible: boolean;
+  intake_date_observation_count: number;
+  page_hash: string | null;
+  dedup_merged_from: string[] | null;
+  last_synced_at: string | null;
   view_count: number;
   favorite_count: number;
   share_count: number;

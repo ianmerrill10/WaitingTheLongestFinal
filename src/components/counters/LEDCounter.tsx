@@ -38,7 +38,7 @@ export default function LEDCounter({
   if (!time) return null;
 
   const values = [
-    time.years,
+    Math.min(time.years, 99),
     time.months,
     time.days,
     time.hours,

@@ -16,8 +16,8 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
 
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = Math.min(parseInt(searchParams.get("limit") || String(DOGS_PER_PAGE)), 100);
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1") || 1);
+  const limit = Math.min(Math.max(1, parseInt(searchParams.get("limit") || String(DOGS_PER_PAGE)) || DOGS_PER_PAGE), 100);
   const offset = (page - 1) * limit;
   const sort = searchParams.get("sort") || "wait_time";
   const breed = searchParams.get("breed");
@@ -48,13 +48,21 @@ export async function GET(request: Request) {
 
   // Apply filters
   if (shelterId) query = query.eq("shelter_id", shelterId);
-  if (breed) query = query.ilike("breed_primary", `%${breed}%`);
+  if (breed) {
+    const sanitizedBreed = breed.replace(/[%_\\(),.*]/g, "").substring(0, 100);
+    if (sanitizedBreed) query = query.ilike("breed_primary", `%${sanitizedBreed}%`);
+  }
   if (size) query = query.eq("size", size);
   if (age) query = query.eq("age_category", age);
   if (gender) query = query.eq("gender", gender);
   if (state) query = query.eq("shelters.state_code", state.toUpperCase());
   if (urgency) query = query.eq("urgency_level", urgency);
-  if (search) query = query.or(`name.ilike.%${search}%,breed_primary.ilike.%${search}%`);
+  if (search) {
+    const sanitized = search.replace(/[%_\\(),.*]/g, "").substring(0, 100);
+    if (sanitized.length > 0) {
+      query = query.or(`name.ilike.%${sanitized}%,breed_primary.ilike.%${sanitized}%`);
+    }
+  }
 
   // Compatibility & discovery filters
   const goodWithKids = searchParams.get("good_with_kids");
@@ -69,8 +77,9 @@ export async function GET(request: Request) {
   if (goodWithCats === "true") query = query.eq("good_with_cats", true);
   if (houseTrained === "true") query = query.eq("house_trained", true);
   if (newToday === "true") {
-    const yesterday = new Date(Date.now() - 86400000).toISOString();
-    query = query.gte("created_at", yesterday);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    query = query.gte("created_at", today.toISOString());
   }
   if (feeWaived === "true") query = query.eq("is_fee_waived", true);
 
@@ -86,8 +95,10 @@ export async function GET(request: Request) {
       query = query.order("name", { ascending: true });
       break;
     case "random":
-      // Use a daily seed so random order is consistent within a day but changes daily
-      query = query.order("id", { ascending: new Date().getDate() % 2 === 0 }).limit(limit);
+      // Use created_at order with daily alternation + offset for pseudo-random feel
+      // True random would require a DB function; this gives varied results each day
+      query = query.order("created_at", { ascending: new Date().getDate() % 2 === 0 })
+        .order("id", { ascending: new Date().getDate() % 3 !== 0 });
       break;
     case "wait_time":
     default:

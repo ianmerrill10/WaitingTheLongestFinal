@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Partner With Us | WaitingTheLongest.com",
@@ -19,7 +19,7 @@ export default async function PartnersPage() {
   let stateCount = 50;
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const [shelterResult, dogResult] = await Promise.all([
       supabase
         .from("shelters")
@@ -32,8 +32,8 @@ export default async function PartnersPage() {
     ]);
     if (shelterResult.count) shelterCount = shelterResult.count;
     if (dogResult.count) dogCount = dogResult.count;
-  } catch {
-    // Use defaults
+  } catch (err) {
+    console.error("[PartnersPage] Failed to fetch stats:", err);
   }
 
   return (

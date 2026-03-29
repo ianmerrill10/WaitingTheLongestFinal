@@ -67,6 +67,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // Enforce CSV size limit to prevent DoS
+  const MAX_CSV_SIZE = 5 * 1024 * 1024; // 5MB
+  if (csvText.length > MAX_CSV_SIZE) {
+    return NextResponse.json(
+      { error: `CSV too large. Maximum size is 5MB.`, code: "PAYLOAD_TOO_LARGE" },
+      { status: 413, headers: rateLimitHeaders(rateLimit) }
+    );
+  }
+
   // Parse CSV
   const parseResult = parseCsvDogs(csvText);
 

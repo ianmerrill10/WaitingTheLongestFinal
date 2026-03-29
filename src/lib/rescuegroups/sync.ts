@@ -3,6 +3,7 @@ import type { RGIncludedItem, RGOrgAttributes } from "./client";
 import { mapRescueGroupsDog, extractPhotoUrls } from "./mapper";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateListing } from "@/lib/utils/listing-classifier";
+import { getStrayHoldDays } from "@/data/stray-hold-days";
 
 interface SyncResult {
   totalFetched: number;
@@ -12,6 +13,13 @@ interface SyncResult {
   errors: number;
   rejected: number;
   duration: number;
+}
+
+interface ShelterSyncInfo {
+  id: string;
+  shelterType: string | null;
+  stateCode: string | null;
+  strayHoldDays: number | null;
 }
 
 const VALID_STATES = new Set([
@@ -37,8 +45,8 @@ async function findOrCreateShelter(
   supabase: ReturnType<typeof createAdminClient>,
   orgId: string,
   included: RGIncludedItem[],
-  shelterCache: Map<string, string>
-): Promise<string | null> {
+  shelterCache: Map<string, ShelterSyncInfo>
+): Promise<ShelterSyncInfo | null> {
   if (shelterCache.has(orgId)) {
     return shelterCache.get(orgId)!;
   }
@@ -46,14 +54,20 @@ async function findOrCreateShelter(
   // Check DB by external_id
   const { data: existing } = await supabase
     .from("shelters")
-    .select("id")
+    .select("id, shelter_type, state_code, stray_hold_days")
     .eq("external_source", "rescuegroups")
     .eq("external_id", orgId)
     .single();
 
   if (existing) {
-    shelterCache.set(orgId, existing.id);
-    return existing.id;
+    const shelterInfo: ShelterSyncInfo = {
+      id: existing.id,
+      shelterType: existing.shelter_type || null,
+      stateCode: existing.state_code || null,
+      strayHoldDays: existing.stray_hold_days ?? null,
+    };
+    shelterCache.set(orgId, shelterInfo);
+    return shelterInfo;
   }
 
   // Find org in included data
@@ -86,14 +100,14 @@ async function findOrCreateShelter(
       external_source: "rescuegroups",
       is_verified: true,
     })
-    .select("id")
+    .select("id, shelter_type, state_code, stray_hold_days")
     .single();
 
   if (error) {
     // Duplicate name+state — find existing and link
     const { data: byName } = await supabase
       .from("shelters")
-      .select("id")
+      .select("id, shelter_type, state_code, stray_hold_days")
       .eq("name", shelterName)
       .eq("state_code", stateCode)
       .single();
@@ -103,14 +117,27 @@ async function findOrCreateShelter(
         .from("shelters")
         .update({ external_id: orgId, external_source: "rescuegroups" })
         .eq("id", byName.id);
-      shelterCache.set(orgId, byName.id);
-      return byName.id;
+      const shelterInfo: ShelterSyncInfo = {
+        id: byName.id,
+        shelterType: byName.shelter_type || null,
+        stateCode: byName.state_code || null,
+        strayHoldDays: byName.stray_hold_days ?? null,
+      };
+      shelterCache.set(orgId, shelterInfo);
+      return shelterInfo;
     }
     return null;
   }
 
-  shelterCache.set(orgId, newShelter.id);
-  return newShelter.id;
+  const shelterInfo: ShelterSyncInfo = {
+    id: newShelter.id,
+    shelterType: newShelter.shelter_type || null,
+    stateCode: newShelter.state_code || null,
+    strayHoldDays: newShelter.stray_hold_days ?? null,
+  };
+
+  shelterCache.set(orgId, shelterInfo);
+  return shelterInfo;
 }
 
 /**
@@ -132,7 +159,7 @@ export async function syncDogsFromRescueGroups(
   let errors = 0;
   let rejected = 0;
 
-  const shelterCache = new Map<string, string>();
+  const shelterCache = new Map<string, ShelterSyncInfo>();
   const endPage = startPage + maxPages - 1;
 
   for (let page = startPage; page <= endPage; page++) {
@@ -151,12 +178,17 @@ export async function syncDogsFromRescueGroups(
       // Include date_source so we can protect verified dates from being overwritten
       const { data: existingDogs } = await supabase
         .from("dogs")
-        .select("id, external_id, date_source, date_confidence")
+        .select("id, external_id, date_source, date_confidence, intake_date_observation_count")
         .eq("external_source", "rescuegroups")
         .in("external_id", externalIds);
 
       const existingMap = new Map(
-        (existingDogs || []).map((d) => [d.external_id, { id: d.id, date_source: d.date_source, date_confidence: d.date_confidence }])
+        (existingDogs || []).map((d) => [d.external_id, {
+          id: d.id,
+          date_source: d.date_source,
+          date_confidence: d.date_confidence,
+          observation_count: d.intake_date_observation_count,
+        }])
       );
 
       // Resolve all shelters for this page first
@@ -189,9 +221,28 @@ export async function syncDogsFromRescueGroups(
             photoData
           );
 
-          // ── Listing classifier gate: reject breeders/pet stores ──
           const orgItem = included.find((i) => i.type === "orgs" && i.id === animal.relationships?.orgs?.data?.[0]?.id);
           const orgAttrs = orgItem?.attributes as unknown as RGOrgAttributes | undefined;
+
+          // ── Stray hold adjustment: subtract hold days for municipal shelters ──
+          // available_date is AFTER the hold period; true intake = available_date - hold_days
+          if (
+            mapped.date_source === "rescuegroups_available_date" &&
+            orgAttrs
+          ) {
+            const shelterInfo = orgItem ? shelterCache.get(orgItem.id) : null;
+            const shelterType = shelterInfo?.shelterType || mapOrgType(orgAttrs.type);
+            const stateCode = (shelterInfo?.stateCode || orgAttrs.state || "").toUpperCase();
+
+            if (shelterType === "municipal" && stateCode) {
+              const holdDays = getStrayHoldDays(stateCode, shelterInfo?.strayHoldDays);
+              const adjustedIntake = new Date(new Date(mapped.intake_date).getTime() - holdDays * 86400000);
+              mapped.intake_date = adjustedIntake.toISOString();
+              mapped.date_source += `|stray_hold_adjusted_${holdDays}d`;
+            }
+          }
+
+          // ── Listing classifier gate: reject breeders/pet stores ──
 
           const validation = validateListing({
             name: mapped.name,
@@ -210,21 +261,47 @@ export async function syncDogsFromRescueGroups(
           }
 
           const orgId = animal.relationships?.orgs?.data?.[0]?.id;
-          const shelterId = orgId ? shelterCache.get(orgId) : null;
+          const shelterInfo = orgId ? shelterCache.get(orgId) : null;
+          const shelterId = shelterInfo?.id || null;
 
           if (!shelterId) {
             errors++;
             continue;
           }
 
+          // Build source_links for data provenance
+          const sourceLinks = [
+            {
+              url: `https://www.rescuegroups.org/animals/${animal.id}`,
+              source: "RescueGroups.org",
+              checked_at: new Date().toISOString(),
+              status_code: null,
+              description: "Primary listing on RescueGroups.org database",
+            },
+          ];
+          if (orgAttrs?.url) {
+            sourceLinks.push({
+              url: orgAttrs.url.substring(0, 500),
+              source: "Shelter Website",
+              checked_at: new Date().toISOString(),
+              status_code: null,
+              description: `Official website of ${(orgAttrs.name || "shelter").substring(0, 100)}`,
+            });
+          }
+          if (orgId) {
+            sourceLinks.push({
+              url: `https://www.rescuegroups.org/organizations/${orgId}`,
+              source: "RescueGroups.org Organization",
+              checked_at: new Date().toISOString(),
+              status_code: null,
+              description: "Organization profile on RescueGroups.org",
+            });
+          }
+
           const existing = existingMap.get(animal.id);
 
           if (existing) {
             // Never downgrade date quality on sync.
-            // The search endpoint doesn't return availableDate/foundDate,
-            // so the mapper falls through to createdDate/updatedDate.
-            // If the existing dog already has equal or better confidence,
-            // preserve its date fields.
             const CONFIDENCE_RANK: Record<string, number> = {
               verified: 5,
               high: 4,
@@ -240,6 +317,7 @@ export async function syncDogsFromRescueGroups(
               ...mapped,
               shelter_id: shelterId,
               last_synced_at: new Date().toISOString(),
+              source_links: sourceLinks,
             };
 
             // If existing date is equal or better quality, don't overwrite
@@ -247,6 +325,19 @@ export async function syncDogsFromRescueGroups(
               delete updateData.intake_date;
               delete updateData.date_confidence;
               delete updateData.date_source;
+              // Crawl consistency: same date confirmed again → increment observation count
+              updateData.intake_date_observation_count = (existing.observation_count || 1) + 1;
+            } else {
+              // Date quality upgraded → reset observation count
+              updateData.intake_date_observation_count = 1;
+            }
+
+            // Auto-set ranking_eligible when date is verified
+            const effectiveConfidence = existingRank >= newRank
+              ? existing.date_confidence
+              : mapped.date_confidence;
+            if (effectiveConfidence === "verified") {
+              updateData.ranking_eligible = true;
             }
 
             toUpdate.push({
@@ -257,6 +348,9 @@ export async function syncDogsFromRescueGroups(
             toInsert.push({
               ...mapped,
               shelter_id: shelterId,
+              source_links: sourceLinks,
+              original_intake_date: mapped.intake_date,
+              ranking_eligible: mapped.date_confidence === "verified",
             });
           }
         } catch {

@@ -8,6 +8,32 @@ import { parseUrgencyFromDescription } from "@/lib/utils/parse-urgency-from-desc
 import { classifyDescription } from "@/lib/utils/listing-classifier";
 import { parseAgeMonths, MAX_WAIT_DAYS, type DateConfidence } from "@/lib/rescuegroups/mapper";
 
+function buildDateAuditUpdate(
+  dog: {
+    intake_date: string;
+    original_intake_date?: string | null;
+    date_confidence?: string | null;
+  },
+  changes: Record<string, unknown>,
+  nowIso: string,
+): Record<string, unknown> {
+  const nextIntakeDate = (changes.intake_date as string | undefined) || dog.intake_date;
+  const nextConfidence = (changes.date_confidence as string | undefined) || dog.date_confidence || "unknown";
+  const intakeChanged = nextIntakeDate !== dog.intake_date;
+
+  return {
+    ...changes,
+    last_audited_at: nowIso,
+    ranking_eligible: nextConfidence === "verified",
+    ...(intakeChanged
+      ? {
+          original_intake_date: dog.original_intake_date || dog.intake_date,
+          intake_date_observation_count: 1,
+        }
+      : {}),
+  };
+}
+
 // ============================================================
 // 1. DATE VALIDATION — bulk classify and repair intake dates
 // ============================================================
@@ -35,6 +61,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
       .update({
         date_confidence: "low",
         date_source: "audit_repair_future_date",
+        ranking_eligible: false,
         last_audited_at: now.toISOString(),
       })
       .gt("intake_date", now.toISOString());
@@ -76,7 +103,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
     while (fixOffset < (oldCount || 0)) {
       const { data: batch } = await supabase
         .from("dogs")
-        .select("id, last_synced_at, created_at")
+        .select("id, intake_date, original_intake_date, last_synced_at, created_at")
         .lt("intake_date", fiveYearsAgo.toISOString())
         .range(fixOffset, fixOffset + 499)
         .order("id");
@@ -86,7 +113,9 @@ export async function checkDates(logger: AuditLogger): Promise<{
       for (const dog of batch) {
         await supabase
           .from("dogs")
-          .update({ intake_date: dog.last_synced_at || dog.created_at })
+          .update(buildDateAuditUpdate(dog, {
+            intake_date: dog.last_synced_at || dog.created_at,
+          }, now.toISOString()))
           .eq("id", dog.id);
       }
       fixOffset += batch.length;
@@ -119,7 +148,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
     while (true) {
       const { data: dogs } = await supabase
         .from("dogs")
-        .select("id, name, intake_date, date_confidence, date_source")
+        .select("id, name, intake_date, original_intake_date, date_confidence, date_source")
         .eq("is_available", true)
         .eq("date_confidence", conf)
         .lt("intake_date", cutoffDate.toISOString())
@@ -133,12 +162,11 @@ export async function checkDates(logger: AuditLogger): Promise<{
         const newConf = conf === "verified" ? "medium" : "low";
         await supabase
           .from("dogs")
-          .update({
+          .update(buildDateAuditUpdate(dog, {
             intake_date: cappedDate.toISOString(),
             date_confidence: newConf,
             date_source: `${dog.date_source || "unknown"}|audit_wait_capped_${maxDays}d`,
-            last_audited_at: now.toISOString(),
-          })
+          }, now.toISOString()))
           .eq("id", dog.id);
         capped++;
       }
@@ -180,6 +208,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
       .from("dogs")
       .update({
         date_confidence: "low",
+        ranking_eligible: false,
         last_audited_at: now.toISOString(),
       })
       .eq("is_available", true)
@@ -212,6 +241,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
       .from("dogs")
       .update({
         date_confidence: "low",
+        ranking_eligible: false,
         last_audited_at: now.toISOString(),
       })
       .eq("is_available", true)
@@ -243,6 +273,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
       .from("dogs")
       .update({
         date_confidence: "medium",
+        ranking_eligible: false,
         last_audited_at: now.toISOString(),
       })
       .eq("is_available", true)
@@ -264,6 +295,7 @@ export async function checkDates(logger: AuditLogger): Promise<{
       .from("dogs")
       .update({
         date_confidence: "high",
+        ranking_eligible: false,
         last_audited_at: now.toISOString(),
       })
       .eq("is_available", true)
@@ -657,7 +689,7 @@ export async function checkDescriptionDates(logger: AuditLogger): Promise<{
   while (true) {
     const { data: dogs } = await supabase
       .from("dogs")
-      .select("id, name, description, intake_date, date_confidence, date_source")
+        .select("id, name, description, intake_date, original_intake_date, date_confidence, date_source")
       .eq("is_available", true)
       .not("description", "is", null)
       .neq("date_confidence", "verified")
@@ -685,12 +717,11 @@ export async function checkDescriptionDates(logger: AuditLogger): Promise<{
       if (descIsOlder || currentIsUnreliable) {
         await supabase
           .from("dogs")
-          .update({
+          .update(buildDateAuditUpdate(dog, {
             intake_date: parsedISO,
             date_confidence: parsed.confidence === "high" ? "verified" : "high",
             date_source: `description_parsed: ${parsed.source}`,
-            last_audited_at: now.toISOString(),
-          })
+          }, now.toISOString()))
           .eq("id", dog.id);
         updated++;
       }
@@ -749,7 +780,7 @@ export async function checkAgeSanity(logger: AuditLogger): Promise<{
     while (true) {
       const { data: dogs } = await supabase
         .from("dogs")
-        .select("id, name, description, intake_date, age_months, age_category, date_confidence")
+        .select("id, name, description, intake_date, original_intake_date, age_months, age_category, date_confidence")
         .eq("is_available", true)
         .eq("age_category", category)
         .lt("intake_date", cutoff.toISOString())
@@ -784,13 +815,12 @@ export async function checkAgeSanity(logger: AuditLogger): Promise<{
 
           await supabase
             .from("dogs")
-            .update({
+            .update(buildDateAuditUpdate(dog, {
               intake_date: birthDate.toISOString(),
               age_months: ageMonths,
               date_confidence: "low",
               date_source: `age_sanity_capped|was_${waitMonths}mo_but_dog_is_${ageMonths}mo`,
-              last_audited_at: now.toISOString(),
-            })
+            }, now.toISOString()))
             .eq("id", dog.id);
 
           fixed++;
@@ -813,7 +843,7 @@ export async function checkAgeSanity(logger: AuditLogger): Promise<{
   while (true) {
     const { data: dogs } = await supabase
       .from("dogs")
-      .select("id, name, description, intake_date, age_months, age_category, date_confidence")
+      .select("id, name, description, intake_date, original_intake_date, age_months, age_category, date_confidence")
       .eq("is_available", true)
       .not("age_months", "is", null)
       .gt("age_months", 0)
@@ -837,12 +867,11 @@ export async function checkAgeSanity(logger: AuditLogger): Promise<{
 
         await supabase
           .from("dogs")
-          .update({
+          .update(buildDateAuditUpdate(dog, {
             intake_date: birthDate.toISOString(),
             date_confidence: "low",
             date_source: `age_sanity_capped|was_${waitMonths}mo_but_dog_is_${dog.age_months}mo`,
-            last_audited_at: now.toISOString(),
-          })
+          }, now.toISOString()))
           .eq("id", dog.id);
 
         fixed++;
@@ -1081,7 +1110,7 @@ export async function checkWaitTimeReasonableness(logger: AuditLogger): Promise<
   while (true) {
     const { data: dogs } = await supabase
       .from("dogs")
-      .select("id, name, intake_date, age_months, birth_date, date_confidence, date_source")
+      .select("id, name, intake_date, original_intake_date, age_months, birth_date, date_confidence, date_source")
       .eq("is_available", true)
       .not("age_months", "is", null)
       .gt("age_months", 0)
@@ -1115,12 +1144,11 @@ export async function checkWaitTimeReasonableness(logger: AuditLogger): Promise<
 
         await supabase
           .from("dogs")
-          .update({
+          .update(buildDateAuditUpdate(dog, {
             intake_date: cappedDate.toISOString(),
             date_confidence: "low",
             date_source: `${dog.date_source || "unknown"}|reasonableness_capped_${Math.round(waitMonths)}mo_to_${Math.round(reasonableWaitMonths)}mo`,
-            last_audited_at: now.toISOString(),
-          })
+          }, now.toISOString()))
           .eq("id", dog.id);
         capped++;
       }
@@ -1146,6 +1174,7 @@ export async function checkWaitTimeReasonableness(logger: AuditLogger): Promise<
       .from("dogs")
       .update({
         date_confidence: "low",
+        ranking_eligible: false,
         last_audited_at: now.toISOString(),
       })
       .eq("is_available", true)
@@ -1174,6 +1203,7 @@ export async function checkWaitTimeReasonableness(logger: AuditLogger): Promise<
       .from("dogs")
       .update({
         date_confidence: "low",
+        ranking_eligible: false,
         last_audited_at: now.toISOString(),
       })
       .eq("is_available", true)

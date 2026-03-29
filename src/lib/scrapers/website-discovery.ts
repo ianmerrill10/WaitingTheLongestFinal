@@ -97,7 +97,7 @@ export async function discoverWebsiteBatch(limit: number = 50): Promise<number> 
           .eq("id", shelter.id);
 
         found++;
-        console.log(`  Discovered: ${shelter.name} → ${url}`);
+        // Discovered adoptable page for shelter
       }
     } catch {
       // Skip errors

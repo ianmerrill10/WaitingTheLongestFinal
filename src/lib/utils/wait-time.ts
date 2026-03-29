@@ -45,27 +45,31 @@ export function calculateWaitTime(intakeDate: string | Date): WaitTimeComponents
     months += 12;
   }
 
-  const hours = now.getHours() - intake.getHours();
-  const minutes = now.getMinutes() - intake.getMinutes();
-  const seconds = now.getSeconds() - intake.getSeconds();
+  // Compute hours/minutes/seconds from time-of-day difference (avoids negative cascade bug)
+  const intakeTimeMs = intake.getHours() * 3600000 + intake.getMinutes() * 60000 + intake.getSeconds() * 1000;
+  const nowTimeMs = now.getHours() * 3600000 + now.getMinutes() * 60000 + now.getSeconds() * 1000;
+  let timeRemainder = nowTimeMs - intakeTimeMs;
+  if (timeRemainder < 0) {
+    timeRemainder += 86400000;
+    days--;
+  }
+  if (days < 0) {
+    days = 0;
+    months--;
+    if (months < 0) { months += 12; years--; }
+  }
 
-  // Normalize time components
-  let h = hours;
-  let m = minutes;
-  let s = seconds;
-
-  if (s < 0) { s += 60; m--; }
-  if (m < 0) { m += 60; h--; }
-  if (h < 0) { h += 24; days--; }
-  if (days < 0) { days = 0; }
+  const h = Math.floor(timeRemainder / 3600000);
+  const m = Math.floor((timeRemainder % 3600000) / 60000);
+  const s = Math.floor((timeRemainder % 60000) / 1000);
 
   return {
     years: Math.max(0, years),
     months: Math.max(0, months),
     days: Math.max(0, days),
-    hours: Math.max(0, h),
-    minutes: Math.max(0, m),
-    seconds: Math.max(0, s),
+    hours: h,
+    minutes: m,
+    seconds: s,
   };
 }
 

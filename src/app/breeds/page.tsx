@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Dog Breeds Available for Adoption",
@@ -8,17 +8,24 @@ export const metadata: Metadata = {
 };
 
 export default async function BreedsPage() {
-  const supabase = await createClient();
+  let breeds: { breed_primary: string }[] = [];
 
-  // Get all breeds with counts
-  const { data: breeds } = await supabase
-    .from("dogs")
-    .select("breed_primary")
-    .eq("is_available", true);
+  try {
+    const supabase = createAdminClient();
+
+    // Get all breeds with counts
+    const { data } = await supabase
+      .from("dogs")
+      .select("breed_primary")
+      .eq("is_available", true);
+    breeds = data || [];
+  } catch (err) {
+    console.error("[BreedsPage] Failed to fetch data:", err);
+  }
 
   // Count occurrences
   const breedCounts: Record<string, number> = {};
-  (breeds || []).forEach((d) => {
+  breeds.forEach((d) => {
     const b = d.breed_primary;
     if (b) breedCounts[b] = (breedCounts[b] || 0) + 1;
   });

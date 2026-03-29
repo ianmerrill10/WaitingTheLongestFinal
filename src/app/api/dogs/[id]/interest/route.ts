@@ -77,7 +77,7 @@ export async function POST(
 
   // Record as a communication for the shelter's dashboard
   if (shelter?.id) {
-    await supabase.from("shelter_communications").insert({
+    const { error: commError } = await supabase.from("shelter_communications").insert({
       shelter_id: shelter.id,
       comm_type: "adoption_inquiry",
       direction: "inbound",
@@ -85,7 +85,10 @@ export async function POST(
       body: `Name: ${name.trim()}\nEmail: ${email.trim()}\nPhone: ${phone || "N/A"}\n\n${message || "No message provided."}`,
       to_address: shelter?.email || null,
       status: "received",
-    }).then(() => {});
+    });
+    if (commError) {
+      console.error(`Failed to log adoption inquiry for dog ${id}:`, commError.message);
+    }
   }
 
   return NextResponse.json({

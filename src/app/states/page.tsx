@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Browse by State - Adoptable Dogs Across America",
@@ -72,7 +72,7 @@ export default async function StatesPage() {
   let totalDogs: number | null = 0;
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Parallel count queries — avoids fetching all 45K+ shelter rows into memory
     const stateCodes = US_STATES.map((s) => s.code);
@@ -98,8 +98,8 @@ export default async function StatesPage() {
     stateCodes.forEach((code, i) => {
       shelterCountByState[code] = stateCounts[i].count || 0;
     });
-  } catch {
-    // Supabase not configured yet
+  } catch (err) {
+    console.error("[StatesPage] Failed to fetch data:", err);
   }
 
   return (

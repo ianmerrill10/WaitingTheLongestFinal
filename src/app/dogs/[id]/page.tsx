@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import LEDCounter from "@/components/counters/LEDCounter";
 import CountdownTimer from "@/components/counters/CountdownTimer";
 import UrgencyBadge from "@/components/ui/UrgencyBadge";
@@ -20,7 +20,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: dog } = await supabase
       .from("dogs")
       .select("name, breed_primary, primary_photo_url")
@@ -46,7 +46,8 @@ export async function generateMetadata({
         images: dog?.primary_photo_url ? [dog.primary_photo_url] : undefined,
       },
     };
-  } catch {
+  } catch (err) {
+    console.error("[DogProfilePage] generateMetadata failed:", err);
     return { title: "Dog Profile" };
   }
 }
@@ -61,7 +62,7 @@ export default async function DogProfilePage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let dog: any = null;
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from("dogs")
@@ -97,7 +98,8 @@ export default async function DogProfilePage({
       .limit(4);
 
     dog._similarDogs = similarDogsData || [];
-  } catch {
+  } catch (err) {
+    console.error("[DogProfilePage] Failed to fetch dog:", err);
     notFound();
   }
 
@@ -193,6 +195,34 @@ export default async function DogProfilePage({
               Since {new Date(dog.intake_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </p>
             <DateAccuracyBadge confidence={dog.date_confidence} source={dog.date_source} />
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <Link
+                href={`/dogs/${dog.id}/sources`}
+                className="inline-flex items-center rounded-full border border-blue-500/40 px-3 py-1.5 text-xs font-medium text-blue-300 transition hover:border-blue-400 hover:text-blue-200"
+              >
+                View data sources
+              </Link>
+              {dog.external_url && (
+                <a
+                  href={dog.external_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-full border border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-white"
+                >
+                  Open source listing
+                </a>
+              )}
+            </div>
+            {dog.transfer_original_intake && dog.transfer_original_intake !== dog.intake_date && (
+              <div className="mt-3 pt-3 border-t border-gray-700">
+                <p className="text-gray-500 text-xs">
+                  Cumulative wait (including previous shelter):{" "}
+                  <span className="text-amber-400 font-semibold">
+                    {Math.floor((Date.now() - new Date(dog.transfer_original_intake).getTime()) / 86400000)} days
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Euthanasia Countdown */}
@@ -286,7 +316,17 @@ export default async function DogProfilePage({
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-start justify-between mb-2">
               <h1 className="text-2xl font-bold text-gray-900">{dog.name}</h1>
-              <UrgencyBadge level={urgency} />
+              <div className="flex items-center gap-2">
+                {dog.is_foster && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-teal-50 text-teal-700 rounded-full border border-teal-200">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                    </svg>
+                    In Foster Home
+                  </span>
+                )}
+                <UrgencyBadge level={urgency} />
+              </div>
             </div>
             <p className="text-gray-600 text-sm mb-1">
               {dog.breed_primary}{dog.breed_secondary ? ` / ${dog.breed_secondary}` : ""}
@@ -374,13 +414,17 @@ export default async function DogProfilePage({
 
           {/* Data Accuracy Disclaimer */}
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <p className="text-[11px] text-gray-500 leading-relaxed">
-              <strong className="text-gray-600">Important:</strong> Listing data comes from RescueGroups.org and is maintained by the shelter or rescue.
+            <p className="text-xs text-gray-500 leading-relaxed">
+              <strong className="text-gray-600">Important:</strong> Listing data comes from verified shelter databases and direct website monitoring.
               We cannot guarantee that any dog is still available for adoption. Always contact the shelter directly
               to confirm availability before visiting.
               {dog.external_url && (
                 <> View the <a href={dog.external_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">original listing</a>.</>
               )}
+              {" "}
+              <Link href={`/dogs/${dog.id}/sources`} className="text-blue-500 hover:underline font-medium">
+                View full data sources and verification history
+              </Link>
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 
 export const metadata: Metadata = {
@@ -50,7 +50,7 @@ export default async function UrgentPage() {
   }));
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const results = await Promise.all(
       URGENCY_SECTIONS.map((section) => {
@@ -76,8 +76,8 @@ export default async function UrgentPage() {
       ...section,
       dogs: results[i].data || [],
     }));
-  } catch {
-    // Supabase not configured yet
+  } catch (err) {
+    console.error("[UrgentPage] Failed to fetch data:", err);
   }
 
   const totalUrgent = sectionData.reduce((sum, s) => sum + s.dogs.length, 0);
@@ -88,7 +88,7 @@ export default async function UrgentPage() {
       <div className="bg-red-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-3 mb-4">
-            <span className="inline-block w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+            <span className="inline-block w-4 h-4 bg-red-500 rounded-full" />
             <h1 className="text-3xl md:text-4xl font-bold">
               Urgent: Dogs on Euthanasia Lists
             </h1>
@@ -109,18 +109,21 @@ export default async function UrgentPage() {
         </div>
       </div>
 
-      {/* Info Banner */}
+      {/* Legal Disclaimer Banner */}
       <div className="bg-red-100 border-b border-red-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 text-sm text-red-800">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>
-                Euthanasia dates come from shelter records and AI monitoring. Always verify with the shelter.
-              </span>
-            </div>
+          <div className="text-sm text-red-800">
+            <p className="font-semibold mb-1">Important Legal Notice</p>
+            <p>
+              Euthanasia dates are sourced from shelter websites, public records, and automated monitoring systems.
+              WaitingTheLongest.com does NOT independently verify euthanasia schedules and CANNOT guarantee their accuracy.
+              Countdown timers are informational estimates only. A dog&apos;s actual status may change at any time without notice.
+              <strong> Always contact the shelter directly before taking any action.</strong>
+              {" "}
+              <Link href="/legal/terms-of-service" className="underline font-medium">
+                Terms of Service
+              </Link>
+            </p>
           </div>
         </div>
       </div>
@@ -130,7 +133,7 @@ export default async function UrgentPage() {
         {sectionData.map((section) => (
           <section key={section.level}>
             <div className={`${section.headerBg} ${section.headerText} rounded-t-xl px-6 py-4 flex items-center gap-3`}>
-              <span className={`inline-block w-3 h-3 ${section.level === "critical" ? "bg-white animate-pulse" : "bg-white/70"} rounded-full`} />
+              <span className={`inline-block w-3 h-3 ${section.level === "critical" ? "bg-white" : "bg-white/70"} rounded-full`} />
               <div>
                 <h2 className="text-xl font-bold">{section.title}</h2>
                 <p className={`text-sm ${section.level === "medium" ? "text-black/70" : "text-white/80"}`}>

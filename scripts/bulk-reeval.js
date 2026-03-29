@@ -34,7 +34,7 @@ async function run() {
     while (true) {
       const { data: stale, error } = await supabase
         .from("dogs")
-        .select("id, name, intake_date, date_source")
+        .select("id, name, intake_date, original_intake_date, date_source")
         .eq("is_available", true)
         .eq("date_confidence", conf)
         .lt("intake_date", cappedDate)
@@ -50,8 +50,11 @@ async function run() {
           .from("dogs")
           .update({
             intake_date: cappedDate,
+            original_intake_date: dog.original_intake_date || dog.intake_date,
             date_confidence: newConf,
             date_source: `${dog.date_source || "unknown"}|bulk_capped_${maxDays}d`,
+            ranking_eligible: false,
+            intake_date_observation_count: 1,
           })
           .eq("id", dog.id);
         totalCapped++;
@@ -79,7 +82,7 @@ async function run() {
   if (c1 && c1 > 0) {
     await supabase
       .from("dogs")
-      .update({ date_confidence: "low" })
+      .update({ date_confidence: "low", ranking_eligible: false })
       .eq("is_available", true)
       .lt("intake_date", oneYearAgo.toISOString())
       .like("date_source", "%created_date%")
@@ -103,7 +106,7 @@ async function run() {
   if (c2 && c2 > 0) {
     await supabase
       .from("dogs")
-      .update({ date_confidence: "low" })
+      .update({ date_confidence: "low", ranking_eligible: false })
       .eq("is_available", true)
       .lt("intake_date", twoYearsAgo.toISOString())
       .not("date_source", "like", "%available_date%")

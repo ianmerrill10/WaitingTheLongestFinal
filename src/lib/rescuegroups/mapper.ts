@@ -41,6 +41,9 @@ export interface MappedDog {
   external_source: string;
   external_url: string | null;
   last_synced_at: string;
+  source_extraction_method: string;
+  is_foster: boolean;
+  intake_type: string | null;
 }
 
 const SIZE_MAP: Record<string, "small" | "medium" | "large" | "xlarge"> = {
@@ -211,6 +214,17 @@ export function mapRescueGroupsDog(
   const { ageMonths, birthDateStr } = computeAgeMonthsFromSources(attrs, description);
   const intakeDateResult = computeIntakeDate(attrs, description, ageMonths, birthDateStr);
 
+  // Foster detection from description, tags, or status text
+  const isFoster = /\b(foster home|in foster|currently fostered|living in foster)\b/i.test(description || "")
+    || (attrs.qualities || []).some((q: string) => /foster/i.test(q))
+    || (attrs.isAdoptionPending === false && /foster/i.test(attrs.name || ""));
+
+  // Intake type detection from RG attributes
+  let intakeType: string | null = null;
+  if (attrs.foundDate) intakeType = "stray";
+  else if (/\b(surrender|owner.?surrender|relinquish)\b/i.test(description || "")) intakeType = "owner_surrender";
+  else if (/\b(transfer|transferred from)\b/i.test(description || "")) intakeType = "transfer";
+
   // NOTE: RescueGroups killDate is NOT used for euthanasia countdowns.
   // The field is unverifiable — it could mean a review date, a stale default,
   // or something other than actual euthanasia. We only show euthanasia
@@ -251,6 +265,9 @@ export function mapRescueGroupsDog(
     external_source: "rescuegroups",
     external_url: attrs.url || null,
     last_synced_at: new Date().toISOString(),
+    source_extraction_method: "rescuegroups_api_v5",
+    is_foster: isFoster,
+    intake_type: intakeType,
   };
 }
 

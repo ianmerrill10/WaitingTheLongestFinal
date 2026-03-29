@@ -137,6 +137,8 @@ export async function POST(request: Request) {
   }
 
   const supabase = createAdminClient();
+  const hasProvidedIntakeDate = typeof body.intake_date === "string" && body.intake_date.trim().length > 0;
+  const intakeDate = hasProvidedIntakeDate ? body.intake_date : new Date().toISOString();
   const dogData = {
     name: body.name.trim(),
     shelter_id: auth.shelter_id,
@@ -155,7 +157,7 @@ export async function POST(request: Request) {
     photo_urls: body.photos || body.photo_urls || null,
     is_available: true,
     status: body.status || "available",
-    intake_date: body.intake_date || new Date().toISOString(),
+    intake_date: intakeDate,
     adoption_fee: body.adoption_fee || null,
     is_house_trained: body.is_house_trained ?? null,
     good_with_kids: body.good_with_kids ?? null,
@@ -165,8 +167,12 @@ export async function POST(request: Request) {
     external_id: body.external_id || null,
     external_url: body.external_url || null,
     external_source: "api_direct",
-    date_confidence: "verified",
-    date_source: "api_submission",
+    date_confidence: hasProvidedIntakeDate ? "verified" : "low",
+    date_source: hasProvidedIntakeDate ? "api_submission" : "api_submission_missing_intake_date",
+    original_intake_date: intakeDate,
+    ranking_eligible: hasProvidedIntakeDate,
+    intake_date_observation_count: 1,
+    source_extraction_method: "partner_api_direct",
   };
 
   const { data, error } = await supabase

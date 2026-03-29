@@ -40,12 +40,22 @@ export interface VerificationResult {
   duration: number;
 }
 
+interface SourceLink {
+  url: string;
+  source: string;
+  checked_at: string;
+  status_code: number | null;
+  description: string;
+}
+
 interface DogToVerify {
   id: string;
   name: string;
   external_id: string;
   external_url: string | null;
   intake_date: string;
+  original_intake_date?: string | null;
+  intake_date_observation_count?: number | null;
   date_confidence: DateConfidence | null;
   date_source: string | null;
   verification_status: string | null;
@@ -55,6 +65,20 @@ interface DogToVerify {
   breed_primary?: string | null;
   primary_photo_url?: string | null;
   shelter_id?: string | null;
+  source_links?: SourceLink[] | null;
+  page_hash?: string | null;
+}
+
+/**
+ * Compute a simple hash of page content for change detection.
+ * Uses Web Crypto API (available in Node 18+).
+ */
+async function computePageHash(content: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export type VerifyOutcome = "verified" | "not_found" | "deactivated" | "pending" | "error";
@@ -108,7 +132,7 @@ export async function runVerification(
   // Fetch dogs to verify — prioritize based on strategy
   let query = supabase
     .from("dogs")
-    .select("id, name, external_id, external_url, intake_date, date_confidence, date_source, verification_status, last_verified_at, age_months, birth_date, breed_primary, primary_photo_url, shelter_id")
+    .select("id, name, external_id, external_url, intake_date, original_intake_date, intake_date_observation_count, date_confidence, date_source, verification_status, last_verified_at, age_months, birth_date, breed_primary, primary_photo_url, shelter_id, source_links, page_hash")
     .eq("is_available", true)
     .eq("external_source", "rescuegroups")
     .not("external_id", "is", null)
@@ -333,6 +357,26 @@ async function verifyOneDog(
       }
     }
 
+    const finalizeDateMetadata = () => {
+      const effectiveConfidence = (updateData.date_confidence || dog.date_confidence || "unknown") as DateConfidence;
+      const effectiveIntakeDate = updateData.intake_date || dog.intake_date;
+      const intakeChanged = effectiveIntakeDate !== dog.intake_date;
+
+      updateData.ranking_eligible = effectiveConfidence === "verified";
+
+      if (intakeChanged) {
+        updateData.intake_date_observation_count = 1;
+        if (!dog.original_intake_date) {
+          updateData.original_intake_date = dog.intake_date;
+        }
+        return;
+      }
+
+      if (effectiveConfidence === "verified") {
+        updateData.intake_date_observation_count = (dog.intake_date_observation_count || 1) + 1;
+      }
+    };
+
     // ─── ENFORCE MAX_WAIT_DAYS caps on every verification ───
     // Even if no better date was found, check if the current wait time
     // exceeds the max for this dog's date confidence level.
@@ -363,13 +407,34 @@ async function verifyOneDog(
       }
     }
 
-    // Also check if the external URL is still alive
+    // Also check if the external URL is still alive + capture page_hash
     if (dog.external_url) {
-      const urlAlive = await checkUrlAlive(dog.external_url);
-      if (!urlAlive) externalUrlDead = true;
+      const urlCheck = await checkUrlAlive(dog.external_url, { fetchBody: true });
+      if (!urlCheck.alive) externalUrlDead = true;
+      if (urlCheck.pageHash) {
+        updateData.page_hash = urlCheck.pageHash;
+      }
     }
 
     const dateCapped = waitDays > maxDays;
+
+    // Append verification event to source_links for audit trail
+    const existingLinks: SourceLink[] = Array.isArray(dog.source_links) ? dog.source_links : [];
+    const verificationEntry: SourceLink = {
+      url: `https://www.rescuegroups.org/animals/${dog.external_id}`,
+      source: "Verification Check",
+      checked_at: now,
+      status_code: 200,
+      description: `Verified available via RescueGroups API${capturedBirthDate ? " (birthDate captured)" : ""}${capturedAvailableDate ? " (availableDate captured)" : ""}`,
+    };
+    // Keep max 20 verification entries to prevent unbounded growth
+    const verificationLinks = existingLinks.filter(l => l.source === "Verification Check");
+    const nonVerificationLinks = existingLinks.filter(l => l.source !== "Verification Check");
+    const cappedVerificationLinks = [...verificationLinks.slice(-19), verificationEntry];
+    updateData.source_links = [...nonVerificationLinks, ...cappedVerificationLinks];
+
+    finalizeDateMetadata();
+
     await supabase.from("dogs").update(updateData).eq("id", dog.id);
     return { outcome: "verified", capturedBirthDate, externalUrlDead, capturedAvailableDate, capturedFoundDate, capturedKillDate, dateCapped };
   }
@@ -393,7 +458,8 @@ async function verifyOneDog(
   // Status is "not_found" — dog no longer in RescueGroups
   let urlAlive = false;
   if (dog.external_url) {
-    urlAlive = await checkUrlAlive(dog.external_url);
+    const urlCheck = await checkUrlAlive(dog.external_url);
+    urlAlive = urlCheck.alive;
   }
 
   if (!urlAlive) {
@@ -421,14 +487,19 @@ async function verifyOneDog(
 
 /**
  * Check if a URL is still live (returns 200-399).
+ * Optionally fetches body content for page_hash change detection.
  */
-async function checkUrlAlive(url: string): Promise<boolean> {
+async function checkUrlAlive(
+  url: string,
+  options?: { fetchBody?: boolean }
+): Promise<{ alive: boolean; pageHash?: string }> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
+    const method = options?.fetchBody ? "GET" : "HEAD";
     const response = await fetch(url, {
-      method: "HEAD",
+      method,
       signal: controller.signal,
       redirect: "follow",
       headers: {
@@ -437,9 +508,26 @@ async function checkUrlAlive(url: string): Promise<boolean> {
     });
 
     clearTimeout(timeout);
-    return response.status >= 200 && response.status < 400;
+    const alive = response.status >= 200 && response.status < 400;
+
+    let pageHash: string | undefined;
+    if (alive && options?.fetchBody) {
+      try {
+        const body = await response.text();
+        // Strip volatile elements (timestamps, CSRF tokens) for stable hashing
+        const stable = body
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+          .replace(/csrf[^"']*["'][^"']*["']/gi, "")
+          .replace(/\d{10,13}/g, ""); // strip unix timestamps
+        pageHash = await computePageHash(stable);
+      } catch {
+        // Body read failed, still return alive status
+      }
+    }
+
+    return { alive, pageHash };
   } catch {
-    return false;
+    return { alive: false };
   }
 }
 

@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRescueGroupsClient, type RGAnimalAttributes } from "@/lib/rescuegroups/client";
+import { getStrayHoldDays } from "@/data/stray-hold-days";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes
@@ -36,13 +37,22 @@ const WEAK_SOURCES = [
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const url = new URL(request.url);
-  const batchSize = Math.min(parseInt(url.searchParams.get("batch") || "100", 10), 500);
+  const requestedBatch = parseInt(url.searchParams.get("batch") || "100", 10);
+  const batchSize = Math.min(Math.max(requestedBatch || 100, 1), 500);
   const targetSource = url.searchParams.get("source") || null;
+
+  if (targetSource && !WEAK_SOURCES.includes(targetSource)) {
+    return NextResponse.json(
+      { error: "Unsupported source filter", supported_sources: WEAK_SOURCES },
+      { status: 400 }
+    );
+  }
 
   const startTime = Date.now();
   const supabase = createAdminClient();
@@ -62,7 +72,7 @@ export async function GET(request: Request) {
   // Fetch dogs with weak date sources, prioritizing the weakest first
   let query = supabase
     .from("dogs")
-    .select("id, name, external_id, intake_date, date_source, date_confidence, birth_date, age_months")
+    .select("id, name, shelter_id, external_id, intake_date, date_source, date_confidence, birth_date, age_months, original_intake_date, intake_date_observation_count")
     .eq("is_available", true)
     .eq("external_source", "rescuegroups")
     .not("external_id", "is", null)
@@ -85,6 +95,24 @@ export async function GET(request: Request) {
       processed: 0,
       duration_ms: Date.now() - startTime,
     });
+  }
+
+  const shelterIds = Array.from(new Set(dogs.map((dog) => dog.shelter_id).filter(Boolean)));
+  const shelterMap = new Map<string, { shelter_type: string | null; state_code: string | null; stray_hold_days: number | null }>();
+
+  if (shelterIds.length > 0) {
+    const { data: shelters } = await supabase
+      .from("shelters")
+      .select("id, shelter_type, state_code, stray_hold_days")
+      .in("id", shelterIds);
+
+    for (const shelter of shelters || []) {
+      shelterMap.set(shelter.id, {
+        shelter_type: shelter.shelter_type || null,
+        state_code: shelter.state_code || null,
+        stray_hold_days: shelter.stray_hold_days ?? null,
+      });
+    }
   }
 
   const now = new Date().toISOString();
@@ -139,6 +167,15 @@ export async function GET(request: Request) {
       };
 
       let didUpgrade = false;
+      const shelterInfo = dog.shelter_id ? shelterMap.get(dog.shelter_id) : null;
+
+      const applyVerifiedDateMetadata = () => {
+        updateData.ranking_eligible = true;
+        updateData.intake_date_observation_count = 1;
+        if (!dog.original_intake_date) {
+          updateData.original_intake_date = dog.intake_date;
+        }
+      };
 
       // ── RETURNED DOG CHECK ──
       const adoptedDate = attrs.adoptedDate ? new Date(attrs.adoptedDate) : null;
@@ -156,9 +193,20 @@ export async function GET(request: Request) {
         const ad = new Date(attrs.availableDate);
         const nowDate = new Date();
         if (!isNaN(ad.getTime()) && ad <= nowDate) {
-          updateData.intake_date = attrs.availableDate;
+          let intakeDate = attrs.availableDate;
+          let dateSource = "rescuegroups_available_date";
+
+          if (shelterInfo?.shelter_type === "municipal" && shelterInfo.state_code) {
+            const holdDays = getStrayHoldDays(shelterInfo.state_code, shelterInfo.stray_hold_days);
+            const adjustedDate = new Date(ad.getTime() - holdDays * 86400000);
+            intakeDate = adjustedDate.toISOString();
+            dateSource += `|stray_hold_adjusted_${holdDays}d`;
+          }
+
+          updateData.intake_date = intakeDate;
           updateData.date_confidence = "verified";
-          updateData.date_source = "rescuegroups_available_date";
+          updateData.date_source = dateSource;
+          applyVerifiedDateMetadata();
           availableDates++;
           didUpgrade = true;
         }
@@ -172,6 +220,7 @@ export async function GET(request: Request) {
           updateData.intake_date = attrs.foundDate;
           updateData.date_confidence = "verified";
           updateData.date_source = "rescuegroups_found_date";
+          applyVerifiedDateMetadata();
           foundDates++;
           didUpgrade = true;
         }
@@ -202,6 +251,8 @@ export async function GET(request: Request) {
               updateData.intake_date = bd.toISOString();
               updateData.date_confidence = "low";
               updateData.date_source = `age_capped_api_birth_date${attrs.isBirthDateExact ? "_exact" : ""}`;
+              updateData.ranking_eligible = false;
+              updateData.intake_date_observation_count = 1;
               didUpgrade = true;
             }
           }
@@ -225,6 +276,8 @@ export async function GET(request: Request) {
           else if (daysSince <= 365) updateData.date_confidence = "high";
           else if (daysSince <= 730) updateData.date_confidence = "medium";
           else updateData.date_confidence = "low";
+          updateData.ranking_eligible = false;
+          updateData.intake_date_observation_count = 1;
           didUpgrade = true;
         }
       }

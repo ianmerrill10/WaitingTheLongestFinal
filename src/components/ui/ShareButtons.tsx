@@ -32,6 +32,7 @@ export default function ShareButtons({ dogName, url, isUrgent, euthanasiaDate }:
         href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={`Share ${dogName} on Facebook`}
         className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -43,6 +44,7 @@ export default function ShareButtons({ dogName, url, isUrgent, euthanasiaDate }:
         href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={`Share ${dogName} on X / Twitter`}
         className="flex items-center justify-center gap-2 px-4 py-2.5 bg-black hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -54,6 +56,7 @@ export default function ShareButtons({ dogName, url, isUrgent, euthanasiaDate }:
         href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={`Share ${dogName} on WhatsApp`}
         className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -63,6 +66,7 @@ export default function ShareButtons({ dogName, url, isUrgent, euthanasiaDate }:
       </a>
       <button
         onClick={copyLink}
+        aria-label={`Copy link for ${dogName}`}
         className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition"
       >
         <svg

@@ -488,10 +488,8 @@ export async function runNycAccScrape(options?: {
   const allErrors: string[] = [];
 
   // Step 1: Scrape priority placement
-  console.log("[NYC-ACC] Scraping priority placement page...");
   const result = await scrapePriorityPlacement();
   allErrors.push(...result.errors);
-  console.log(`[NYC-ACC] Found ${result.dogs.length} dogs on priority placement`);
 
   if (result.dogs.length === 0) {
     return {
@@ -525,7 +523,7 @@ export async function runNycAccScrape(options?: {
     }
 
     const toFetch = dogsNeedingDetails.slice(0, maxDetailFetches);
-    console.log(`[NYC-ACC] Fetching details for ${toFetch.length} dogs...`);
+    // Fetch details for dogs needing enrichment
 
     for (const dog of toFetch) {
       try {
@@ -544,10 +542,7 @@ export async function runNycAccScrape(options?: {
   }
 
   // Step 3: Upsert into database
-  console.log(`[NYC-ACC] Upserting ${result.dogs.length} dogs into database...`);
   const upsertResult = await upsertNycAccDogs(result.dogs);
-
-  console.log(`[NYC-ACC] Done: ${upsertResult.inserted} inserted, ${upsertResult.updated} updated, ${detailsFetched} details fetched`);
 
   return {
     totalDogs: result.dogs.length,

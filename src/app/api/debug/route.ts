@@ -424,7 +424,7 @@ async function fixBadDates(supabase: ReturnType<typeof createAdminClient>) {
 
   const { data: badDogs } = await supabase
     .from("dogs")
-    .select("id, last_synced_at, created_at")
+    .select("id, intake_date, original_intake_date, last_synced_at, created_at")
     .lt("intake_date", fiveYearsAgo.toISOString());
 
   if (!badDogs || badDogs.length === 0) {
@@ -437,8 +437,11 @@ async function fixBadDates(supabase: ReturnType<typeof createAdminClient>) {
       .from("dogs")
       .update({
         intake_date: dog.last_synced_at || dog.created_at,
+        original_intake_date: dog.original_intake_date || dog.intake_date,
         date_confidence: "low",
         date_source: "debug_repair_bad_date",
+        ranking_eligible: false,
+        intake_date_observation_count: 1,
       })
       .eq("id", dog.id);
     if (!error) updated++;

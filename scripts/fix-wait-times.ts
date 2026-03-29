@@ -95,7 +95,7 @@ async function main() {
 
     const { data: stale } = await supabase
       .from("dogs")
-      .select("id, name, intake_date, date_source, date_confidence")
+      .select("id, name, intake_date, original_intake_date, date_source, date_confidence")
       .eq("is_available", true)
       .eq("date_confidence", confidence)
       .lt("intake_date", cappedDateStr);
@@ -116,8 +116,11 @@ async function main() {
         .from("dogs")
         .update({
           intake_date: cappedDateStr,
+          original_intake_date: dog.original_intake_date || dog.intake_date,
           date_confidence: newConfidence,
           date_source: `${dog.date_source || "unknown"}|wait_capped_${maxDays}d`,
+          ranking_eligible: false,
+          intake_date_observation_count: 1,
         })
         .eq("id", dog.id);
 

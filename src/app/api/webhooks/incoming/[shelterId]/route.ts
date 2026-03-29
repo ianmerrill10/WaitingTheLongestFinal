@@ -158,6 +158,9 @@ export async function POST(
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processDogCreated(supabase: any, shelterId: string, data: Record<string, unknown>) {
+  const hasProvidedIntakeDate = typeof data.intake_date === "string" && data.intake_date.length > 0;
+  const intakeDate = hasProvidedIntakeDate ? data.intake_date : new Date().toISOString();
+
   await supabase.from("dogs").insert({
     name: data.name || "Unknown",
     shelter_id: shelterId,
@@ -169,11 +172,15 @@ async function processDogCreated(supabase: any, shelterId: string, data: Record<
     photo_url: data.photo_url || null,
     is_available: true,
     status: "available",
-    intake_date: data.intake_date || new Date().toISOString(),
+    intake_date: intakeDate,
     external_id: data.external_id || null,
     external_source: "webhook",
-    date_confidence: data.intake_date ? "verified" : "high",
-    date_source: "webhook",
+    date_confidence: hasProvidedIntakeDate ? "verified" : "low",
+    date_source: hasProvidedIntakeDate ? "webhook" : "webhook_missing_intake_date",
+    original_intake_date: intakeDate,
+    ranking_eligible: hasProvidedIntakeDate,
+    intake_date_observation_count: 1,
+    source_extraction_method: "partner_webhook",
   });
 }
 
@@ -181,9 +188,49 @@ async function processDogCreated(supabase: any, shelterId: string, data: Record<
 async function processDogUpdated(supabase: any, shelterId: string, data: Record<string, unknown>) {
   if (!data.external_id && !data.id) return;
 
-  const query = data.id
-    ? supabase.from("dogs").update(data).eq("id", data.id).eq("shelter_id", shelterId)
-    : supabase.from("dogs").update(data).eq("external_id", data.external_id).eq("shelter_id", shelterId);
+  const identifierField = data.id ? "id" : "external_id";
+  const identifier = data.id || data.external_id;
+  const { data: existing } = await supabase
+    .from("dogs")
+    .select("id, intake_date, original_intake_date")
+    .eq(identifierField, identifier)
+    .eq("shelter_id", shelterId)
+    .single();
+
+  if (!existing) return;
+
+  const allowedFields = [
+    "name", "breed_primary", "breed_secondary", "breed_mixed",
+    "age_text", "age_months", "sex", "size_general", "size_current_lbs",
+    "color_primary", "description", "description_plain",
+    "photo_url", "photo_urls", "is_available", "status",
+    "intake_date", "euthanasia_date", "adoption_fee",
+    "is_house_trained", "good_with_kids", "good_with_dogs", "good_with_cats",
+    "special_needs", "external_id", "external_url",
+  ];
+
+  const update: Record<string, unknown> = {};
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      update[field] = data[field];
+    }
+  }
+
+  if (data.breed !== undefined) update.breed_primary = data.breed;
+  if (data.weight !== undefined) update.size_current_lbs = data.weight;
+  if (data.color !== undefined) update.color_primary = data.color;
+  if (data.size !== undefined) update.size_general = data.size;
+  if (data.photos !== undefined) update.photo_urls = data.photos;
+
+  if (data.intake_date !== undefined) {
+    update.date_confidence = "verified";
+    update.date_source = "webhook";
+    update.original_intake_date = existing.original_intake_date || existing.intake_date;
+    update.ranking_eligible = true;
+    update.intake_date_observation_count = 1;
+  }
+
+  const query = supabase.from("dogs").update(update).eq("id", existing.id).eq("shelter_id", shelterId);
 
   await query;
 }

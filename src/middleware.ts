@@ -19,6 +19,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow legal pages to be publicly accessible
+  if (pathname.startsWith('/legal/')) {
+    return NextResponse.next();
+  }
+
   // Allow public API routes (crons, webhooks, v1 partner API, etc.)
   // But BLOCK /api/admin/* unless authenticated
   if (pathname.startsWith('/api/')) {

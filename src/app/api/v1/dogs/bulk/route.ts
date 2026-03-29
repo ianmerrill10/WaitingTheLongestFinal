@@ -74,7 +74,10 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const dogData = {
+    const hasProvidedIntakeDate = typeof dog.intake_date === "string" && dog.intake_date.trim().length > 0;
+    const intakeDate = hasProvidedIntakeDate ? dog.intake_date : new Date().toISOString();
+
+    const baseDogData = {
       name: dog.name.trim(),
       shelter_id: auth.shelter_id,
       breed_primary: dog.breed || dog.breed_primary || null,
@@ -89,7 +92,6 @@ export async function POST(request: Request) {
       photo_urls: dog.photos || dog.photo_urls || null,
       is_available: dog.status !== "adopted",
       status: dog.status || "available",
-      intake_date: dog.intake_date || new Date().toISOString(),
       adoption_fee: dog.adoption_fee || null,
       is_house_trained: dog.is_house_trained ?? null,
       good_with_kids: dog.good_with_kids ?? null,
@@ -99,8 +101,17 @@ export async function POST(request: Request) {
       external_id: dog.external_id || null,
       external_url: dog.external_url || null,
       external_source: "api_direct",
-      date_confidence: "verified",
-      date_source: "api_submission",
+      source_extraction_method: "partner_api_direct",
+    };
+
+    const createDogData = {
+      ...baseDogData,
+      intake_date: intakeDate,
+      date_confidence: hasProvidedIntakeDate ? "verified" : "low",
+      date_source: hasProvidedIntakeDate ? "api_submission" : "api_submission_missing_intake_date",
+      original_intake_date: intakeDate,
+      ranking_eligible: hasProvidedIntakeDate,
+      intake_date_observation_count: 1,
     };
 
     try {
@@ -108,15 +119,25 @@ export async function POST(request: Request) {
         // Try to update existing dog by external_id
         const { data: existing } = await supabase
           .from("dogs")
-          .select("id")
+          .select("id, intake_date, original_intake_date")
           .eq("shelter_id", auth.shelter_id!)
           .eq("external_id", dog.external_id)
           .single();
 
         if (existing) {
+          const updateDogData: Record<string, unknown> = { ...baseDogData };
+          if (hasProvidedIntakeDate) {
+            updateDogData.intake_date = intakeDate;
+            updateDogData.date_confidence = "verified";
+            updateDogData.date_source = "api_submission";
+            updateDogData.original_intake_date = existing.original_intake_date || existing.intake_date;
+            updateDogData.ranking_eligible = true;
+            updateDogData.intake_date_observation_count = 1;
+          }
+
           const { error } = await supabase
             .from("dogs")
-            .update(dogData)
+            .update(updateDogData)
             .eq("id", existing.id);
 
           if (error) {
@@ -129,7 +150,7 @@ export async function POST(request: Request) {
       }
 
       // Create new
-      const { error } = await supabase.from("dogs").insert(dogData);
+      const { error } = await supabase.from("dogs").insert(createDogData);
       if (error) {
         results.errors.push({ index: i, name: dog.name, error: error.message });
       } else {

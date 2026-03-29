@@ -3,26 +3,28 @@
 export function generateDogJsonLd(dog: any, shelter: any) {
   return {
     "@context": "https://schema.org",
-    "@type": "Product",
+    "@type": "Thing",
     "name": dog.name,
     "description": dog.description || `${dog.name} is a ${dog.breed_primary} available for adoption.`,
     "image": dog.primary_photo_url || undefined,
-    "brand": {
-      "@type": "Organization",
-      "name": shelter?.name || "Unknown Shelter"
-    },
-    "offers": {
-      "@type": "Offer",
-      "price": dog.is_fee_waived ? "0" : (dog.adoption_fee || "0"),
-      "priceCurrency": "USD",
-      "availability": "https://schema.org/InStock",
-      "url": `https://waitingthelongest.com/dogs/${dog.id}`
+    "url": `https://waitingthelongest.com/dogs/${dog.id}`,
+    "additionalType": "https://schema.org/Animal",
+    "provider": {
+      "@type": "AnimalShelter",
+      "name": shelter?.name || "Unknown Shelter",
+      "address": shelter?.city && shelter?.state_code ? {
+        "@type": "PostalAddress",
+        "addressLocality": shelter.city,
+        "addressRegion": shelter.state_code,
+      } : undefined,
+      "url": shelter?.website || undefined,
     },
     "additionalProperty": [
       { "@type": "PropertyValue", "name": "Breed", "value": dog.breed_primary },
       { "@type": "PropertyValue", "name": "Age", "value": dog.age_category },
       { "@type": "PropertyValue", "name": "Size", "value": dog.size },
       { "@type": "PropertyValue", "name": "Gender", "value": dog.gender },
+      { "@type": "PropertyValue", "name": "Adoption Fee", "value": dog.is_fee_waived ? "Free" : (dog.adoption_fee ? `$${dog.adoption_fee}` : "Contact shelter") },
     ]
   };
 }

@@ -24,7 +24,7 @@ export default function UrgencyBadge({
   return (
     <span className={`urgency-badge ${config.className} ${className}`}>
       {level === "critical" && (
-        <span className="inline-block w-2 h-2 bg-white rounded-full mr-1 animate-pulse" />
+        <span className="inline-block w-2 h-2 bg-white rounded-full mr-1" />
       )}
       {config.label}
     </span>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 import NationalAvgCounter from "@/components/counters/NationalAvgCounter";
 
@@ -15,18 +15,18 @@ export default async function HomePage() {
   let overlookedDogs: any[] = [];
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    // Fetch stats
-    const [dogsResult, urgentResult, shelterResult] = await Promise.all([
+    // Fetch stats — use allSettled so one failure doesn't break the page
+    const [dogsResult, urgentResult, shelterResult] = await Promise.allSettled([
       supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true),
       supabase.from("dogs").select("id", { count: "exact", head: true }).eq("is_available", true).in("urgency_level", ["critical", "high"]).gt("euthanasia_date", new Date().toISOString()),
       supabase.from("shelters").select("id", { count: "exact", head: true }),
     ]);
 
-    totalDogs = dogsResult.count || 0;
-    urgentCount = urgentResult.count || 0;
-    shelterCount = shelterResult.count || 0;
+    totalDogs = dogsResult.status === "fulfilled" ? (dogsResult.value.count || 0) : 0;
+    urgentCount = urgentResult.status === "fulfilled" ? (urgentResult.value.count || 0) : 0;
+    shelterCount = shelterResult.status === "fulfilled" ? (shelterResult.value.count || 0) : 0;
 
     // Fetch urgent dogs (top 6 by euthanasia date — ONLY future dates, never expired)
     const urgentRes = await supabase
@@ -40,15 +40,26 @@ export default async function HomePage() {
     urgentDogs = urgentRes.data || [];
 
     // Fetch longest waiting dogs (top 6)
-    // Only show dogs with credible date confidence — "low" and "unknown"
-    // dates are often stale RescueGroups listings from years ago, not real wait times
-    const waitingRes = await supabase
+    // Use ranking_eligible flag — only dogs with verified intake dates rank here
+    // Falls back to date_confidence filter if no ranking_eligible dogs exist yet
+    let waitingRes = await supabase
       .from("dogs")
       .select("*, shelters!inner(name, city, state_code)")
       .eq("is_available", true)
-      .in("date_confidence", ["verified", "high", "medium"])
+      .eq("ranking_eligible", true)
       .order("intake_date", { ascending: true })
       .limit(6);
+
+    // Fallback: if ranking_eligible hasn't been backfilled yet, use confidence filter
+    if (!waitingRes.data || waitingRes.data.length === 0) {
+      waitingRes = await supabase
+        .from("dogs")
+        .select("*, shelters!inner(name, city, state_code)")
+        .eq("is_available", true)
+        .in("date_confidence", ["verified", "high", "medium"])
+        .order("intake_date", { ascending: true })
+        .limit(6);
+    }
     longestWaiting = waitingRes.data || [];
 
     // Fetch overlooked dogs (seniors, special needs)
@@ -60,8 +71,8 @@ export default async function HomePage() {
       .order("intake_date", { ascending: true })
       .limit(6);
     overlookedDogs = overlookedRes.data || [];
-  } catch {
-    // Supabase not configured yet — show empty state
+  } catch (err) {
+    console.error("[HomePage] Failed to fetch data:", err);
   }
 
   return (
@@ -109,7 +120,7 @@ export default async function HomePage() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-              <StatCard value={shelterCount > 0 ? shelterCount.toLocaleString() : "40,085"} label="Organizations Tracked" />
+              <StatCard value={shelterCount > 0 ? shelterCount.toLocaleString() : "--"} label="Organizations Tracked" />
               <StatCard value="50" label="States Covered" />
               <StatCard value={totalDogs > 0 ? totalDogs.toLocaleString() : "--"} label="Dogs Available" />
               <StatCard value={urgentCount > 0 ? urgentCount.toLocaleString() : "--"} label="Urgent Dogs" urgent />
@@ -123,7 +134,7 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <span className="inline-block w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+              <span className="inline-block w-3 h-3 bg-red-500 rounded-full" />
               <h2 className="text-2xl md:text-3xl font-bold text-red-800">
                 Urgent: These Dogs Need You NOW
               </h2>
@@ -147,7 +158,12 @@ export default async function HomePage() {
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Waiting the Longest</h2>
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Waiting the Longest</h2>
+              <p className="mt-2 max-w-2xl text-sm text-gray-600">
+                Ranked from the earliest verified intake dates first. Dogs without a trustworthy intake date stay out of this section until we can verify them.
+              </p>
+            </div>
             <Link href="/dogs?sort=wait_time" className="text-wtl-blue hover:underline font-semibold">
               View All &rarr;
             </Link>
