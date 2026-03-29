@@ -12,6 +12,7 @@ import { MAX_WAIT_DAYS } from "@/lib/rescuegroups/mapper";
  * 4. Downgrade old created_date sources to low confidence
  */
 export async function POST() {
+  try {
   const supabase = createAdminClient();
   const now = new Date();
   const results = {
@@ -200,4 +201,11 @@ export async function POST() {
     ...results,
     summary: `Capped ${results.waitTimeCapped} wait times, removed ${results.nonDogsRemoved} non-dog listings, downgraded ${results.confidenceDowngraded} confidence levels, ${results.errors} errors`,
   });
+  } catch (err) {
+    console.error("[FixWaitTimes] Unhandled error:", err);
+    return NextResponse.json(
+      { error: "Fix wait times operation failed" },
+      { status: 500 }
+    );
+  }
 }

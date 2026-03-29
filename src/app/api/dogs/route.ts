@@ -4,9 +4,10 @@ import { DOGS_PER_PAGE } from "@/lib/constants";
 import { rateLimit } from "@/lib/utils/rate-limit";
 
 export async function GET(request: Request) {
+  try {
   const forwarded = request.headers.get("x-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim() || "unknown";
-  const { allowed, remaining } = rateLimit(ip, 120, 60000);
+  const { allowed } = rateLimit(ip, 120, 60000);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
@@ -123,4 +124,8 @@ export async function GET(request: Request) {
     limit,
     totalPages: Math.ceil((count || 0) / limit),
   });
+  } catch (err) {
+    console.error("[DogsAPI] Unhandled error:", err);
+    return NextResponse.json({ error: "Failed to fetch dogs" }, { status: 500 });
+  }
 }
