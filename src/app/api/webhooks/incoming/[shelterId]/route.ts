@@ -49,17 +49,20 @@ export async function POST(
   // Read body as text for signature verification
   const bodyText = await request.text();
 
-  // Verify HMAC signature if provided
+  // Verify HMAC signature (required for all incoming webhooks)
   const signature = request.headers.get("x-wtl-signature");
-  if (signature && apiKey) {
-    // Use the key_hash as the shared secret for incoming webhooks
-    const valid = verifyWebhookSignature(bodyText, signature, apiKey.key_hash);
-    if (!valid) {
-      return NextResponse.json(
-        { error: "Invalid webhook signature" },
-        { status: 401 }
-      );
-    }
+  if (!signature || !apiKey) {
+    return NextResponse.json(
+      { error: "Missing webhook signature or API key" },
+      { status: 401 }
+    );
+  }
+  const valid = verifyWebhookSignature(bodyText, signature, apiKey.key_hash);
+  if (!valid) {
+    return NextResponse.json(
+      { error: "Invalid webhook signature" },
+      { status: 401 }
+    );
   }
 
   // Check for idempotency

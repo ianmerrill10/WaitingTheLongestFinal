@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
+import { generateShelterJsonLd } from "@/lib/utils/json-ld";
 
 const SHELTER_TYPE_LABELS: Record<string, string> = {
   municipal: "Municipal Shelter",
@@ -115,6 +116,10 @@ export default async function ShelterProfilePage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateShelterJsonLd(shelter)) }}
+      />
       {/* Breadcrumb */}
       <nav className="mb-6 text-sm text-gray-500" aria-label="Breadcrumb">
         <ol className="flex items-center gap-2">

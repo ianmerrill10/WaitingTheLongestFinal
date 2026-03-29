@@ -78,13 +78,11 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
       breed: "breed_1",
       intakeDate: "intake_date",
       animalType: "animal_type",
-      // No outcome_type in this dataset — intakes only
-      sex: "sex",
-      age: "age",
+      // No outcome_type, sex, age in this dataset
     },
     dogTypeValue: "DOG",
     needsOutcomesCrossRef: true,
-    active: true,
+    active: false, // No dog names in dataset — records get filtered out
   },
   {
     name: "Denver Animal Shelter",
@@ -135,19 +133,18 @@ export const GOV_OPEN_DATA_SOURCES: GovDataSource[] = [
     datasetId: "924a-vesw",
     platform: "socrata",
     fields: {
-      animalId: "animal_id",
-      name: "name",
+      animalId: "id",
+      name: "id", // No dog name field — only has ID, breed, impound_number
       breed: "breed",
       intakeDate: "intake_date",
       animalType: "type",
       outcomeType: "outcome_type",
       sex: "sex",
-      age: "age_at_intake",
       color: "color",
     },
     dogTypeValue: "DOG",
     needsOutcomesCrossRef: false,
-    active: true,
+    active: false, // No dog names in dataset — records get filtered out
   },
   {
     name: "Bloomington Animal Shelter",

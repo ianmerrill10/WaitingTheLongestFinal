@@ -48,7 +48,9 @@ export async function GET(request: Request) {
   const status = url.searchParams.get("status");
   const breed = url.searchParams.get("breed");
   const search = url.searchParams.get("search");
-  const sort = url.searchParams.get("sort") || "created_at";
+  const VALID_SORT_COLUMNS = ["created_at", "name", "breed_primary", "intake_date", "updated_at", "urgency_level"];
+  const rawSort = url.searchParams.get("sort") || "created_at";
+  const sort = VALID_SORT_COLUMNS.includes(rawSort) ? rawSort : "created_at";
   const order = url.searchParams.get("order") === "asc" ? true : false;
   const offset = (page - 1) * limit;
 
@@ -62,8 +64,9 @@ export async function GET(request: Request) {
 
   if (status === "available") query = query.eq("is_available", true);
   else if (status === "adopted") query = query.eq("is_available", false);
-  if (breed) query = query.ilike("breed_primary", `%${breed}%`);
-  if (search) query = query.or(`name.ilike.%${search}%,breed_primary.ilike.%${search}%`);
+  const escapeLike = (s: string) => s.replace(/[%_\\]/g, "\\$&");
+  if (breed) query = query.ilike("breed_primary", `%${escapeLike(breed)}%`);
+  if (search) { const e = escapeLike(search); query = query.or(`name.ilike.%${e}%,breed_primary.ilike.%${e}%`); }
 
   const { data, error, count } = await query;
 

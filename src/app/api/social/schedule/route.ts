@@ -5,10 +5,22 @@ import type { Platform } from "@/lib/social/content-generator";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function checkAuth(req: NextRequest | Request): NextResponse | null {
+  const authHeader = "headers" in req ? req.headers.get("authorization") : null;
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
+
 /**
  * GET /api/social/schedule — List upcoming scheduled posts
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = checkAuth(req);
+  if (denied) return denied;
+
   try {
     const posts = await getUpcomingPosts(50);
     return NextResponse.json({ posts });
@@ -22,6 +34,9 @@ export async function GET() {
  * POST /api/social/schedule — Schedule a post
  */
 export async function POST(req: NextRequest) {
+  const denied = checkAuth(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
 
@@ -64,6 +79,9 @@ export async function POST(req: NextRequest) {
  * DELETE /api/social/schedule — Cancel a scheduled post
  */
 export async function DELETE(req: NextRequest) {
+  const denied = checkAuth(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
     if (!body.post_id) {

@@ -11,6 +11,12 @@ export const maxDuration = 300; // 5 minutes
  * GET /api/cron/sync-gov-data?state=TX
  */
 export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const state = searchParams.get("state") || undefined;

@@ -41,11 +41,14 @@ export async function GET(request: Request) {
     .from("shelters")
     .select("*", { count: "exact" });
 
+  // Escape SQL LIKE wildcards in user input
+  const escapeLike = (s: string) => s.replace(/[%_\\]/g, "\\$&");
+
   // Text search filters
-  if (search) query = query.ilike("name", `%${search}%`);
-  if (city) query = query.ilike("city", `%${city}%`);
+  if (search) query = query.ilike("name", `%${escapeLike(search)}%`);
+  if (city) query = query.ilike("city", `%${escapeLike(city)}%`);
   if (zip) query = query.eq("zip_code", zip);
-  if (county) query = query.ilike("county", `%${county}%`);
+  if (county) query = query.ilike("county", `%${escapeLike(county)}%`);
 
   // Exact filters
   if (state) query = query.eq("state_code", state.toUpperCase());

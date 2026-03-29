@@ -70,8 +70,9 @@ export async function GET(req: NextRequest) {
     if (status) query = query.eq("status", status);
     if (priority) query = query.eq("priority", priority);
     if (search) {
+      const escaped = search.replace(/[%_\\]/g, "\\$&");
       query = query.or(
-        `org_name.ilike.%${search}%,contact_email.ilike.%${search}%,contact_first_name.ilike.%${search}%,contact_last_name.ilike.%${search}%`
+        `org_name.ilike.%${escaped}%,contact_email.ilike.%${escaped}%,contact_first_name.ilike.%${escaped}%,contact_last_name.ilike.%${escaped}%`
       );
     }
 

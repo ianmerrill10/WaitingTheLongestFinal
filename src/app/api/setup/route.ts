@@ -5,11 +5,18 @@ export const maxDuration = 30;
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const results: string[] = [];
+
+  const dbPassword = process.env.SUPABASE_DB_PASSWORD;
+  const dbRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/(\w+)\.supabase\.co/)?.[1] || "";
+  if (!dbPassword || !dbRef) {
+    return NextResponse.json({ error: "Missing SUPABASE_DB_PASSWORD env var" }, { status: 500 });
+  }
 
   try {
     // Try multiple connection methods
@@ -18,8 +25,8 @@ export async function GET(request: Request) {
         name: "session_pooler",
         host: "aws-0-us-east-1.pooler.supabase.com",
         port: 5432,
-        user: "postgres.hpssqzqwtsczsxvdfktt",
-        password: "WtL_Sup4b@se2026!",
+        user: `postgres.${dbRef}`,
+        password: dbPassword,
         database: "postgres",
         ssl: { rejectUnauthorized: false },
       },
@@ -27,17 +34,17 @@ export async function GET(request: Request) {
         name: "transaction_pooler",
         host: "aws-0-us-east-1.pooler.supabase.com",
         port: 6543,
-        user: "postgres.hpssqzqwtsczsxvdfktt",
-        password: "WtL_Sup4b@se2026!",
+        user: `postgres.${dbRef}`,
+        password: dbPassword,
         database: "postgres",
         ssl: { rejectUnauthorized: false },
       },
       {
         name: "direct",
-        host: "db.hpssqzqwtsczsxvdfktt.supabase.co",
+        host: `db.${dbRef}.supabase.co`,
         port: 5432,
         user: "postgres",
-        password: "WtL_Sup4b@se2026!",
+        password: dbPassword,
         database: "postgres",
         ssl: { rejectUnauthorized: false },
       },
