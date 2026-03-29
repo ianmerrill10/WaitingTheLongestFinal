@@ -1,7 +1,25 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 import NationalAvgCounter from "@/components/counters/NationalAvgCounter";
+
+export const metadata: Metadata = {
+  title: "WaitingTheLongest.com — Every Shelter Dog in America, Ranked by Wait Time",
+  description: "Real-time countdown timers for shelter dogs facing euthanasia. See which dogs have been waiting the longest and help save a life before time runs out.",
+  openGraph: {
+    title: "WaitingTheLongest.com — Stop a Clock, Save a Life",
+    description: "Real-time countdown timers for shelter dogs facing euthanasia. See which dogs have been waiting the longest and help save a life before time runs out.",
+    url: "https://waitingthelongest.com",
+    siteName: "WaitingTheLongest.com",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "WaitingTheLongest.com — Stop a Clock, Save a Life",
+    description: "Real-time countdown timers for shelter dogs facing euthanasia.",
+  },
+};
 
 export default async function HomePage() {
   let totalDogs = 0;

@@ -7,13 +7,18 @@ export async function POST(request: NextRequest) {
     const sitePassword = process.env.SITE_PASSWORD;
 
     if (!sitePassword) {
-      // If no password is set, allow access (fail open for dev)
+      // In production, SITE_PASSWORD must be set — refuse login
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[Login] SITE_PASSWORD not configured in production');
+        return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 });
+      }
+      // In dev, allow access without password
       const response = NextResponse.json({ ok: true });
       response.cookies.set('site_auth', 'authenticated', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: 60 * 60 * 24 * 30,
         path: '/',
       });
       return response;

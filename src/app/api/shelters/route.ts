@@ -99,7 +99,8 @@ export async function GET(request: Request) {
   const { data, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[SheltersAPI] Query error:", error.message);
+    return NextResponse.json({ error: "Failed to fetch shelters" }, { status: 500 });
   }
 
   return NextResponse.json({

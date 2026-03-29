@@ -50,6 +50,7 @@ const REFRESH_OPTIONS = [
 export default function DataDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("overview");
   const [autoRefresh, setAutoRefresh] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -60,8 +61,13 @@ export default function DataDashboard() {
       if (res.ok) {
         setData(await res.json());
         setLastUpdated(new Date());
+        setError(null);
+      } else {
+        setError(`Dashboard API returned ${res.status}`);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch dashboard data");
+    }
     setLoading(false);
   }, []);
 
@@ -105,7 +111,7 @@ export default function DataDashboard() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-4">Data Dashboard</h1>
-        <p className="text-red-600">Failed to load dashboard data.</p>
+        <p className="text-red-600">{error || "Failed to load dashboard data."}</p>
         <button onClick={fetchData} className="mt-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">Retry</button>
       </div>
     );
