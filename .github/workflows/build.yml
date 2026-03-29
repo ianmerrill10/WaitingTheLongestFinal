@@ -23,7 +23,7 @@ jobs:
       run: npm ci
 
     - name: Run tests
-      run: npx tsx --test tests/**/*.test.ts
+      run: npx tsx --test tests/*.test.ts
 
     - name: Build Next.js
       run: npx next build
