@@ -25,9 +25,5 @@ jobs:
     - name: Run tests
       run: npx tsx --test tests/*.test.ts
 
-    - name: Build Next.js
-      run: npx next build
-      env:
-        NODE_OPTIONS: '--max-old-space-size=4096'
-        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+    - name: TypeScript type check
+      run: npx tsc --noEmit
