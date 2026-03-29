@@ -68,6 +68,7 @@ const US_STATES = [
 
 export default async function StatesPage() {
   const shelterCountByState: Record<string, number> = {};
+  const dogCountByState: Record<string, number> = {};
   let totalShelters = 0;
   let totalDogs: number | null = 0;
 
@@ -84,19 +85,25 @@ export default async function StatesPage() {
       supabase
         .from("shelters")
         .select("id", { count: "exact", head: true }),
-      ...stateCodes.map((code) =>
+      ...stateCodes.flatMap((code) => [
         supabase
           .from("shelters")
           .select("id", { count: "exact", head: true })
-          .eq("state_code", code)
-      ),
+          .eq("state_code", code),
+        supabase
+          .from("dogs")
+          .select("id", { count: "exact", head: true })
+          .eq("is_available", true)
+          .eq("state_code", code),
+      ]),
     ]);
 
     totalDogs = dogsRes.count;
     totalShelters = totalShelterRes.count || 0;
 
     stateCodes.forEach((code, i) => {
-      shelterCountByState[code] = stateCounts[i].count || 0;
+      shelterCountByState[code] = stateCounts[i * 2].count || 0;
+      dogCountByState[code] = stateCounts[i * 2 + 1].count || 0;
     });
   } catch (err) {
     console.error("[StatesPage] Failed to fetch data:", err);
@@ -118,7 +125,8 @@ export default async function StatesPage() {
       {/* State Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
         {US_STATES.map((state) => {
-          const count = shelterCountByState[state.code] || 0;
+          const shelters = shelterCountByState[state.code] || 0;
+          const dogs = dogCountByState[state.code] || 0;
           return (
             <Link
               key={state.code}
@@ -134,7 +142,7 @@ export default async function StatesPage() {
                     {state.name}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {count} {count === 1 ? "shelter" : "shelters"}
+                    {dogs.toLocaleString()} {dogs === 1 ? "dog" : "dogs"} &middot; {shelters.toLocaleString()} {shelters === 1 ? "shelter" : "shelters"}
                   </p>
                 </div>
               </div>
