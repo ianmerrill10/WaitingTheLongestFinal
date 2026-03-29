@@ -62,48 +62,42 @@ export default async function StateDetailPage({
     const shelterIds = (stateShelters || []).map((s) => s.id);
     shelterCount = shelterIds.length;
 
-    if (shelterIds.length > 0) {
-      const [dogsRes, urgentRes, totalRes, shelterRes] = await Promise.all([
-        supabase
-          .from("dogs")
-          .select("*, shelters(name, city, state_code)")
-          .eq("is_available", true)
-          .in("shelter_id", shelterIds)
-          .order("intake_date", { ascending: true })
-          .limit(24),
-        supabase
-          .from("dogs")
-          .select("id", { count: "exact", head: true })
-          .eq("is_available", true)
-          .in("shelter_id", shelterIds)
-          .in("urgency_level", ["critical", "high"]),
-        supabase
-          .from("dogs")
-          .select("id", { count: "exact", head: true })
-          .eq("is_available", true)
-          .in("shelter_id", shelterIds),
-        supabase
-          .from("shelters")
-          .select("*")
-          .eq("state_code", stateCode)
-          .order("name", { ascending: true })
-          .limit(30),
-      ]);
+    const dogStateFilter =
+      shelterIds.length > 0
+        ? `state_code.eq.${stateCode},shelter_id.in.(${shelterIds.join(",")})`
+        : `state_code.eq.${stateCode}`;
 
-      dogs = dogsRes.data || [];
-      urgentCount = urgentRes.count;
-      totalDogsCount = totalRes.count;
-      shelters = shelterRes.data || [];
-    } else {
-      // No shelters in this state — get shelter list anyway for display
-      const { data: shelterRes } = await supabase
+    const [dogsRes, urgentRes, totalRes, shelterRes] = await Promise.all([
+      supabase
+        .from("dogs")
+        .select("*, shelters(name, city, state_code)")
+        .eq("is_available", true)
+        .or(dogStateFilter)
+        .order("intake_date", { ascending: true })
+        .limit(24),
+      supabase
+        .from("dogs")
+        .select("id", { count: "exact", head: true })
+        .eq("is_available", true)
+        .or(dogStateFilter)
+        .in("urgency_level", ["critical", "high"]),
+      supabase
+        .from("dogs")
+        .select("id", { count: "exact", head: true })
+        .eq("is_available", true)
+        .or(dogStateFilter),
+      supabase
         .from("shelters")
         .select("*")
         .eq("state_code", stateCode)
         .order("name", { ascending: true })
-        .limit(30);
-      shelters = shelterRes || [];
-    }
+        .limit(30),
+    ]);
+
+    dogs = dogsRes.data || [];
+    urgentCount = urgentRes.count;
+    totalDogsCount = totalRes.count;
+    shelters = shelterRes.data || [];
   } catch {
     // Supabase not configured yet
   }
