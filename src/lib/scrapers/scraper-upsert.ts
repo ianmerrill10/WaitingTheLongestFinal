@@ -131,6 +131,7 @@ export async function upsertScrapedDogs(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: Record<string, any> = {
           ...mapped,
+          state_code: shelterInfo?.state_code || null,
           last_synced_at: new Date().toISOString(),
           is_available: true,
           verification_status: "verified",
@@ -180,6 +181,7 @@ export async function upsertScrapedDogs(
         }
         toInsert.push({
           ...mapped,
+          state_code: shelterInfo?.state_code || null,
           source_links: sourceLinks.length > 0 ? sourceLinks : [],
           original_intake_date: mapped.intake_date as string,
           ranking_eligible: mapped.date_confidence === "verified",

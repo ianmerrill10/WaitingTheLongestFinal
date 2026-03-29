@@ -180,6 +180,7 @@ async function syncSingleGovSource(sourceName: string): Promise<GovSyncResult> {
         const { error } = await supabase.from("dogs").insert({
           name: govDog.name.substring(0, 200),
           shelter_id: shelterId,
+          state_code: source.state,
           breed_primary: breed.primary.substring(0, 100),
           breed_secondary: breed.secondary?.substring(0, 100) || null,
           breed_mixed: breed.mixed,

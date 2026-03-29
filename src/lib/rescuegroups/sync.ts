@@ -263,6 +263,7 @@ export async function syncDogsFromRescueGroups(
           const orgId = animal.relationships?.orgs?.data?.[0]?.id;
           const shelterInfo = orgId ? shelterCache.get(orgId) : null;
           const shelterId = shelterInfo?.id || null;
+          const dogStateCode = (shelterInfo?.stateCode || "").toUpperCase() || null;
 
           if (!shelterId) {
             errors++;
@@ -316,6 +317,7 @@ export async function syncDogsFromRescueGroups(
             const updateData: Record<string, any> = {
               ...mapped,
               shelter_id: shelterId,
+              state_code: dogStateCode,
               last_synced_at: new Date().toISOString(),
               source_links: sourceLinks,
             };
@@ -348,6 +350,7 @@ export async function syncDogsFromRescueGroups(
             toInsert.push({
               ...mapped,
               shelter_id: shelterId,
+              state_code: dogStateCode,
               source_links: sourceLinks,
               original_intake_date: mapped.intake_date,
               ranking_eligible: mapped.date_confidence === "verified",

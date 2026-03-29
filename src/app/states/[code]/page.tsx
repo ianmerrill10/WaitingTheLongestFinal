@@ -53,53 +53,44 @@ export default async function StateDetailPage({
   try {
     const supabase = createAdminClient();
 
-    // First get shelter IDs for this state — avoids unreliable !inner join counts
-    const { data: stateShelters } = await supabase
-      .from("shelters")
-      .select("id")
-      .eq("state_code", stateCode);
-
-    const shelterIds = (stateShelters || []).map((s) => s.id);
-    shelterCount = shelterIds.length;
-
-    const dogStateFilter =
-      shelterIds.length > 0
-        ? `state_code.eq.${stateCode},shelter_id.in.(${shelterIds.join(",")})`
-        : `state_code.eq.${stateCode}`;
-
-    const [dogsRes, urgentRes, totalRes, shelterRes] = await Promise.all([
+    const [dogsRes, urgentRes, totalRes, shelterRes, shelterCountRes] = await Promise.all([
       supabase
         .from("dogs")
         .select("*, shelters(name, city, state_code)")
         .eq("is_available", true)
-        .or(dogStateFilter)
+        .eq("state_code", stateCode)
         .order("intake_date", { ascending: true })
         .limit(24),
       supabase
         .from("dogs")
         .select("id", { count: "exact", head: true })
         .eq("is_available", true)
-        .or(dogStateFilter)
+        .eq("state_code", stateCode)
         .in("urgency_level", ["critical", "high"]),
       supabase
         .from("dogs")
         .select("id", { count: "exact", head: true })
         .eq("is_available", true)
-        .or(dogStateFilter),
+        .eq("state_code", stateCode),
       supabase
         .from("shelters")
         .select("*")
         .eq("state_code", stateCode)
         .order("name", { ascending: true })
         .limit(30),
+      supabase
+        .from("shelters")
+        .select("id", { count: "exact", head: true })
+        .eq("state_code", stateCode),
     ]);
 
     dogs = dogsRes.data || [];
     urgentCount = urgentRes.count;
     totalDogsCount = totalRes.count;
     shelters = shelterRes.data || [];
-  } catch {
-    // Supabase not configured yet
+    shelterCount = shelterCountRes.count ?? 0;
+  } catch (err) {
+    console.error("[StateDetailPage] Error loading state data:", err);
   }
 
   return (
