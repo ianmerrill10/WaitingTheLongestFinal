@@ -13,16 +13,24 @@ export interface Shelter {
   phone: string | null;
   email: string | null;
   website: string | null;
+  facebook_url: string | null;
   description: string | null;
   is_kill_shelter: boolean;
+  urgency_multiplier: number | null;
   accepts_rescue_pulls: boolean;
   is_verified: boolean;
   is_active: boolean;
-  total_dogs: number;
-  available_dogs: number;
-  critical_dogs: number;
+  ein: string | null;
   external_id: string | null;
   external_source: string | null;
+  total_animals: number;
+  available_dog_count: number;
+  urgent_dog_count: number;
+  website_platform: string | null;
+  adoptable_page_url: string | null;
+  stray_hold_days: number | null;
+  last_synced_at: string | null;
+  last_scraped_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,10 +40,9 @@ export interface ShelterStats {
   name: string;
   city: string;
   state_code: string;
-  total_dogs: number;
-  available_dogs: number;
-  critical_dogs: number;
-  high_urgency_dogs: number;
+  total_animals: number;
+  available_dog_count: number;
+  urgent_dog_count: number;
   avg_wait_days: number;
   max_wait_days: number;
 }

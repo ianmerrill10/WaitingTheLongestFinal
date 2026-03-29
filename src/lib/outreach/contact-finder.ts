@@ -76,10 +76,10 @@ export async function findTargetShelters(filters: {
 
   let query = supabase
     .from("shelters")
-    .select("id, name, email, city, state, total_dogs");
+    .select("id, name, email, city, state_code, available_dog_count");
 
   if (filters.state) {
-    query = query.eq("state", filters.state);
+    query = query.eq("state_code", filters.state);
   }
 
   if (filters.has_email) {
@@ -87,14 +87,14 @@ export async function findTargetShelters(filters: {
   }
 
   if (filters.min_dogs) {
-    query = query.gte("total_dogs", filters.min_dogs);
+    query = query.gte("available_dog_count", filters.min_dogs);
   }
 
   // Only shelters not already partners
   query = query.or("partner_status.is.null,partner_status.eq.none");
 
   query = query
-    .order("total_dogs", { ascending: false })
+    .order("available_dog_count", { ascending: false })
     .limit(filters.limit || 100);
 
   const { data } = await query;
@@ -116,8 +116,8 @@ export async function findTargetShelters(filters: {
         shelter_name: s.name,
         email: s.email || "",
         city: s.city || "",
-        state: s.state || "",
-        dog_count: s.total_dogs || 0,
+        state: s.state_code || "",
+        dog_count: s.available_dog_count || 0,
       }));
   }
 
@@ -126,8 +126,8 @@ export async function findTargetShelters(filters: {
     shelter_name: s.name,
     email: s.email || "",
     city: s.city || "",
-    state: s.state || "",
-    dog_count: s.total_dogs || 0,
+    state: s.state_code || "",
+    dog_count: s.available_dog_count || 0,
   }));
 }
 

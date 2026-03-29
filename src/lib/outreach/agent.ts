@@ -48,7 +48,7 @@ export async function processOutreachQueue(
   // Get pending targets
   const { data: targets } = await supabase
     .from("outreach_targets")
-    .select("*, shelters!inner(name, email, city, state, total_dogs, shelter_type)")
+    .select("*, shelters!inner(name, email, city, state_code, available_dog_count, shelter_type)")
     .eq("campaign_id", campaignId)
     .eq("status", "pending")
     .order("priority_score", { ascending: false })
@@ -72,8 +72,8 @@ export async function processOutreachQueue(
       name: string;
       email: string;
       city: string;
-      state: string;
-      total_dogs: number;
+      state_code: string;
+      available_dog_count: number;
       shelter_type: string;
     };
 
@@ -129,8 +129,8 @@ export async function processOutreachQueue(
       contact_name: contactName,
       contact_first_name: firstName,
       city: shelter.city || "",
-      state: shelter.state || "",
-      dog_count: String(shelter.total_dogs || 0),
+      state: shelter.state_code || "",
+      dog_count: String(shelter.available_dog_count || 0),
       shelter_url: `https://waitingthelongest.com/shelters/${target.shelter_id}`,
       register_url: "https://waitingthelongest.com/partners/register",
       unsubscribe_url: getUnsubscribeUrl(target.id),
@@ -235,19 +235,19 @@ export async function createCampaign(params: {
   // Find target shelters
   let shelterQuery = supabase
     .from("shelters")
-    .select("id, name, email, city, state, total_dogs, shelter_type")
+    .select("id, name, email, city, state_code, available_dog_count, shelter_type")
     .not("email", "is", null)
     .or("partner_status.is.null,partner_status.eq.none");
 
   if (params.state_filter) {
-    shelterQuery = shelterQuery.eq("state", params.state_filter);
+    shelterQuery = shelterQuery.eq("state_code", params.state_filter);
   }
   if (params.min_dogs) {
-    shelterQuery = shelterQuery.gte("total_dogs", params.min_dogs);
+    shelterQuery = shelterQuery.gte("available_dog_count", params.min_dogs);
   }
 
   shelterQuery = shelterQuery
-    .order("total_dogs", { ascending: false })
+    .order("available_dog_count", { ascending: false })
     .limit(params.max_targets || 500);
 
   const { data: shelters } = await shelterQuery;
@@ -271,9 +271,9 @@ export async function createCampaign(params: {
     .map((s) => {
       const scoring = computePriorityScore({
         shelter_type: s.shelter_type,
-        total_dogs: s.total_dogs,
+        total_dogs: s.available_dog_count,
         email: s.email,
-        state: s.state,
+        state: s.state_code,
       });
 
       return {

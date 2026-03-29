@@ -118,7 +118,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from("shelters")
       .select("id, updated_at")
       .eq("is_active", true)
-      .order("available_dogs", { ascending: false })
+      .order("available_dog_count", { ascending: false })
       .limit(1000);
 
     if (shelters) {
