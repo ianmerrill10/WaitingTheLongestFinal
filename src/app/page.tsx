@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 import NationalAvgCounter from "@/components/counters/NationalAvgCounter";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "WaitingTheLongest.com — Every Shelter Dog in America, Ranked by Wait Time",
