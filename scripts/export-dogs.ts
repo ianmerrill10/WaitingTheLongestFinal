@@ -70,7 +70,7 @@ async function main() {
         photo_urls, primary_photo_url, external_url,
         external_source, verification_status,
         created_at, updated_at,
-        shelter:shelters!inner(name, city, state_code)
+        shelter:shelters!dogs_shelter_id_fkey!inner(name, city, state_code)
       `)
       .eq("is_available", true)
       .range(offset, offset + pageSize - 1);

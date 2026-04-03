@@ -356,7 +356,7 @@ async function detectAnomalies(): Promise<void> {
   // 1. Mass deactivation events (>10 dogs deactivated from one shelter in 24h)
   const { data: recentDeactivated } = await supabase
     .from("dogs")
-    .select("shelter_id, shelters!inner(name, city, state_code)")
+    .select("shelter_id, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
     .eq("is_available", false)
     .in("status", ["outcome_unknown", "adopted"])
     .gt("updated_at", oneDayAgo.toISOString())

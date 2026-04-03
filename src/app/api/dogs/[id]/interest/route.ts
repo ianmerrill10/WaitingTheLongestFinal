@@ -55,7 +55,7 @@ export async function POST(
     .select(
       `
       id, name, breed_primary, inquiry_count, external_url,
-      shelters (
+      shelters!dogs_shelter_id_fkey (
         id, name, email, phone, website
       )
     `

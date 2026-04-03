@@ -14,7 +14,7 @@ export default async function ReviewQueuePage() {
       dogs (
         id, name, breed_primary, intake_date, date_confidence,
         date_source, primary_photo_url, is_available,
-        shelters (name, city, state_code)
+        shelters!dogs_shelter_id_fkey (name, city, state_code)
       )
     `)
     .eq("state", "open")
@@ -84,7 +84,7 @@ export default async function ReviewQueuePage() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const dog = item.dogs as any;
             const shelter = dog?.shelters;
-            const sheltInfo = Array.isArray(shelter) ? shelter[0] : shelter;
+            const sheltInfo = Array.isArray(shelter) && shelter.length > 0 ? shelter[0] : shelter;
 
             return (
               <div

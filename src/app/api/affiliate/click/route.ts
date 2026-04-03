@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const supabase = createAdminClient();
     const { data: dog } = await supabase
       .from("dogs")
-      .select("id, name, breed, size, age_text, description, urgency_level")
+      .select("id, name, breed_primary, size, age_category, description, urgency_level")
       .eq("id", dogId)
       .single();
 
@@ -31,9 +31,9 @@ export async function GET(req: NextRequest) {
     const products = await getRecommendations({
       id: dog.id,
       name: dog.name,
-      breed: dog.breed,
+      breed: dog.breed_primary,
       size: dog.size,
-      age_text: dog.age_text,
+      age_text: dog.age_category,
       description: dog.description,
       urgency_level: dog.urgency_level,
     });

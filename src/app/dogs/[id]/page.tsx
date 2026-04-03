@@ -91,7 +91,7 @@ export default async function DogProfilePage({
     // Fetch similar dogs (same primary breed, still available)
     const { data: similarDogsData } = await supabase
       .from("dogs")
-      .select("id, name, breed_primary, primary_photo_url, intake_date, age_category, size, gender, shelters!inner(name, city, state_code)")
+      .select("id, name, breed_primary, primary_photo_url, intake_date, age_category, size, gender, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .neq("id", data.id)
       .eq("breed_primary", data.breed_primary)

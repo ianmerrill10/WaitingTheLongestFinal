@@ -49,7 +49,7 @@ export default async function HomePage() {
     // Fetch urgent dogs (top 6 by euthanasia date — ONLY future dates, never expired)
     const urgentRes = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .in("urgency_level", ["critical", "high"])
       .gt("euthanasia_date", new Date().toISOString())
@@ -62,7 +62,7 @@ export default async function HomePage() {
     // Falls back to date_confidence filter if no ranking_eligible dogs exist yet
     let waitingRes = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .eq("ranking_eligible", true)
       .order("intake_date", { ascending: true })
@@ -72,7 +72,7 @@ export default async function HomePage() {
     if (!waitingRes.data || waitingRes.data.length === 0) {
       waitingRes = await supabase
         .from("dogs")
-        .select("*, shelters!inner(name, city, state_code)")
+        .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
         .eq("is_available", true)
         .in("date_confidence", ["verified", "high", "medium"])
         .order("intake_date", { ascending: true })
@@ -83,7 +83,7 @@ export default async function HomePage() {
     // Fetch overlooked dogs (seniors, special needs)
     const overlookedRes = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .or("age_category.eq.senior,has_special_needs.eq.true")
       .order("intake_date", { ascending: true })

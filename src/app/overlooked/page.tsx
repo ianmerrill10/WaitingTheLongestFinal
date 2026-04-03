@@ -129,7 +129,7 @@ async function fetchOverlookedDogs() {
     // Senior dogs
     const { data: seniors } = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .eq("age_category", "senior")
       .order("intake_date", { ascending: true })
@@ -139,7 +139,7 @@ async function fetchOverlookedDogs() {
     // Special needs dogs
     const { data: specialNeeds } = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .eq("has_special_needs", true)
       .order("intake_date", { ascending: true })
@@ -151,7 +151,7 @@ async function fetchOverlookedDogs() {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     const { data: longTimers } = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .lt("intake_date", sixMonthsAgo.toISOString())
       .order("intake_date", { ascending: true })
@@ -161,7 +161,7 @@ async function fetchOverlookedDogs() {
     // Pit bulls / bully breeds
     const { data: pitBulls } = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .or("breed_primary.ilike.%pit bull%,breed_primary.ilike.%american staffordshire%,breed_primary.ilike.%staffordshire bull%,breed_primary.ilike.%bull terrier%")
       .order("intake_date", { ascending: true })
@@ -171,7 +171,7 @@ async function fetchOverlookedDogs() {
     // Black dogs (search color_primary or breed description containing "black")
     const { data: blackDogs } = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .or("color_primary.ilike.%black%,breed_primary.ilike.%black%")
       .order("intake_date", { ascending: true })
@@ -181,7 +181,7 @@ async function fetchOverlookedDogs() {
     // Bonded pairs (search description for "bonded" keyword)
     const { data: bondedPairs } = await supabase
       .from("dogs")
-      .select("*, shelters!inner(name, city, state_code)")
+      .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .or("description.ilike.%bonded pair%,description.ilike.%bonded with%,description.ilike.%must be adopted together%,tags.cs.{bonded}")
       .order("intake_date", { ascending: true })

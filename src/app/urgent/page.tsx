@@ -56,7 +56,7 @@ export default async function UrgentPage() {
       URGENCY_SECTIONS.map((section) => {
         let query = supabase
           .from("dogs")
-          .select("*, shelters!inner(name, city, state_code)")
+          .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
           .eq("is_available", true)
           .eq("urgency_level", section.level);
 

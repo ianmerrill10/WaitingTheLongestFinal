@@ -50,7 +50,7 @@ export default async function DogSourcesPage({
       verification_status, last_verified_at, last_synced_at,
       dedup_merged_from, created_at, updated_at,
       is_foster, transfer_origin_shelter_id, transfer_original_intake,
-      shelters (
+      shelters!dogs_shelter_id_fkey (
         id, name, city, state_code, website, phone, email,
         external_id, external_source, is_verified
       )
