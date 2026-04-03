@@ -1,6 +1,9 @@
 import { MetadataRoute } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 3600; // regenerate every hour
+
 const BASE_URL = "https://waitingthelongest.com";
 
 const STATE_CODES = [

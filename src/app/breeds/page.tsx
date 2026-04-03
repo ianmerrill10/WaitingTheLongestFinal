@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Dog Breeds Available for Adoption",
   description: "Browse adoptable dogs by breed. Find Labrador Retrievers, German Shepherds, Pit Bulls, and more at shelters across America.",

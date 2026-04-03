@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import DogGrid from "@/components/dogs/DogGrid";
 import NationalAvgCounter from "@/components/counters/NationalAvgCounter";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "WaitingTheLongest.com — Every Shelter Dog in America, Ranked by Wait Time",
   description: "Real-time countdown timers for shelter dogs facing euthanasia. See which dogs have been waiting the longest and help save a life before time runs out.",
