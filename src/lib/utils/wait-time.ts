@@ -123,38 +123,11 @@ export function getTotalDaysWaiting(intakeDate: string | Date): number {
   return Math.floor((now.getTime() - intake.getTime()) / 86400000);
 }
 
-/**
- * Increment wait time by one second (client-side ticking).
- */
-export function incrementWaitTime(wt: WaitTimeComponents): WaitTimeComponents {
-  let { years, months, days, hours, minutes, seconds } = wt;
-  seconds++;
-  if (seconds >= 60) { seconds = 0; minutes++; }
-  if (minutes >= 60) { minutes = 0; hours++; }
-  if (hours >= 24) { hours = 0; days++; }
-  // Days overflow into months is approximate (30 days)
-  if (days >= 30) { days = 0; months++; }
-  if (months >= 12) { months = 0; years++; }
-  return { years, months, days, hours, minutes, seconds };
-}
-
-/**
- * Decrement countdown by one second (client-side ticking).
- */
-export function decrementCountdown(cd: CountdownComponents): CountdownComponents {
-  if (cd.is_expired) return cd;
-
-  let { days, hours, minutes, seconds } = cd;
-  seconds--;
-  if (seconds < 0) { seconds = 59; minutes--; }
-  if (minutes < 0) { minutes = 59; hours--; }
-  if (hours < 0) { hours = 23; days--; }
-
-  const is_expired = days < 0;
-  if (is_expired) {
-    return { days: 0, hours: 0, minutes: 0, seconds: 0, is_critical: true, is_expired: true };
-  }
-
-  const totalHours = days * 24 + hours;
-  return { days, hours, minutes, seconds, is_critical: totalHours < 24, is_expired: false };
-}
+// incrementWaitTime() and decrementCountdown() intentionally removed.
+// Both used approximate arithmetic (hardcoded 30-day months, simple ±1s carry)
+// that accumulated drift over time and produced wrong calendar values at
+// month boundaries.
+//
+// Components must call calculateWaitTime(intakeDate) or
+// calculateCountdown(euthanasiaDate) on EVERY interval tick instead.
+// Re-deriving from the source timestamp each second makes drift impossible.

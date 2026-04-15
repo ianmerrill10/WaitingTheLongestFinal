@@ -163,6 +163,18 @@ export async function POST(
 async function processDogCreated(supabase: any, shelterId: string, data: Record<string, unknown>) {
   const hasProvidedIntakeDate = typeof data.intake_date === "string" && data.intake_date.length > 0;
   const intakeDate = hasProvidedIntakeDate ? data.intake_date : new Date().toISOString();
+  const externalUrl = typeof data.external_url === "string" ? data.external_url : null;
+
+  // Build source_links so every webhook-created dog has data provenance
+  const sourceLinks: Array<Record<string, unknown>> = [
+    {
+      url: externalUrl || "",
+      source: "partner_webhook",
+      checked_at: new Date().toISOString(),
+      status_code: 200,
+      description: `Partner webhook dog.created event${hasProvidedIntakeDate ? " with intake_date" : ""}`,
+    },
+  ];
 
   await supabase.from("dogs").insert({
     name: data.name || "Unknown",
@@ -177,6 +189,7 @@ async function processDogCreated(supabase: any, shelterId: string, data: Record<
     status: "available",
     intake_date: intakeDate,
     external_id: data.external_id || null,
+    external_url: externalUrl,
     external_source: "webhook",
     date_confidence: hasProvidedIntakeDate ? "verified" : "low",
     date_source: hasProvidedIntakeDate ? "webhook" : "webhook_missing_intake_date",
@@ -184,6 +197,7 @@ async function processDogCreated(supabase: any, shelterId: string, data: Record<
     ranking_eligible: hasProvidedIntakeDate,
     intake_date_observation_count: 1,
     source_extraction_method: "partner_webhook",
+    source_links: sourceLinks,
   });
 }
 

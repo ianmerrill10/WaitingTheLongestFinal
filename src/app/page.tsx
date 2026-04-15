@@ -48,7 +48,13 @@ export default async function HomePage() {
     urgentCount = urgentResult.status === "fulfilled" ? (urgentResult.value.count || 0) : 0;
     shelterCount = shelterResult.status === "fulfilled" ? (shelterResult.value.count || 0) : 0;
 
-    // Fetch urgent dogs (top 6 by euthanasia date — ONLY future dates, never expired)
+    // Fairness rotation: fetch larger pools, then rotate 6-dog windows every hour.
+    // This ensures dogs beyond the absolute top still get homepage exposure.
+    // Critical/urgent dogs (euthanasia imminent) always show the most urgent first.
+    const hourSeed = new Date().getUTCHours();
+
+    // Fetch urgent dogs — always show the top 3 most urgent, rotate positions 4-6
+    // from a pool of 15. This guarantees the closest-to-euthanasia dog is ALWAYS seen.
     const urgentRes = await supabase
       .from("dogs")
       .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
@@ -56,19 +62,26 @@ export default async function HomePage() {
       .in("urgency_level", ["critical", "high"])
       .gt("euthanasia_date", new Date().toISOString())
       .order("euthanasia_date", { ascending: true, nullsFirst: false })
-      .limit(6);
-    urgentDogs = urgentRes.data || [];
+      .limit(15);
+    const urgentPool = urgentRes.data || [];
+    const urgentTop = urgentPool.slice(0, 3);
+    const urgentRest = urgentPool.slice(3);
+    const urgentOffset = urgentRest.length > 0 ? (hourSeed * 3) % urgentRest.length : 0;
+    const urgentRotated: typeof urgentRest = [];
+    for (let i = 0; i < 3 && i < urgentRest.length; i++) {
+      urgentRotated.push(urgentRest[(urgentOffset + i) % urgentRest.length]);
+    }
+    urgentDogs = [...urgentTop, ...urgentRotated];
 
-    // Fetch longest waiting dogs (top 6)
+    // Longest waiting — fetch top 30, rotate a 6-dog window by hour
     // Use ranking_eligible flag — only dogs with verified intake dates rank here
-    // Falls back to date_confidence filter if no ranking_eligible dogs exist yet
     let waitingRes = await supabase
       .from("dogs")
       .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .eq("ranking_eligible", true)
       .order("intake_date", { ascending: true })
-      .limit(6);
+      .limit(30);
 
     // Fallback: if ranking_eligible hasn't been backfilled yet, use confidence filter
     if (!waitingRes.data || waitingRes.data.length === 0) {
@@ -78,19 +91,34 @@ export default async function HomePage() {
         .eq("is_available", true)
         .in("date_confidence", ["verified", "high", "medium"])
         .order("intake_date", { ascending: true })
-        .limit(6);
+        .limit(30);
     }
-    longestWaiting = waitingRes.data || [];
+    const waitingPool = waitingRes.data || [];
+    // Always show the #1 longest waiting dog, rotate positions 2-6 from the rest
+    const waitingTop = waitingPool.slice(0, 1);
+    const waitingRest = waitingPool.slice(1);
+    const waitingOffset = waitingRest.length > 0 ? (hourSeed * 5) % waitingRest.length : 0;
+    const waitingRotated: typeof waitingRest = [];
+    for (let i = 0; i < 5 && i < waitingRest.length; i++) {
+      waitingRotated.push(waitingRest[(waitingOffset + i) % waitingRest.length]);
+    }
+    longestWaiting = [...waitingTop, ...waitingRotated];
 
-    // Fetch overlooked dogs (seniors, special needs)
+    // Overlooked dogs — fetch top 24, rotate 6-dog window by hour
     const overlookedRes = await supabase
       .from("dogs")
       .select("*, shelters!dogs_shelter_id_fkey!inner(name, city, state_code)")
       .eq("is_available", true)
       .or("age_category.eq.senior,has_special_needs.eq.true")
       .order("intake_date", { ascending: true })
-      .limit(6);
-    overlookedDogs = overlookedRes.data || [];
+      .limit(24);
+    const overlookedPool = overlookedRes.data || [];
+    const overlookedOffset = overlookedPool.length > 0 ? (hourSeed * 6) % overlookedPool.length : 0;
+    const overlookedRotated: typeof overlookedPool = [];
+    for (let i = 0; i < 6 && i < overlookedPool.length; i++) {
+      overlookedRotated.push(overlookedPool[(overlookedOffset + i) % overlookedPool.length]);
+    }
+    overlookedDogs = overlookedRotated;
   } catch (err) {
     console.error("[HomePage] Failed to fetch data:", err);
   }

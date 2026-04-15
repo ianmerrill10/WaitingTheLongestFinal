@@ -114,8 +114,10 @@ export default function DogCard({
           <p className="text-xs text-gray-400 mt-1">{location}</p>
         )}
 
-        {/* Countdown timer for urgent dogs */}
-        {showCountdown && dog.euthanasia_date && (
+        {/* Countdown timer for urgent dogs — ONLY show if euthanasia_date is in the future */}
+        {showCountdown &&
+          dog.euthanasia_date &&
+          new Date(dog.euthanasia_date).getTime() > Date.now() && (
           <div className="mt-3">
             <CountdownTimer
               euthanasiaDate={dog.euthanasia_date}
@@ -124,8 +126,13 @@ export default function DogCard({
           </div>
         )}
 
-        {/* LED Wait Time Counter — always show if dog has intake_date and no countdown shown */}
-        {dog.intake_date && !(showCountdown && dog.euthanasia_date) && (
+        {/* LED Wait Time Counter — always show if dog has intake_date and no live countdown shown */}
+        {dog.intake_date &&
+          !(
+            showCountdown &&
+            dog.euthanasia_date &&
+            new Date(dog.euthanasia_date).getTime() > Date.now()
+          ) && (
           <div className="mt-3">
             <LEDCounter intakeDate={dog.intake_date} compact />
             {(dog.date_confidence === "low" || dog.date_confidence === "unknown") && (

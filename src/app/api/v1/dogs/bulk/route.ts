@@ -77,6 +77,18 @@ export async function POST(request: Request) {
     const hasProvidedIntakeDate = typeof dog.intake_date === "string" && dog.intake_date.trim().length > 0;
     const intakeDate = hasProvidedIntakeDate ? dog.intake_date : new Date().toISOString();
 
+    // Every partner-submitted dog gets a source_link for provenance
+    const submissionTimestamp = new Date().toISOString();
+    const sourceLinks = [
+      {
+        url: dog.external_url || "",
+        source: "partner_api",
+        checked_at: submissionTimestamp,
+        status_code: 200,
+        description: `Partner API bulk submission${hasProvidedIntakeDate ? " with intake_date" : ""}`,
+      },
+    ];
+
     const baseDogData = {
       name: dog.name.trim(),
       shelter_id: auth.shelter_id,
@@ -112,6 +124,7 @@ export async function POST(request: Request) {
       original_intake_date: intakeDate,
       ranking_eligible: hasProvidedIntakeDate,
       intake_date_observation_count: 1,
+      source_links: sourceLinks,
     };
 
     try {

@@ -5,6 +5,8 @@
 import { NextResponse } from "next/server";
 import { runAudit } from "@/lib/audit/engine";
 import type { AuditMode } from "@/lib/audit/engine";
+import { updateCredibilityScores } from "@/lib/utils/persist-credibility";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 min max
@@ -31,6 +33,15 @@ export async function GET(request: Request) {
   try {
     const result = await runAudit(mode, "cron");
 
+    // After audit, persist credibility scores so they can be queried
+    let credibility: { scanned: number; updated: number; errors: number } | null = null;
+    try {
+      credibility = await updateCredibilityScores(createAdminClient(), 5000);
+    } catch {
+      // credibility update failure shouldn't break audit response
+      credibility = { scanned: 0, updated: 0, errors: 1 };
+    }
+
     return NextResponse.json({
       success: true,
       runId: result.runId,
@@ -39,6 +50,7 @@ export async function GET(request: Request) {
       stats: result.stats,
       logStats: result.logStats,
       logsWritten: result.logsWritten,
+      credibility,
       message: `Audit complete: ${result.logStats.warning} warnings, ${result.logStats.error} errors, ${result.logStats.critical} critical, ${result.logStats.repairs} auto-repairs`,
     });
   } catch (err) {

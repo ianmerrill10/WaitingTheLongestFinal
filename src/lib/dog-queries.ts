@@ -44,7 +44,13 @@ export async function getDogs(supabase: SupabaseClient, searchParams: URLSearchP
     const stateCode = state.toUpperCase();
     query = query.eq("state_code", stateCode);
   }
-  if (urgency) query = query.eq("urgency_level", urgency);
+  if (urgency) {
+    query = query.eq("urgency_level", urgency);
+    // Never show dogs past their euthanasia date when filtering by urgency
+    if (urgency === "critical" || urgency === "high" || urgency === "medium") {
+      query = query.or(`euthanasia_date.is.null,euthanasia_date.gt.${new Date().toISOString()}`);
+    }
+  }
   if (search) {
     const sanitized = search.replace(/[%_\(),.*]/g, "").substring(0, 100);
     if (sanitized.length > 0) {
@@ -74,7 +80,11 @@ export async function getDogs(supabase: SupabaseClient, searchParams: URLSearchP
   // Apply sort
   switch (sort) {
     case "urgency":
-      query = query.order("urgency_level", { ascending: true }).order("euthanasia_date", { ascending: true, nullsFirst: false });
+      // Hide already-expired countdowns
+      query = query
+        .or(`euthanasia_date.is.null,euthanasia_date.gt.${new Date().toISOString()}`)
+        .order("urgency_level", { ascending: true })
+        .order("euthanasia_date", { ascending: true, nullsFirst: false });
       break;
     case "newest":
       query = query.order("created_at", { ascending: false });
@@ -82,10 +92,16 @@ export async function getDogs(supabase: SupabaseClient, searchParams: URLSearchP
     case "name":
       query = query.order("name", { ascending: true });
       break;
-    case "random":
-      query = query.order("created_at", { ascending: new Date().getDate() % 2 === 0 })
-        .order("id", { ascending: new Date().getDate() % 3 !== 0 });
+    case "random": {
+      // True random via rotating hour-based seed (24 unique orderings per day)
+      // This is not crypto-random but ensures 24 different orders per day instead of 1
+      const seed = new Date().getHours();
+      query = query
+        .order("created_at", { ascending: seed % 2 === 0 })
+        .order("id", { ascending: seed % 3 === 0 })
+        .order("name", { ascending: seed % 5 === 0 });
       break;
+    }
     case "wait_time":
     default:
       query = query.order("intake_date", { ascending: true });

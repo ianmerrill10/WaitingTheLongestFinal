@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import LEDDigit from "./LEDDigit";
 import {
   calculateCountdown,
-  decrementCountdown,
   type CountdownComponents,
 } from "@/lib/utils/wait-time";
 import { COUNTDOWN_LABELS } from "@/lib/constants";
@@ -24,15 +23,15 @@ export default function CountdownTimer({
 }: CountdownTimerProps) {
   const [countdown, setCountdown] = useState<CountdownComponents | null>(null);
 
-  useEffect(() => {
+  // Re-derive from the source timestamp on every tick.
+  // This is the only drift-free approach: no accumulated carry errors,
+  // no approximate month lengths, no floating-point accumulation.
+  const tick = useCallback(() => {
     setCountdown(calculateCountdown(euthanasiaDate));
   }, [euthanasiaDate]);
 
-  const tick = useCallback(() => {
-    setCountdown((prev) => (prev ? decrementCountdown(prev) : null));
-  }, []);
-
   useEffect(() => {
+    tick(); // Hydrate immediately on mount
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [tick]);

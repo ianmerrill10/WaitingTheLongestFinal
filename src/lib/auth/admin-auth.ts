@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifySessionToken, SESSION_COOKIE_NAME } from "./signed-session";
 
 /**
- * Verify admin access via site_auth cookie.
- * Admin routes are for the site owner — protected by the same
- * password that protects the rest of the site.
+ * Verify admin access via signed site_auth cookie.
+ * Admin routes are for the site owner — protected by a signed session token.
  */
-export function requireAdminAuth(request: NextRequest): NextResponse | null {
-  const authCookie = request.cookies.get("site_auth");
-  if (authCookie?.value === "authenticated") {
+export async function requireAdminAuth(request: NextRequest): Promise<NextResponse | null> {
+  const authCookie = request.cookies.get(SESSION_COOKIE_NAME);
+  if (await verifySessionToken(authCookie?.value)) {
     return null; // authenticated
   }
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

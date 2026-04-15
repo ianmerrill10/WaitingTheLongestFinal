@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import LEDDigit from "./LEDDigit";
 import {
   calculateWaitTime,
-  incrementWaitTime,
   type WaitTimeComponents,
 } from "@/lib/utils/wait-time";
 import { WAIT_TIME_LABELS } from "@/lib/constants";
@@ -22,15 +21,15 @@ export default function LEDCounter({
 }: LEDCounterProps) {
   const [time, setTime] = useState<WaitTimeComponents | null>(null);
 
-  useEffect(() => {
+  // Re-derive from the source timestamp on every tick.
+  // This is the only drift-free approach: no accumulated carry errors,
+  // no approximate month lengths, no floating-point accumulation.
+  const tick = useCallback(() => {
     setTime(calculateWaitTime(intakeDate));
   }, [intakeDate]);
 
-  const tick = useCallback(() => {
-    setTime((prev) => (prev ? incrementWaitTime(prev) : null));
-  }, []);
-
   useEffect(() => {
+    tick(); // Hydrate immediately on mount
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [tick]);

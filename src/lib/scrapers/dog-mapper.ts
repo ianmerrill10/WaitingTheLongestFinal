@@ -6,6 +6,92 @@ import type { ScrapedDog } from "./types";
 import { parseDateFromDescription } from "@/lib/utils/parse-description-date";
 import { parseUrgencyFromDescription } from "@/lib/utils/parse-urgency-from-description";
 
+// ---------------------------------------------------------------------------
+// Timezone-aware date parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true if a date string already contains explicit timezone information.
+ * Handles: ISO 8601 with Z, ±HH:MM, ±HHMM suffixes.
+ */
+function hasTimezoneInfo(s: string): boolean {
+  return /Z$/i.test(s) ||
+    /[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?[+-]\d{2}:?\d{2}$/.test(s);
+}
+
+/**
+ * Get the UTC offset string (e.g. "-04:00") for noon on a given YYYY-MM-DD
+ * date in the specified IANA timezone. Uses Intl.DateTimeFormat for full
+ * DST awareness — no hard-coded DST rules needed.
+ *
+ * Falls back to "-05:00" (Eastern Standard Time) on invalid timezone or if
+ * Intl is unavailable in the runtime.
+ */
+function getUtcOffset(datePart: string, ianaTimezone: string): string {
+  try {
+    // Test at noon local to avoid DST-boundary ambiguity at midnight
+    const testDate = new Date(`${datePart}T12:00:00`);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: ianaTimezone,
+      timeZoneName: "shortOffset",
+    }).formatToParts(testDate);
+    const tzName = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+    // Matches "GMT-5", "GMT+5:30", "GMT-04:00"
+    const m = tzName.match(/GMT([+-])(\d+)(?::(\d+))?/);
+    if (m) {
+      const sign = m[1];
+      const h = m[2].padStart(2, "0");
+      const min = (m[3] ?? "0").padStart(2, "0");
+      return `${sign}${h}:${min}`;
+    }
+  } catch {
+    // Intl unavailable or invalid IANA timezone string
+  }
+  return "-05:00"; // Safe fallback: Eastern Standard Time
+}
+
+/**
+ * Parse a shelter-provided date string to a UTC Date.
+ *
+ * Root problem: JS's Date constructor treats bare "YYYY-MM-DD" strings as
+ * UTC midnight. A shelter in Los Angeles entering "2024-03-15" means
+ * 2024-03-15 00:00 PST = 2024-03-15 08:00 UTC, but new Date("2024-03-15")
+ * gives 2024-03-15 00:00 UTC = 2024-03-14 16:00 PST — the WRONG calendar day.
+ *
+ * Fix: inject noon in the shelter's known timezone before parsing. Noon local
+ * is always on the correct calendar day for every US timezone (UTC-4 to UTC-10).
+ *
+ * @param dateStr  Raw date string from scraper (may or may not have TZ)
+ * @param timezone IANA timezone of the shelter (defaults to "America/New_York")
+ */
+export function parseShelterDateToUTC(
+  dateStr: string,
+  timezone = "America/New_York"
+): Date {
+  const s = dateStr.trim();
+
+  // Already has explicit TZ — trust it and parse as-is
+  if (hasTimezoneInfo(s)) {
+    return new Date(s);
+  }
+
+  // Bare date only: "YYYY-MM-DD"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const offset = getUtcOffset(s, timezone);
+    return new Date(`${s}T12:00:00${offset}`);
+  }
+
+  // Date + time, no TZ: "YYYY-MM-DDTHH:MM:SS" or "YYYY-MM-DD HH:MM:SS"
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) {
+    const datePart = s.substring(0, 10);
+    const offset = getUtcOffset(datePart, timezone);
+    return new Date(`${s.replace(" ", "T")}${offset}`);
+  }
+
+  // Unknown format — fall back to native parse
+  return new Date(s);
+}
+
 type DateConfidence = "verified" | "high" | "medium" | "low" | "unknown";
 
 const SIZE_MAP: Record<string, string> = {
@@ -110,12 +196,13 @@ function computeAgeCategory(
   return "senior";
 }
 
+// Must match src/lib/rescuegroups/mapper.ts MAX_WAIT_DAYS for consistency
 const MAX_WAIT_DAYS: Record<DateConfidence, number> = {
-  verified: 4380, // 12 years
-  high: 4380,
-  medium: 2555, // 7 years
-  low: 730, // 2 years
-  unknown: 365, // 1 year
+  verified: 2555, // 7 years — longest verified shelter waits on record are ~5 years
+  high: 1825,     // 5 years — strong evidence but could be stale listing
+  medium: 1095,   // 3 years — moderate evidence, cap conservatively
+  low: 365,       // 1 year — weak evidence, cap aggressively
+  unknown: 180,   // 6 months — no evidence, assume recent
 };
 
 /**
@@ -137,11 +224,16 @@ export function mapScrapedDog(
   let date_source: string;
 
   if (dog.intake_date) {
-    // Shelter-provided date from the listing page — validate before using
-    const parsedIntake = new Date(dog.intake_date);
+    // Shelter-provided date from the listing page — validate before using.
+    // Use parseShelterDateToUTC (not raw new Date()) so bare "YYYY-MM-DD"
+    // strings are interpreted as noon in the shelter's timezone rather than
+    // UTC midnight, which would place the dog on the wrong calendar day.
+    // Use "high" not "verified" — scraped dates may be listing creation dates,
+    // not actual intake dates. Only the verification engine grants "verified".
+    const parsedIntake = parseShelterDateToUTC(dog.intake_date, dog.shelter_timezone);
     if (!isNaN(parsedIntake.getTime())) {
       intake_date = parsedIntake.toISOString();
-      date_confidence = "verified";
+      date_confidence = "high";
       date_source = `scraper_${platform}_listing_date`;
     } else {
       // Invalid date string — fall through to description parsing or default
@@ -183,16 +275,15 @@ export function mapScrapedDog(
   let is_on_euthanasia_list = dog.is_on_euthanasia_list ?? false;
 
   // Priority 1: Explicit euthanasia_date from scraper adapter
-  // Grace window: accept dates up to 24h in the past (dog may still be alive)
+  // Only accept future dates — past dates mean the dog is either already gone
+  // or was saved; we can't safely show a countdown for a past date.
   if (dog.euthanasia_date) {
     const euthDate = new Date(dog.euthanasia_date);
-    const graceMs = 24 * 60 * 60 * 1000; // 24 hours
-    if (!isNaN(euthDate.getTime()) && euthDate.getTime() > Date.now() - graceMs) {
+    if (!isNaN(euthDate.getTime()) && euthDate.getTime() > Date.now()) {
       euthanasia_date = euthDate.toISOString();
       is_on_euthanasia_list = true;
       const hoursLeft = (euthDate.getTime() - Date.now()) / (1000 * 60 * 60);
-      if (hoursLeft <= 0) urgency_level = "critical"; // past deadline = most urgent
-      else if (hoursLeft < 24) urgency_level = "critical";
+      if (hoursLeft < 24) urgency_level = "critical";
       else if (hoursLeft < 72) urgency_level = "high";
       else if (hoursLeft < 168) urgency_level = "medium";
     }
@@ -201,14 +292,12 @@ export function mapScrapedDog(
   // Priority 2: Parse urgency from description text
   if (!euthanasia_date && dog.description) {
     const urgency = parseUrgencyFromDescription(dog.description);
-    const graceMs = 24 * 60 * 60 * 1000;
-    if (urgency && urgency.date && urgency.confidence === "high" && urgency.date.getTime() > Date.now() - graceMs) {
+    if (urgency && urgency.date && urgency.confidence === "high" && urgency.date.getTime() > Date.now()) {
       euthanasia_date = urgency.date.toISOString();
       is_on_euthanasia_list = true;
       const hoursLeft =
         (urgency.date.getTime() - Date.now()) / (1000 * 60 * 60);
-      if (hoursLeft <= 0) urgency_level = "critical";
-      else if (hoursLeft < 24) urgency_level = "critical";
+      if (hoursLeft < 24) urgency_level = "critical";
       else if (hoursLeft < 72) urgency_level = "high";
       else if (hoursLeft < 168) urgency_level = "medium";
     }

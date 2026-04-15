@@ -28,7 +28,6 @@ interface DogForContent {
   name: string;
   breed: string;
   age_text: string;
-  sex: string;
   size: string;
   photo_url: string | null;
   photos: string[];
@@ -44,6 +43,7 @@ interface DogForContent {
   good_with_dogs: boolean | null;
   good_with_cats: boolean | null;
   external_url: string | null;
+  shelter_id: string | null;
 }
 
 interface GeneratedContent {
@@ -68,7 +68,7 @@ export async function selectDog(
   let query = supabase
     .from("dogs")
     .select(
-      "id, name, breed, age_text, sex, size, photo_url, photos, shelter_name, shelter_city, shelter_state, intake_date, urgency_level, euthanasia_date, description, good_with_kids, good_with_dogs, good_with_cats, external_url, shelter_id"
+      "id, name, breed_primary, age_category, gender, size, primary_photo_url, photo_urls, intake_date, urgency_level, euthanasia_date, description, good_with_kids, good_with_dogs, good_with_cats, external_url, shelter_id, shelters!dogs_shelter_id_fkey(name, city, state_code)"
     )
     .eq("is_available", true);
 
@@ -108,7 +108,7 @@ export async function selectDog(
 
     default:
       query = query
-        .not("photo_url", "is", null)
+        .not("primary_photo_url", "is", null)
         .order("intake_date", { ascending: true })
         .limit(30);
   }
@@ -124,15 +124,32 @@ export async function selectDog(
 
   const { data: recentPosts } = await supabase
     .from("social_posts")
-    .select("dog_id")
+    .select("dog_id, created_at")
     .in("dog_id", dogIds)
-    .gte("created_at", thirtyDaysAgo);
+    .gte("created_at", thirtyDaysAgo)
+    .order("created_at", { ascending: false });
 
-  const recentlyPostedIds = new Set(
-    (recentPosts || []).map((p) => p.dog_id)
-  );
-  const unpostedDogs = dogs.filter((d) => !recentlyPostedIds.has(d.id));
-  const selected = unpostedDogs.length > 0 ? unpostedDogs[0] : dogs[0];
+  // Build map: dog_id -> most-recent post timestamp
+  const lastPostedAt = new Map<string, string>();
+  for (const post of recentPosts || []) {
+    if (post.dog_id && !lastPostedAt.has(post.dog_id)) {
+      lastPostedAt.set(post.dog_id, post.created_at);
+    }
+  }
+
+  const unpostedDogs = dogs.filter((d) => !lastPostedAt.has(d.id));
+  let selected;
+  if (unpostedDogs.length > 0) {
+    // Prefer unposted dogs — pick the top-ranked one
+    selected = unpostedDogs[0];
+  } else {
+    // All dogs in pool were posted in last 30d — pick the one posted longest ago
+    selected = [...dogs].sort((a, b) => {
+      const aTime = lastPostedAt.get(a.id) || "";
+      const bTime = lastPostedAt.get(b.id) || "";
+      return aTime.localeCompare(bTime); // oldest first
+    })[0];
+  }
 
   const waitDays = selected.intake_date
     ? Math.floor(
@@ -141,11 +158,31 @@ export async function selectDog(
       )
     : 0;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const shelter = selected.shelters as any;
+
   return {
-    ...selected,
-    photos: selected.photos || [],
+    id: selected.id,
+    name: selected.name,
+    breed: selected.breed_primary || "Mixed Breed",
+    age_text: selected.age_category || "Unknown age",
+    size: selected.size || "Unknown",
+    photo_url: selected.primary_photo_url || null,
+    photos: selected.photo_urls || [],
+    shelter_name: shelter?.name || "Unknown Shelter",
+    shelter_city: shelter?.city || "Unknown",
+    shelter_state: shelter?.state_code || "US",
+    intake_date: selected.intake_date,
     wait_days: waitDays,
-  } as DogForContent;
+    urgency_level: selected.urgency_level,
+    euthanasia_date: selected.euthanasia_date,
+    description: selected.description,
+    good_with_kids: selected.good_with_kids,
+    good_with_dogs: selected.good_with_dogs,
+    good_with_cats: selected.good_with_cats,
+    external_url: selected.external_url,
+    shelter_id: selected.shelter_id,
+  };
 }
 
 /**

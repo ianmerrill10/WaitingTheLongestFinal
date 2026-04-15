@@ -95,8 +95,19 @@ export async function POST(request: Request) {
   let created = 0;
   const insertErrors: Array<{ row: number; name: string; error: string }> = [];
 
+  const importTimestamp = new Date().toISOString();
   for (let i = 0; i < parseResult.dogs.length; i++) {
     const dog = parseResult.dogs[i];
+    // Every imported dog gets a source_link documenting the CSV provenance
+    const sourceLinks = [
+      {
+        url: dog.external_url || "",
+        source: "csv_import",
+        checked_at: importTimestamp,
+        status_code: 200,
+        description: `CSV import via partner API key (row ${i + 2})${dog.intake_date ? " with intake_date" : ""}`,
+      },
+    ];
     const { error } = await supabase.from("dogs").insert({
       name: dog.name,
       shelter_id: auth.shelter_id,
@@ -125,6 +136,11 @@ export async function POST(request: Request) {
       external_source: "csv_import",
       date_confidence: dog.intake_date ? "verified" : "low",
       date_source: "csv_import",
+      source_extraction_method: "partner_csv_import",
+      original_intake_date: dog.intake_date || importTimestamp,
+      ranking_eligible: !!dog.intake_date,
+      intake_date_observation_count: 1,
+      source_links: sourceLinks,
     });
 
     if (error) {

@@ -31,6 +31,14 @@ export interface ScrapedDog {
   special_needs_description?: string;
   adoption_fee?: number;
   tags?: string[];
+  /**
+   * IANA timezone of the shelter (e.g. "America/Los_Angeles").
+   * When present, bare date strings like "2024-03-15" are parsed as noon local
+   * time in this timezone instead of UTC midnight, eliminating off-by-one-day
+   * errors for all US shelters.
+   * When absent, the mapper defaults to "America/New_York" (Eastern).
+   */
+  shelter_timezone?: string;
 }
 
 export interface ScrapeResult {

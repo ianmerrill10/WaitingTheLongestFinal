@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/signed-session';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,13 +13,14 @@ export async function POST(request: NextRequest) {
         console.error('[Login] SITE_PASSWORD not configured in production');
         return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 });
       }
-      // In dev, allow access without password
+      // In dev, allow access without password — issue a signed token if possible
+      const token = (await createSessionToken()) || 'authenticated';
       const response = NextResponse.json({ ok: true });
-      response.cookies.set('site_auth', 'authenticated', {
+      response.cookies.set(SESSION_COOKIE_NAME, token, {
         httpOnly: true,
         secure: false,
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge: SESSION_MAX_AGE_SECONDS,
         path: '/',
       });
       return response;
@@ -36,12 +38,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 
+    const token = await createSessionToken();
+    if (!token) {
+      console.error('[Login] Failed to create session token');
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 });
+    }
+
     const response = NextResponse.json({ ok: true });
-    response.cookies.set('site_auth', 'authenticated', {
+    response.cookies.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: SESSION_MAX_AGE_SECONDS,
       path: '/',
     });
     return response;

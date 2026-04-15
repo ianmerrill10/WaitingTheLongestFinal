@@ -5,6 +5,8 @@ import { rateLimit } from "@/lib/utils/rate-limit";
 
 import { getDogs } from "@/lib/dog-queries";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
   const forwarded = request.headers.get("x-forwarded-for");

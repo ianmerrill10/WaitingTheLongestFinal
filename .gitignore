@@ -36,8 +36,14 @@ next-env.d.ts
 # exports and data artifacts
 /exports/
 /backups/
+/logs/
 agent.log
 INVESTMENT_REPORT.md
+AI_REPLACEMENT_REPORT.md
+
+# env backups
+.env.backup
+.env.*.backup
 
 # supabase local
 .supabase/
