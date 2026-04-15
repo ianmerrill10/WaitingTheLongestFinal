@@ -80,6 +80,25 @@ export type ScrapeStatus =
   | "no_dogs_page"
   | "skipped";
 
+/**
+ * Verification status of a shelter — mirrors shelters.verification_status in DB.
+ * Determines the confidence_tier assigned to all child dogs via DB trigger.
+ */
+export type ShelterVerificationStatus =
+  | "unverified"
+  | "pending_review"
+  | "verified_nonprofit"
+  | "verified_government"
+  | "rejected";
+
+/**
+ * Confidence tier assigned to a dog based on its parent shelter's verification.
+ * Set automatically by the assign_dog_confidence_tier() DB trigger — scrapers
+ * do not need to set this; it will be overwritten on INSERT anyway.
+ * Exposed here for type-safe reads/filters in application code.
+ */
+export type DogConfidenceTier = "high" | "standard" | "low" | "hidden";
+
 export type WebsitePlatform =
   | "shelterluv"
   | "rescuegroups"
@@ -100,6 +119,8 @@ export interface ShelterScrapeRecord {
   name: string;
   state_code: string;
   city: string;
+  verification_status?: ShelterVerificationStatus;
+  domain_verified?: boolean;
   website: string | null;
   website_platform: WebsitePlatform;
   adoptable_page_url: string | null;
